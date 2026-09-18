@@ -16,7 +16,7 @@
 
   /* Spielstand ebenfalls streng pruefen: kaputte oder von Hand
      veraenderte Daten duerfen das Spiel nicht aus dem Tritt bringen. */
-  var save = { unlocked: 1, best: [] };
+  var save = { unlocked: 1, best: [], completed: false };
   (function () {
     var raw = null;
     try { raw = localStorage.getItem('balci_save'); } catch (e) { return; }
@@ -27,6 +27,7 @@
 
     var n = Math.floor(Number(s.unlocked));
     save.unlocked = isFinite(n) ? Math.max(1, Math.min(7, n)) : 1;
+    save.completed = (s.completed === true);
 
     if (Array.isArray(s.best)) {
       for (var i = 0; i < s.best.length && i < 8; i++) {
@@ -257,6 +258,7 @@
     G.after(85, function () {
       startDialog(LV.esat.end, function () {
         save.unlocked = LV.list.length;
+        save.completed = true;      // schaltet die Levelauswahl frei
         persist();
         fadeTo(function () { startNameEntry(); });
       });
@@ -327,16 +329,38 @@
     global.Input.endFrame();
   }
 
+  /** Das Menue haengt vom Fortschritt ab, darum wird es gebaut statt
+      fest verdrahtet. Levelauswahl gibt es erst nach dem Durchspielen. */
+  function menuItems() {
+    var items = [{ k: 'play', label: 'NEUES SPIEL' }];
+    if (save.unlocked > 1) {
+      items.push({ k: 'continue', label: 'WEITER AB LEVEL ' + save.unlocked });
+    }
+    // Levelauswahl ist immer da. Freigeschaltet wird Level fuer Level,
+    // damit man nach einem Absturz nicht wieder von vorne anfangen muss.
+    items.push({ k: 'select', label: 'LEVEL WÄHLEN' });
+    items.push({ k: 'scores', label: 'BESTENLISTE' });
+    items.push({ k: 'howto', label: 'STEUERUNG' });
+    items.push({ k: 'sound', label: S.isMuted() ? 'TON: AUS' : 'TON: AN' });
+    return items;
+  }
+
   function updateTitle() {
-    var n = 5;
+    var items = menuItems();
+    var n = items.length;
+    if (G.menuIdx >= n) G.menuIdx = 0;
     if (global.Input.hit('down')) { G.menuIdx = (G.menuIdx + 1) % n; S.play('move'); }
     if (global.Input.hit('up')) { G.menuIdx = (G.menuIdx + n - 1) % n; S.play('move'); }
+
     if (global.Input.hit('jump') || global.Input.hit('confirm')) {
-      S.resume(); S.play('select');
-      if (G.menuIdx === 0) startGame(0);
-      else if (G.menuIdx === 1) { G.state = 'select'; G.selIdx = 0; }
-      else if (G.menuIdx === 2) { G.scoreList = loadScores(); G.state = 'scores'; }
-      else if (G.menuIdx === 3) G.state = 'howto';
+      S.resume();
+      var it = items[G.menuIdx];
+      S.play('select');
+      if (it.k === 'play') startGame(0);
+      else if (it.k === 'continue') startGame(Math.min(LV.list.length - 1, save.unlocked - 1));
+      else if (it.k === 'select') { G.state = 'select'; G.selIdx = 0; }
+      else if (it.k === 'scores') { G.scoreList = loadScores(); G.scoreCat = 0; G.state = 'scores'; }
+      else if (it.k === 'howto') G.state = 'howto';
       else S.toggleMute();
     }
     if (G.tick % 6 === 0) S.resume();
@@ -1213,8 +1237,10 @@
       var sway = Math.sin(G.mirkan.t * 0.07) * 4;
       var mx = mp.cx() - camX - 88 + sway - mw / 2;
       var my = mp.feet() - camY - P.get('mercedes').h + 1;
+      // Kopf zuerst, Auto drueber — er schaut aus dem Fenster
+      P.draw(ctx, 'mirkan_head', mx + 13, my - 7, mp.facing < 0);
       P.draw(ctx, 'mercedes', mx, my, mp.facing < 0);
-      F.draw(ctx, 'MIRKAN', mx + mw / 2, my - 12,
+      F.draw(ctx, 'MIRKAN', mx + mw / 2, my - 16,
              { color: '#b8c0d4', align: 'center', shadow: true });
       if (G.tick % 5 === 0) {
         G.particles.spawn({
@@ -1340,6 +1366,11 @@
       ctx.scale(b.facing < 0 ? -sc : sc, sc);
       if (b.flash > 0 && (G.tick >> 1) % 2 === 0) P.drawWhite(ctx, sn, 0, 0, false);
       else P.draw(ctx, sn, 0, 0, false);
+      // Mirkan sitzt sichtbar am Steuer: Kopf schaut oben aus dem Wagen
+      if (b.t === 'mirkan') {
+        var bump = (b.state === 'charge') ? 1 : 0;
+        P.draw(ctx, 'mirkan_head', 9, -6 + bump, false);
+      }
       ctx.restore();
 
       if (!b.dead && b.state === 'chargeprep' && (G.tick >> 2) % 2 === 0) {
@@ -1555,9 +1586,8 @@
     } else if (who === 'lennart') {
       ctx.scale(2, 2); P.draw(ctx, talking ? 'lennart2' : 'lennart', -3, 0);
     } else if (who === 'mirkan') {
-      // Mirkan hat kein Portraet. Er hat ein Fragezeichen.
       ctx.scale(2, 2);
-      P.draw(ctx, 'frage', 3, 1 + (talking ? 1 : 0));
+      P.draw(ctx, 'mirkan_head', 0, 1 + (talking ? 1 : 0));
     } else {
       ctx.scale(2, 2);
       P.draw(ctx, talking ? 'y_head_laugh' : 'y_head', 0, 0);
@@ -1642,23 +1672,32 @@
       color: '#ffe9a8', align: 'center', scale: 2, shadow: true
     });
 
-    var items = ['SPIELEN', 'LEVEL WÄHLEN', 'BESTENLISTE', 'STEUERUNG',
-                 S.isMuted() ? 'TON: AUS' : 'TON: AN'];
+    var items = menuItems();
+    var top0 = 160 - (items.length - 5) * 7;
     for (i = 0; i < items.length; i++) {
+      var it = items[i];
       var sel = (i === G.menuIdx);
-      var y = 166 + i * 15;
+      var y = top0 + i * 15;
       if (sel) {
-        F.draw(ctx, '|', W / 2 - F.measure(items[i], 1, 1) / 2 - 14, y,
+        F.draw(ctx, '|', W / 2 - F.measure(it.label, 1, 1) / 2 - 14, y,
                { color: '#ffd257' });
       }
-      F.draw(ctx, items[i], W / 2, y, {
+      F.draw(ctx, it.label, W / 2, y, {
         color: sel ? '#ffffff' : '#a094b8', align: 'center', shadow: true
       });
     }
 
-    // dunkler Streifen, damit die Zeile auf dem Boden lesbar bleibt
+    // Bestenliste ist immer sichtbar — unten rechts, wie besprochen
+    var best = loadScores();
     ctx.fillStyle = 'rgba(10,6,16,0.72)';
     ctx.fillRect(0, H - 17, W, 17);
+    if (best.length) {
+      ctx.fillStyle = 'rgba(10,6,16,0.8)';
+      ctx.fillRect(W - 152, H - 44, 152, 27);
+      F.draw(ctx, 'BESTENLISTE', W - 8, H - 40, { color: '#8f86a8', align: 'right' });
+      F.draw(ctx, best[0].n + '   ' + best[0].s, W - 8, H - 29,
+             { color: '#ffd257', align: 'right' });
+    }
     F.draw(ctx, 'EIN SPIEL ÜBER HONIG, SCHLAF UND BRÜDERLICHE GEWALT',
            W / 2, H - 12, { color: '#c0b4d4', align: 'center' });
   }

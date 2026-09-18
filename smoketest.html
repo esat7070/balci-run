@@ -179,6 +179,53 @@ function run() {
     try { if (backup === null) localStorage.removeItem(KEY); else put(backup); } catch (e) {}
   })();
 
+  // ---- 3c. Bauch-Stampfer auf jeden Boss (Absturz-Regression) ----
+  // Der Stampfer rief boss.hit() mit einem anderen Parameter-Aufbau auf
+  // als die Bosse erwarten. Auf Mirkan, Lennart, Erfan und Esat ist das
+  // Spiel dabei abgestuerzt.
+  (function () {
+    var bossLevels = [
+      { idx: 1, name: 'Mirkan' }, { idx: 2, name: 'Lennart' },
+      { idx: 3, name: 'Erfan' }, { idx: 4, name: 'Huseyin' },
+      { idx: 6, name: 'Esat' }
+    ];
+    bossLevels.forEach(function (bl) {
+      var err = null, hpBefore = null, hpAfter = null;
+      try {
+        G._loadLevel(bl.idx, false);
+        G.state = 'play'; G.frozen = false; G.banner = 0;
+        var p = G.player;
+        p.lives = 99;
+        p.x = G.arena.x + 70;
+        p.y = G.lvl.boss.y * 16 - 26;
+        // Boss aufwachen lassen
+        for (var i = 0; i < 6; i++) G._update();
+        if (G.state === 'dialog') { G.dialog = null; G.frozen = false; G.state = 'play'; }
+        var b = G.boss;
+        if (!b) { err = 'kein Boss erschienen'; }
+        else {
+          b.invuln = 0;
+          hpBefore = b.hp;
+          // So passiert es wirklich: Yusuf faellt stampfend in den Boss
+          p.x = b.cx() - p.w / 2;
+          p.y = b.y + 4;
+          p.vy = 12; p.pound = -1; p.grounded = false; p.invuln = 0;
+          G._update();
+          hpAfter = b.hp;
+          // und danach noch die Bodenwelle beim Aufkommen
+          p.pound = -1;
+          G.player.poundImpact(G);
+          for (var j = 0; j < 20; j++) G._update();
+        }
+      } catch (e) { err = e.message; }
+      ok(!err, 'Bauch-Stampfer auf ' + bl.name + ' stuerzt nicht ab', err || '');
+      if (!err && hpBefore !== null) {
+        ok(hpAfter < hpBefore, 'Bauch-Stampfer trifft ' + bl.name,
+           hpBefore + ' -> ' + hpAfter);
+      }
+    });
+  })();
+
   // ---- 4. Bot spielt jedes Level ----
   // Der Bot laeuft nach rechts und springt, wenn eine Wand oder eine
   // Luecke vor ihm ist. Doppelsprung, wenn er im Fallen keinen Boden sieht.

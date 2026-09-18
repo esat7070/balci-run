@@ -1084,7 +1084,27 @@
     ..kkkk....
   `, { k: '#1b2436', y: '#b8c0d4' });
 
-  /* MIRKAN faehrt Mercedes. Und fragt dabei sehr viel. */
+  /* MIRKAN. Haar nach oben, Fade an den Seiten, Vollbart. */
+  P.def('mirkan_head', `
+    ....kkkkkk....
+    ..kkhhhhhhkk..
+    .khhhhhhhhhhk.
+    khhHhhhhhhHhhk
+    kkhssssssssHhk
+    .khssssssssshk
+    .khsgwsswgsdk.
+    .khsssdssssdk.
+    .khjjjjjjjjdk.
+    .khjkmmmmkjdk.
+    .kdjjjjjjjjdk.
+    ..kdjjjjjjdk..
+    ...kddddddk...
+  `, {
+    k: '#12101a', h: '#1e1712', H: '#382a20', j: '#241c15',
+    s: '#e8ac7e', d: '#c2865c', w: '#ffffff', g: '#3a2a1a', m: '#7d2724'
+  });
+
+  /* Sein weisser Mercedes. */
   P.def('mercedes', `
     .........kkkkkkkkkkkkkkk........
     ........kkwwwwwwwwwwwwwkk.......
@@ -1102,7 +1122,7 @@
     ...kttttttk...........kttttttk..
     ....kkkkkk.............kkkkkk...
   `, {
-    k: '#12141c', s: '#9aa2b4', S: '#5f6678', w: '#7fb4d8',
+    k: '#12141c', s: '#eceef2', S: '#b2b8c2', w: '#5d7a92',
     l: '#fff0a8', t: '#241f28', T: '#c8cede'
   });
 

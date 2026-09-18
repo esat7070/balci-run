@@ -82,9 +82,22 @@ Während aller Gespräche steht die Welt still: Gegner, Würfe und Bosse
 bewegen sich nicht, der Hintergrund wird abgedunkelt und rechts oben im
 Textfeld steht **PAUSE**. Man kann also nicht sterben, während jemand redet.
 
+## Fortschritt
+
+Nach **jedem** geschafften Level wird gespeichert. Im Hauptmenü kommst du
+über **WEITER AB LEVEL X** direkt dorthin zurück, oder über **LEVEL WÄHLEN**
+zu jedem Level, das du schon einmal geschafft hast. Du fängst also nie
+wieder von vorne an.
+
+Gespeichert wird im **localStorage** des Browsers, nicht in Cookies. Das
+heißt: pro Gerät und pro Browser getrennt, wird beim Löschen der
+Browserdaten mit entfernt, und im privaten Modus meist gar nicht behalten.
+
 ## Bestenliste
 
-Wer den letzten Kampf schafft, trägt sich mit Namen ein. Die Liste lässt sich
+Sie ist von Anfang an im Hauptmenü erreichbar, und der beste Lauf steht
+unten rechts auf dem Titelbild. Wer den letzten Kampf schafft, trägt sich
+mit Namen ein. Die Liste lässt sich
 nach **Punkten, Honig, Zeit oder Toden** sortieren und steht im Hauptmenü unter
 **BESTENLISTE**.
 
@@ -121,6 +134,7 @@ index.html          Einstieg
 style.css           Rahmen + Touch-Buttons + Querformat-Hinweis
 smoketest.html      Automatischer Testlauf (siehe unten)
 bosstest.html       Bot spielt den Bosskampf bis zur Bestenliste durch
+kippentest.html     Prueft das Kippen-Power-up Schritt fuer Schritt
 src/font.js         Pixel-Font
 src/pixel.js        Sprite-Engine + Yusuf & Huseyin
 src/sprites.js      Gegner, Items, Blöcke, Tiles

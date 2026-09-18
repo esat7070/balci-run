@@ -595,7 +595,10 @@
     if (g.boss && !g.boss.dead) {
       var bd = Math.abs(g.boss.x + g.boss.w / 2 - this.cx());
       var bdy = Math.abs(g.boss.y + g.boss.h - this.feet());
-      if (bd < 56 && bdy < 34) g.boss.hit(g, 1, true);
+      // WICHTIG: alle Boss-Klassen erwarten hier den Spieler als dritten
+      // Wert. Frueher stand hier ein "true" — das hat beim Bauch-Stampfer
+      // auf Mirkan, Lennart, Erfan und Esat das Spiel abstuerzen lassen.
+      if (bd < 56 && bdy < 34) g.boss.hit(g, 1, this);
     }
     for (var s = 0; s < 14; s++) {
       g.particles.spawn({
@@ -1135,7 +1138,7 @@
         return;
       }
       if (g.boss && !g.boss.dead && overlap(this, g.boss)) {
-        g.boss.hit(g, 1, false, null);
+        g.boss.hit(g, 1, null);
         this.pop(g, '#ffb43c');
       }
     } else if (!g.player.dead && overlap(this, g.player)) {
@@ -1302,8 +1305,7 @@
     this.open = (this.state !== 'dash');
     if (!p.dead && this.invuln <= 0 && overlap(this, p)) {
       var stomp = p.vy > 0.5 && (p.feet() - this.y) < 32;
-      if (stomp || p.power > 0) this.hit(g, 1, false, p);
-      else if (p.pound === -1) this.hit(g, 1, true, p);
+      if (stomp || p.power > 0 || p.pound === -1) this.hit(g, 1, p);
       else if (!this.open) p.hurt(g, 1, this.cx());
     }
   };
@@ -1337,7 +1339,8 @@
     if (dist > 150 && this.state === 'throw') { this.state = 'walk'; this.timer = 52; }
   };
 
-  Boss.prototype.hit = function (g, dmg, isPound, p) {
+  /** Einheitliche Signatur fuer ALLE Bosse: (spiel, schaden, spieler). */
+  Boss.prototype.hit = function (g, dmg, p) {
     if (this.invuln > 0 || this.dead) return;
     this.hp -= dmg;
     this.invuln = 54;
@@ -1376,7 +1379,7 @@
 
   var MINIBOSS = {
     mirkan: {
-      w: 40, h: 15, hp: 5, name: 'MIRKAN', col: '#b8c0d4',
+      w: 32, h: 15, hp: 5, name: 'MIRKAN', col: '#b8c0d4',
       spr: ['mercedes', 'mercedes'], scale: 1, stompY: 12, score: 1200
     },
     lennart: {

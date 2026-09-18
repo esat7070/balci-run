@@ -124,8 +124,24 @@
     return c;
   }
 
+  /* Typografische Zeichen, die beim Schreiben leicht hineinrutschen,
+     auf vorhandene Glyphen abbilden — sonst erscheint ein "?" im Spiel. */
+  var ALIAS = {
+    '—': '-', '–': '-', '−': '-',   // — – −
+    '’': "'", '‘': "'",                   // ’ ‘
+    '“': '"', '”': '"', '„': '"',   // “ ” „
+    '…': '...', ' ': ' ', '·': '.',  // … NBSP ·
+    '×': '*', '•': '.', '→': '|', '←': '~'
+  };
+
   function normalize(str) {
-    return String(str).toUpperCase();
+    var s = String(str).toUpperCase();
+    var out = '';
+    for (var i = 0; i < s.length; i++) {
+      var c = s.charAt(i);
+      out += (ALIAS[c] !== undefined) ? ALIAS[c] : c;
+    }
+    return out;
   }
 
   /** Breite eines Strings in Pixeln (scale=1). */
