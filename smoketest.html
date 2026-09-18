@@ -100,6 +100,28 @@ function run() {
     var badSign = 0;
     L.signs.forEach(function (s) { if (!w.solid(s.x, s.y)) badSign++; });
     ok(badSign === 0, 'L' + (i + 1) + ' Schilder auf Boden', badSign);
+
+    // Nichts darf in einem Gefahrenfeld stehen. Eine Sprungfeder in
+    // Gabeln heisst: hochfedern und direkt wieder reinfallen.
+    function inHazard(tx, ty) {
+      for (var hi = 0; hi < L.hazards.length; hi++) {
+        var h = L.hazards[hi];
+        if (tx >= h[0] && tx < h[0] + h[2] && ty >= h[1] && ty < h[1] + h[3]) return true;
+      }
+      return false;
+    }
+    var clash = [];
+    L.blocks.forEach(function (b) {
+      if (inHazard(b.x, b.y)) clash.push(b.type + '@' + b.x + ',' + b.y);
+    });
+    L.enemies.forEach(function (e) {
+      if (inHazard(e.x, e.y) || inHazard(e.x, e.y - 1)) clash.push(e.t + '@' + e.x + ',' + e.y);
+    });
+    L.items.forEach(function (it) {
+      if (inHazard(it.x, it.y)) clash.push(it.t + '@' + it.x + ',' + it.y);
+    });
+    ok(clash.length === 0, 'L' + (i + 1) + ' nichts steht in Gefahrenfeldern',
+       clash.join(' '));
   });
 
   // ---- 3b. Bestenliste: Robustheit und Manipulationsschutz ----
@@ -222,12 +244,18 @@ function run() {
     Input.endFrame = function () {};
 
     var deaths = 0, maxX = p.x, err = null, stuckAt = 0, lastImprove = 0, tick;
+    var deathSpots = {};
     try {
       for (tick = 0; tick < 7200; tick++) {
         botThink(G.player, G.world);
         var before = G.player.lives;
+        var wasAt = Math.round(G.player.x / 16);
         G._update();
-        if (G.player.lives < before) deaths++;
+        if (G.player.lives < before) {
+          deaths++;
+          var bucket = Math.round(wasAt / 10) * 10;
+          deathSpots[bucket] = (deathSpots[bucket] || 0) + 1;
+        }
         if (G.player.x > maxX) { maxX = G.player.x; lastImprove = tick; }
         if (G.state === 'clear' || G.state === 'ending' || G.state === 'dialog') break;
       }
@@ -239,6 +267,14 @@ function run() {
     var pct = Math.round((maxX - startX) / (L.w * 16 - startX) * 100);
     results.push('L' + (idx + 1) + ': ' + pct + '% (bis Tile ' + stuckAt + ' von ' + L.w +
                  '), ' + deaths + ' Tode, Status=' + G.state);
+
+    if (deaths >= 6) {
+      var spots = Object.keys(deathSpots).map(Number).sort(function (a, b) {
+        return deathSpots[b] - deathSpots[a];
+      }).slice(0, 5);
+      results.push('   Haeufigste Todesstellen (Tile): ' +
+        spots.map(function (s) { return s + 'x' + deathSpots[s]; }).join('  '));
+    }
 
     if (pct < 45) {
       var q = G.player, w2 = G.world;

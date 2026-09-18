@@ -360,7 +360,7 @@
   var lvl4 = L({
     id: 4, name: 'DIE KÜCHE DER VERSUCHUNG', sub: 'GEFÄHRLICHSTER RAUM IM HAUS',
     theme: 'kueche', music: 'l4', w: 270, h: 18, spawn: [3, 15], par: 140,
-    goal: [264, 15], diff: 1.22,
+    goal: [264, 15], diff: 1.1,
     intro: [
       ['yusuf', 'DIE KÜCHE. ENDLICH HEIMSPIEL.'],
       ['huseyin', 'ICH HABE DEN KÜHLSCHRANK UMGEBAUT.'],
@@ -423,7 +423,9 @@
       .k(98, 12).k(99, 12, 'doener').k(130, 10).k(131, 10)
       .k(162, 11).k(180, 12).k(181, 12, 'honig').k(210, 12).k(228, 12);
 
-  lvl4.sp(24, 14).sp(70, 11).sp(90, 14).sp(120, 14).sp(186, 14);
+  // Sprungfedern NIE in ein Gabelfeld setzen — man federt hoch und
+  // landet direkt wieder drin. Alle stehen jetzt daneben.
+  lvl4.sp(24, 14).sp(70, 11).sp(84, 14).sp(116, 14).sp(181, 14);
 
   lvl4.trail(4, 13, 6, 2).trail(23, 13, 5, 2, 3).trail(39, 11, 4, 2, 2)
       .trail(53, 13, 5, 2, 3).trail(69, 10, 4, 2, 2).trail(83, 13, 6, 2, 3)
@@ -432,18 +434,20 @@
       .trail(197, 11, 5, 2, 2).trail(213, 13, 10, 2, 3);
 
   lvl4.it('herz', 45, 6).it('herz', 137, 5).it('herz', 225, 8)
+      .it('herz', 89, 9).it('herz', 167, 7).it('doener', 101, 12)
       .it('honig', 9, 9).it('honig', 10, 9).it('honig', 73, 7)
       .it('honig', 137, 6).it('honig', 169, 7).it('honig', 201, 8);
 
-  lvl4.row('salat', 15, [10, 25, 60, 86, 122, 186, 220, 230])
-      .row('salat', 13, [42, 104, 202])
+  // Gegner stehen ebenfalls nicht mehr in Gabeln oder Öl
+  lvl4.row('salat', 15, [10, 25, 60, 86, 125, 178, 214, 230])
+      .row('salat', 13, [39, 101, 197])
       .row('salat', 12, [72, 168])
-      .row('salat', 14, [152])
-      .row('broki', 15, [30, 90, 118, 216])
+      .row('salat', 14, [147])
+      .row('broki', 15, [30, 93, 118, 216])
       .row('broki', 11, [136])
       .row('drohne', 9, [36, 80, 112, 160, 194])
       .row('biene', 10, [54, 128, 206])
-      .row('lennart', 15, [56, 124, 190]);
+      .row('lennart', 15, [52, 124, 190]);
 
   lvl4.cp(58, 15).cp(122, 15).cp(186, 15);
 
@@ -513,7 +517,7 @@
       .k(102, 12).k(103, 12, 'doener').k(134, 10).k(135, 10)
       .k(164, 11).k(186, 12).k(187, 12, 'honig');
 
-  lvl5.sp(26, 14).sp(58, 14).sp(94, 14).sp(124, 14);
+  lvl5.sp(26, 14).sp(58, 14).sp(88, 14).sp(120, 14);
 
   lvl5.trail(4, 13, 7, 2).trail(25, 13, 5, 2, 3).trail(41, 11, 4, 2, 2)
       .trail(57, 13, 5, 2, 3).trail(73, 10, 4, 2, 2).trail(87, 13, 6, 2, 3)
@@ -526,17 +530,17 @@
       // Verpflegung in der Arena — der Kampf soll fordernd sein, nicht unfair
       .it('herz', 172, 9).it('herz', 194, 9).it('kubide', 183, 5);
 
-  lvl5.row('salat', 15, [12, 28, 62, 90, 126])
-      .row('salat', 13, [44, 106])
-      .row('broki', 15, [8, 32, 94, 122])
+  lvl5.row('salat', 15, [12, 24, 57, 90, 121])
+      .row('salat', 13, [41, 106])
+      .row('broki', 15, [8, 32, 97, 122])
       .row('broki', 12, [74, 138])
       .row('broki', 11, [140])
       .row('lennart', 15, [58, 96, 128])
-      .row('lennart', 13, [48, 110])
+      .row('lennart', 13, [48, 112])
       .row('drohne', 9, [38, 84, 116, 152])
       .row('biene', 10, [56, 100, 144])
       .row('biene', 8, [80, 148])
-      .row('wecker', 15, [26, 64, 92, 158]);
+      .row('wecker', 15, [26, 64, 88, 158]);
 
   lvl5.cp(62, 15).cp(126, 15).cp(158, 14);
 
