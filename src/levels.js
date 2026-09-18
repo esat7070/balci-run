@@ -453,9 +453,11 @@
       .row('broki', 11, [136])
       .row('drohne', 9, [36, 80, 112, 160, 194])
       .row('biene', 10, [54, 128, 206])
-      .row('lennart', 15, [52, 124, 190]);
+      .row('lennart', 15, [54, 124, 190]);
 
-  lvl4.cp(58, 15).cp(122, 15).cp(186, 15);
+  // Checkpoints liegen HINTER den Gabelfeldern — vorher lagen sie mitten
+  // drin, und man tauchte nach einem Tod direkt in den Gabeln wieder auf.
+  lvl4.cp(61, 15).cp(125, 15).cp(189, 15);
 
   lvl4.it('kubide', 45, 7).it('kubide', 121, 8).it('kubide', 202, 8);
   lvl4.q(50, 11, 'kippen').q(176, 10, 'kippen');
@@ -548,7 +550,8 @@
       .row('biene', 8, [80, 148])
       .row('wecker', 15, [26, 64, 88, 158]);
 
-  lvl5.cp(62, 15).cp(126, 15).cp(158, 14);
+  // Hinter den Dressing-Pfuetzen, nicht mitten drin (siehe Level 4)
+  lvl5.cp(65, 15).cp(129, 15).cp(158, 14);
 
   lvl5.sign(5, 15, 'SALAT IST GEMÜSE MIT ZU VIEL SELBSTBEWUSSTSEIN.')
       .sign(58, 15, 'ER HAT DAS ALLES ALLEIN GEBAUT. AN EINEM WOCHENENDE.')
@@ -733,7 +736,7 @@
     ['yusuf', 'WAS HAST DU GESAGT.'],
     ['esat', 'WAS? ICH MEIN ES NUR GUT.'],
     ['yusuf', 'ICH HAB HEUTE MEINEN BRUDER BESIEGT.'],
-    ['yusuf', 'ICH HAB EINEN KOCH AUS EINEM KÄFIG BEFREIT.'],
+    ['yusuf', 'ICH HAB EINEN KOCH IM SAFRANRAUSCH BERUHIGT.'],
     ['yusuf', 'ICH BIN MIT EINEM MUSTANG HIERHER GEFAHREN.'],
     ['yusuf', 'ZUM ERSTEN MAL SEIT DREI JAHREN.'],
     ['yusuf', 'UND DU SAGST FETTSACK.'],

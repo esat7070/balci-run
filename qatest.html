@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="de"><head><meta charset="utf-8"><title>Balci Run QA-Test</title>
+<style>body{background:#111;color:#0f0;font:13px monospace}pre{white-space:pre-wrap}#frame{position:relative}</style>
+</head>
+<body>
+<!-- Gleiche Bausteine wie index.html, damit Namensfeld & Co. mitgetestet werden -->
+<div id="frame">
+  <canvas id="screen" width="512" height="288"></canvas>
+  <div id="touch"></div>
+  <div id="nameform" hidden>
+    <form class="nf-inner" id="nfform" autocomplete="off">
+      <input id="nfname" maxlength="10">
+      <button id="nfok" type="submit">EINTRAGEN</button>
+    </form>
+  </div>
+</div>
+<pre id="R">...</pre>
+
+<script>
+window.__err = [];
+window.onerror = function (m, s, l, c, e) { window.__err.push(m + ' @' + s + ':' + l); };
+// Weltweite Liste NICHT echt ansprechen: Attrappe, die nur mitschreibt
+window.__submits = [];
+window.Online = {
+  _list: null,
+  enabled: function () { return true; },
+  refresh: function () {},
+  submit: function (e) { window.__submits.push(e); },
+  list: function () { return this._list; },
+  status: function () { return 'ok'; }
+};
+// Der echte Spielstand wird gesichert und am Ende zurueckgeschrieben —
+// sonst loescht ein versehentlich geoeffneter Test den Fortschritt.
+window.__keep = {};
+['balci_save', 'balci_scores_v2'].forEach(function (k) {
+  try { window.__keep[k] = localStorage.getItem(k); localStorage.removeItem(k); } catch (e) {}
+});
+window.__restore = function () {
+  Object.keys(window.__keep).forEach(function (k) {
+    try {
+      var v = window.__keep[k];
+      if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v);
+    } catch (e) {}
+  });
+};
+</script>
+<script src="src/font.js"></script>
+<script src="src/pixel.js"></script>
+<script src="src/sprites.js"></script>
+<script src="src/audio.js"></script>
+<script src="src/input.js"></script>
+<script src="src/levels.js"></script>
+<script src="src/entities.js"></script>
+<script src="src/game.js"></script>
+
+<script>
+var R = [], fails = 0;
+function ok(c, name, info) {
+  R.push((c ? 'OK   ' : 'FAIL ') + name + (info !== undefined ? '  [' + info + ']' : ''));
+  if (!c) fails++;
+}
+function section(t) { R.push(''); R.push('--- ' + t + ' ---'); }
+
+// Eingabe fernsteuern
+var keys = {}, hits = {}, tapQ = null;
+Input.down = function (a) { return !!keys[a]; };
+Input.hit = function (a) { return !!hits[a]; };
+Input.axis = function () { return (keys.right ? 1 : 0) - (keys.left ? 1 : 0); };
+Input.anyHit = function () { for (var k in hits) if (hits[k]) return true; return false; };
+Input.tap = function () { return tapQ; };
+Input.poll = function () {};
+Input.endFrame = function () { hits = {}; tapQ = null; };
+Input.releaseAll = function () { keys = {}; };
+
+var renders = 0;
+function tick(n) {
+  for (var i = 0; i < (n || 1); i++) {
+    G._update();
+    if ((G.tick % 7) === 0) { G._render(); renders++; }
+  }
+}
+function press(a) { hits[a] = true; tick(1); }
+function tapAt(x, y) { tapQ = { x: x, y: y }; hits.confirm = true; tick(1); }
+function until(cond, max, autoConfirm) {
+  for (var i = 0; i < (max || 3000); i++) {
+    if (cond()) return true;
+    if (autoConfirm && (G.state === 'dialog' || G.state === 'clear') && i % 3 === 0) hits.confirm = true;
+    tick(1);
+  }
+  return cond();
+}
+function save() { return G._saveCopy(); }
+function P() { return G.player; }
+function toGoal() {
+  var p = P();
+  G.bossStarted = true; G.bossCleared = true;   // Abkuerzung: Boss gilt als erledigt
+  p.x = G.lvl.goal[0] * 16 + 12 - p.w / 2; p.y = G.lvl.goal[1] * 16 - p.h - 2; p.vy = 0;
+}
+function killBoss() {
+  var b = G.boss;
+  b.state = 'idle'; b.invuln = 0; b.hp = 1;
+  b.hit(G, 1, P());
+}
+function triggerBoss() {
+  var p = P();
+  p.x = G.arena.x + 80; p.y = G.lvl.boss.y * 16 - p.h - 2; p.vy = 0;
+  return until(function () { return !!G.boss && G.state === 'play'; }, 600, true);
+}
+
+setTimeout(function () {
+  try {
+    ok(window.__err.length === 0, 'Laedt ohne Fehler', window.__err.join(' | '));
+
+    /* ============ A. Bestenliste vom Server wird geprueft ============ */
+    section('A. Serverdaten werden bereinigt');
+    Online._list = [
+      { n: '<img src=x onerror=alert(1)>', s: '999999999', h: -5, t: 'abc', d: null },
+      'muell', null, 42,
+      { n: 'ESAT', s: 5000, h: 10, t: 900, d: 3 }
+    ];
+    var b = G._board();
+    ok(b.global === true, 'Weltweite Liste wird benutzt');
+    ok(b.list.length === 2, 'Kaputte Zeilen fliegen raus', b.list.length);
+    ok(/^[A-ZÄÖÜ0-9 .\-]{1,10}$/.test(b.list[0].n), 'Name nur aus Pixelschrift-Zeichen', b.list[0].n);
+    ok(b.list[0].s === 9999999 && b.list[0].h === 0 && b.list[0].t === 0 && b.list[0].d === 0,
+       'Zahlen werden begrenzt', JSON.stringify(b.list[0]));
+    G.state = 'title'; G._render(); G.state = 'scores'; G._render();
+    ok(window.__err.length === 0, 'Titel + Bestenliste zeichnen mit Serverdaten', window.__err.join(' | '));
+    Online._list = [];
+
+    /* ============ B. Menues antippen ============ */
+    section('B. Menues antippen');
+    G.state = 'title'; G.menuIdx = 0;
+    var W0 = document.getElementById('screen').width;
+    tapAt(W0 / 2 + 230, 20);
+    ok(G.state === 'title', 'Tippen neben das Menue startet nichts', G.state);
+    tapAt(W0 / 2, 160 + 3 * 15 + 2);
+    ok(G.state === 'howto', 'STEUERUNG antippen', G.state);
+    press('confirm');
+    ok(G.state === 'title', 'zurueck zum Titel', G.state);
+    tapAt(W0 / 2, 160 + 2 * 15 + 2);
+    ok(G.state === 'scores', 'BESTENLISTE antippen', G.state);
+    tapAt(125, 46);
+    ok(G.scoreCat === 1, 'Kategorie HONIG antippen', G.scoreCat);
+    tapAt(W0 / 2, 200);
+    ok(G.state === 'title', 'Sonst tippen = zurueck', G.state);
+
+    /* ============ C. Ganzer Durchgang ============ */
+    section('C. Durchgang: speichern, fortsetzen, Bestenliste');
+    G.state = 'title'; G.menuIdx = 0;
+    press('confirm');
+    ok(until(function () { return G.state === 'play' && G.lvlIndex === 0; }, 400, true), 'NEUES SPIEL startet Level 1');
+    P().score += 1000; P().honey += 7;
+    toGoal();
+    ok(until(function () { return G.state === 'clear'; }, 800, false) ||
+       until(function () { return G.state === 'clear'; }, 800, true), 'Level 1 geschafft');
+    var s1 = save();
+    ok(s1.run && s1.run.from === 0 && s1.run.next === 1 && s1.run.s >= 1000 && s1.run.h >= 7,
+       'Durchgang nach Level 1 gespeichert', JSON.stringify(s1.run));
+
+    for (var L = 1; L <= 2; L++) {
+      ok(until(function () { return G.state === 'play' && G.lvlIndex === L; }, 600, true), 'Level ' + (L + 1) + ' laeuft');
+      toGoal();
+      ok(until(function () { return G.state === 'clear'; }, 1200, true), 'Level ' + (L + 1) + ' geschafft');
+    }
+    var s3 = save();
+    ok(s3.run && s3.run.next === 3, 'Stand nach Level 3', JSON.stringify(s3.run));
+    var runTimeBefore = s3.run.t, scoreBefore = s3.run.s;
+
+    // "Absturz": zurueck ins Hauptmenue, dann WEITER
+    G.state = 'title'; G.menuIdx = 1; G.fade = 0; G.fadeDir = 0;
+    press('confirm');
+    ok(until(function () { return G.state === 'play'; }, 400, true), 'WEITER startet');
+    ok(G.lvlIndex === 3, 'WEITER landet in Level 4', G.lvlIndex + 1);
+    ok(P().score === scoreBefore && P().honey >= 7, 'WEITER holt Punkte und Honig zurueck',
+       P().score + ' / ' + P().honey);
+
+    // Zwischendurch ein altes Level nochmal spielen (Levelauswahl)
+    G.state = 'select'; G.selIdx = 1; G.fade = 0; G.fadeDir = 0;
+    press('confirm');
+    ok(until(function () { return G.state === 'play' && G.lvlIndex === 1; }, 400, true), 'Levelauswahl: Level 2 nochmal');
+    toGoal();
+    until(function () { return G.state === 'clear'; }, 1200, true);
+    var sr = save();
+    ok(sr.run && sr.run.from === 0 && sr.run.next === 3,
+       'Nochmal-Spielen ueberschreibt den gespeicherten Durchgang NICHT', JSON.stringify(sr.run));
+
+    var items = [];
+    G.state = 'title';
+    // Menuebeschriftung muss zum echten Ziel passen
+    G._render();
+    G.menuIdx = 1; G.fade = 0; G.fadeDir = 0;
+    press('confirm');
+    ok(until(function () { return G.state === 'play'; }, 400, true) && G.lvlIndex === 3,
+       'WEITER geht danach immer noch in Level 4', G.lvlIndex + 1);
+
+    toGoal();
+    ok(until(function () { return G.state === 'clear'; }, 1200, true), 'Level 4 geschafft');
+    ok(until(function () { return G.state === 'play' && G.lvlIndex === 4; }, 600, true), 'Level 5 laeuft');
+    ok(triggerBoss(), 'Huseyin erscheint');
+    killBoss();
+    ok(until(function () { return G.state === 'play' && G.lvlIndex === 5; }, 1500, true), 'Nach Huseyin: Mustang-Level');
+    ok(save().run && save().run.next === 5, 'Durchgang vor Level 6 gespeichert', JSON.stringify(save().run));
+    toGoal();
+    ok(until(function () { return G.state === 'play' && G.lvlIndex === 6; }, 3000, true), 'Stilbruch, dann Level 7');
+    ok(P().w === 12, 'Nach dem Auto wieder normale Trefferbox', P().w);
+    ok(triggerBoss(), 'Esat erscheint');
+    killBoss();
+    ok(until(function () { return G.state === 'nameentry'; }, 1500, true), 'Nach Esat: Namenseingabe');
+
+    var nf = document.getElementById('nameform');
+    var ok0 = document.getElementById('nfok');
+    ok(!nf.hidden, 'Namensfeld sichtbar');
+    ok(ok0.disabled, 'EINTRAGEN ist kurz gesperrt (kein versehentliches Abschicken)');
+    for (var q = 0; q < 200; q++) { hits.confirm = true; hits.jump = true; tick(1); }
+    ok(G.state === 'nameentry' && !nf.hidden, 'Sprung/Bestaetigen druecken schickt NICHT ab', G.state);
+    document.getElementById('nfname').value = 'Test ä<b>';
+    ok0.disabled = false;
+    document.getElementById('nfform').requestSubmit();
+    ok(nf.hidden, 'Nach EINTRAGEN verschwindet das Feld');
+    ok(window.__submits.length === 1, 'Genau ein Eintrag an den Server', window.__submits.length);
+    var sub = window.__submits[0] || {};
+    ok(sub.n === 'TEST ÄB', 'Name bereinigt', sub.n);
+    ok(sub.t >= runTimeBefore && sub.t > 0, 'Zeit = ganzer Durchgang', sub.t + ' >= ' + runTimeBefore);
+    ok(G._loadScores().some(function (e) { return e.n === 'TEST ÄB'; }), 'Auch lokal gespeichert');
+    ok(save().run === null || save().run === undefined, 'Gespeicherter Durchgang ist erledigt');
+    ok(until(function () { return G.state === 'teaser'; }, 200, false), 'Weiter zum Teaser');
+
+    /* ============ D. Teil-Durchgang ============ */
+    section('D. Nur Level 7 gespielt');
+    G.state = 'select'; G.selIdx = 6; G.fade = 0; G.fadeDir = 0;
+    press('confirm');
+    ok(until(function () { return G.state === 'play' && G.lvlIndex === 6; }, 400, true), 'Level 7 ueber Levelauswahl');
+    ok(triggerBoss(), 'Esat erscheint');
+    killBoss();
+    ok(until(function () { return G.state === 'nameentry'; }, 1500, true), 'Siegerbildschirm');
+    ok(nf.hidden, 'Kein Namensfeld bei Teil-Durchgang');
+    for (q = 0; q < 60; q++) tick(1);
+    press('confirm');
+    ok(until(function () { return G.state === 'teaser'; }, 200, false), 'Bestaetigen fuehrt zum Teaser');
+    ok(window.__submits.length === 1, 'Nichts an den Server geschickt', window.__submits.length);
+
+    /* ============ E. Level 6 ============ */
+    section('E. Mustang-Level');
+    G._loadLevel(5, false); G.state = 'play'; G.frozen = false; G.banner = 0;
+    var p = P();
+    ok(p.w === 64, 'Auto-Trefferbox', p.w);
+    // Kolonne: Erfan steigt ein
+    p.x = 20 * 16 + 20; p.y = 15 * 16 - p.h - 1;
+    tick(2);
+    ok(G.state === 'dialog', 'Erfan-Dialog beim Einsteigen', G.state);
+    until(function () { return G.state === 'play'; }, 300, true);
+    ok(G.convoy.length === 1 && G.convoy[0].who === 'erfan', 'Erfan faehrt mit', G.convoy.length);
+    // Tod ohne Checkpoint: Erfan bleibt dabei, kein zweiter Dialog
+    p.lives = 50; p.kill(G);
+    ok(until(function () { return G.state === 'play' && !P().dead; }, 400, false), 'Wiederbelebt');
+    ok(G.convoy.length === 1, 'Erfan ist nach dem Tod gleich wieder dabei', G.convoy.length);
+    P().x = 20 * 16 + 20; tick(3);
+    ok(G.state === 'play', 'Kein doppelter Erfan-Dialog', G.state);
+    // Ampel bei Rot
+    var a = G.ampeln[2];
+    // Erst an Lennarts Einstieg vorbei (sein Dialog haelt das Spiel an)
+    p = P(); p.x = a.x - 200; p.y = 15 * 16 - p.h - 1; p.vy = 0;
+    tick(2); until(function () { return G.state === 'play'; }, 300, true);
+    G.tick = 250 - a.off + 3600 * 5;
+    p = P(); p.x = a.x + 8 - p.w / 2 - 3; p.y = 15 * 16 - p.h - 1; p.vy = 0; p.vx = 2;
+    var dbg = 'vorher cx=' + p.cx().toFixed(0) + ' linie=' + (a.x + 8) + ' status=' + G.state + ' frozen=' + G.frozen;
+    keys.right = true; tick(4); keys.right = false;
+    dbg += ' / nachher cx=' + P().cx().toFixed(0) + ' status=' + G.state + ' tot=' + P().dead;
+    var flashed = G.floats.list.some(function (f) { return /GEBLITZT/.test(f.text); });
+    ok(a.passed && flashed, 'Rote Ampel blitzt', a.passed + '/' + flashed + ' ' + dbg);
+    // Polizei wirft Zettel
+    G._loadLevel(5, false); G.state = 'play'; G.frozen = false;
+    p = P(); p.x = 30 * 16; p.y = 15 * 16 - p.h - 1;
+    var zettel = 0;
+    for (q = 0; q < 400; q++) {
+      tick(1);
+      G.projectiles.forEach(function (pr) { if (pr.t === 'zettel') zettel++; });
+      if (G.state === 'dialog') { G.dialog = null; G.frozen = false; G.state = 'play'; }
+    }
+    ok(zettel > 0, 'Polizei wirft Strafzettel');
+
+    /* ============ F. Boss-Sonderfaelle ============ */
+    section('F. Bosse: Verwandlung & Sonderfaelle');
+    [1, 2, 3, 4, 6].forEach(function (idx) {
+      G._loadLevel(idx, false); G.state = 'play'; G.frozen = false; G.banner = 0;
+      P().lives = 50;
+      var name = LV_NAMES[idx];
+      if (!triggerBoss()) { ok(false, name + ': Boss erscheint'); return; }
+      var bs = G.boss, half = Math.floor(bs.maxHp / 2);
+      bs.hp = half + 1; bs.invuln = 0; bs.state = 'idle';
+      bs.hit(G, 1, P());
+      ok(bs.state === 'transform' && bs.hp === half, name + ': verwandelt sich bei der Haelfte', bs.state + ' hp' + bs.hp);
+      bs.invuln = 0; bs.hit(G, 1, P());
+      ok(bs.hp === half, name + ': waehrend der Verwandlung unverwundbar', bs.hp);
+      // Stirbt Yusuf genau jetzt, geht es trotzdem ab der Halbzeit weiter
+      P().kill(G);
+      until(function () { return G.state === 'play' && !P().dead && G.boss !== bs; }, 600, true);
+      if (!G.boss) triggerBoss();   // nach dem Neustart einen Schritt in die Arena
+      var nb = G.boss;
+      ok(nb && nb.hp === half && nb.rage, name + ': nach Tod mitten in der Verwandlung ab Halbzeit',
+         nb ? ('hp' + nb.hp + ' rage=' + nb.rage) : 'kein Boss');
+      // Sprungangriffe muessen mit der Bodenwelle landen
+      var JUMPS = { 1: ['carjump', 50], 2: ['slam', 48], 3: ['pfanne', 56], 6: ['stampf', 50] };
+      if (JUMPS[idx] && nb) {
+        G.projectiles.length = 0;
+        P().x = nb.cx() - 150; P().invuln = 999;
+        nb.state = JUMPS[idx][0]; nb.timer = JUMPS[idx][1]; nb.landed = true;
+        var waves = 0;
+        for (q = 0; q < 140; q++) {
+          if (G.state === 'dialog') { G.dialog = null; G.frozen = false; G.state = 'play'; }
+          tick(1);
+          G.projectiles.forEach(function (pr) { if (pr.t === 'welle') waves++; });
+          if (waves) break;
+        }
+        ok(waves > 0, name + ': ' + JUMPS[idx][0] + ' landet mit Bodenwelle', waves);
+        P().invuln = 0;
+      }
+      // 900 Ticks wild herumspringen: nichts darf abstuerzen
+      var errBefore = window.__err.length, bad = '';
+      for (q = 0; q < 900; q++) {
+        keys.left = Math.random() < 0.3; keys.right = !keys.left && Math.random() < 0.5;
+        if (Math.random() < 0.08) hits.jump = true;
+        if (Math.random() < 0.03) keys.down = !keys.down;
+        if (G.state === 'dialog' && q % 3 === 0) hits.confirm = true;
+        tick(1);
+        if (G.boss && !isFinite(G.boss.x + G.boss.y + G.boss.hp)) bad = 'Boss-Werte kaputt';
+      }
+      keys = {};
+      ok(!bad && window.__err.length === errBefore, name + ': 900 Ticks Chaos ohne Fehler', bad);
+    });
+
+    /* ============ G. Handy-Ansicht ============ */
+    section('G. Handy-Ansicht');
+    var cv = document.getElementById('screen');
+    G.touch = true;
+    G.state = 'title'; G._render();
+    var aspect = innerWidth / innerHeight;
+    ok(cv.height === 288 && Math.abs(cv.width - Math.round(288 * aspect)) <= 1 || aspect < 1.6 || cv.width === 660 || cv.width === 512,
+       'Menue: 288 hoch, Breite passt zum Bildschirm', cv.width + 'x' + cv.height + ' @' + aspect.toFixed(2));
+    ok(document.body.classList.contains('inmenu'), 'Menue: Steuerknoepfe ausgeblendet');
+    G._loadLevel(0, false); G.state = 'play'; G.frozen = false;
+    tick(60); G._render();
+    ok(aspect < 1.6 || cv.height === 232, 'Spiel: naehere Ansicht (232 hoch)', cv.width + 'x' + cv.height);
+    ok(!document.body.classList.contains('inmenu'), 'Spiel: Steuerknoepfe sichtbar');
+    G.state = 'paused'; G._render();
+    ok(document.body.classList.contains('inmenu'), 'Pause: Steuerknoepfe weg (Pause-Knoepfe antippen)');
+    G.touch = false; G.state = 'title'; G._render();
+    ok(cv.width === 512 && cv.height === 288, 'PC: wieder 512x288', cv.width + 'x' + cv.height);
+
+    /* ============ H. Stresstest ============ */
+    section('H. Zufalls-Stresstest (alle Level)');
+    for (var li = 0; li < 7; li++) {
+      G._loadLevel(li, false); G.state = 'play'; G.frozen = false; G.banner = 0;
+      P().lives = 99;
+      var e0 = window.__err.length, worst = '', maxPr = 0, maxPa = 0;
+      try {
+        for (q = 0; q < 6000; q++) {
+          if (q % 20 === 0) {
+            keys.right = Math.random() < 0.7; keys.left = !keys.right && Math.random() < 0.5;
+            keys.down = Math.random() < 0.1; keys.throw = Math.random() < 0.2; keys.run = keys.throw;
+          }
+          if (Math.random() < 0.06) hits.jump = true;
+          if (Math.random() < 0.004) hits.pause = true;
+          if (G.state === 'paused' && Math.random() < 0.3) hits.pause = true;
+          if ((G.state === 'dialog' || G.state === 'clear') && q % 3 === 0) hits.confirm = true;
+          if (G.state === 'gameover') { P().lives = 99; hits.confirm = true; }
+          if (Math.random() < 0.01) tapQ = { x: Math.random() * 512, y: Math.random() * 288 };
+          tick(1);
+          var pl = P();
+          if (!isFinite(pl.x) || !isFinite(pl.y)) worst = 'Spielerposition kaputt';
+          maxPr = Math.max(maxPr, G.projectiles.length);
+          maxPa = Math.max(maxPa, G.particles.list.length);
+          if (G.state === 'title' || G.state === 'nameentry' || G.state === 'teaser') break;
+        }
+      } catch (ex) { worst = ex.message; }
+      keys = {};
+      ok(!worst && window.__err.length === e0 && maxPr < 400 && maxPa < 4000,
+         'L' + (li + 1) + ' Chaos ohne Fehler', (worst || 'ok') + ', max Geschosse ' + maxPr + ', max Partikel ' + maxPa + ', Status ' + G.state);
+    }
+    ok(renders > 100, 'Zwischendurch gezeichnet', renders);
+  } catch (e) {
+    ok(false, 'ABSTURZ IM TEST', e.message + '\n' + e.stack);
+  }
+  if (window.__err.length) { R.push(''); R.push('LAUFZEITFEHLER:'); window.__err.forEach(function (x) { R.push(x); }); }
+  window.__restore();
+  R.unshift(fails ? '### ' + fails + ' FEHLER ###' : '### ALLES GRUEN ###');
+  document.getElementById('R').textContent = R.join('\n');
+}, 400);
+
+var LV_NAMES = { 1: 'Mirkan', 2: 'Lennart', 3: 'Erfan', 4: 'Huseyin', 6: 'Esat' };
+</script>
+</body></html>

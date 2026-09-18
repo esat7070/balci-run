@@ -115,7 +115,8 @@
       ['touchstart', 'touchmove', 'touchend', 'touchcancel'].forEach(function (ev) {
         b.addEventListener(ev, refreshTouches, { passive: false });
       });
-      // Maus (z.B. Tablet mit Maus oder Test am PC)
+      // Maus (z.B. Tablet mit Maus oder Test am PC). Nach einem Fingertipp
+      // kommt kein Mausklick hinterher, weil touchstart preventDefault ruft.
       b.addEventListener('mousedown', function (e) { e.preventDefault(); setKey(key, true); });
       b.addEventListener('mouseup', function () { setKey(key, false); });
       b.addEventListener('mouseleave', function () { setKey(key, false); });
@@ -135,11 +136,24 @@
       setAction('confirm', true);
       setTimeout(function () { setAction('confirm', false); }, 60);
     }
-    canvas.addEventListener('touchstart', function (e) {
-      var t = e.changedTouches && e.changedTouches[0];
-      if (t) tapAt(t.clientX, t.clientY);
-    }, { passive: true });
-    canvas.addEventListener('mousedown', function (e) { tapAt(e.clientX, e.clientY); });
+    // Ein Tippen = eine Aktion. Frueher zaehlte ein Fingertipp doppelt:
+    // einmal als "touchstart" und kurz danach nochmal als nachgeahmter
+    // Mausklick des Browsers. Im Dialog wurden so Zeilen uebersprungen,
+    // in der Levelauswahl startete ein Tipp direkt das Level.
+    if (global.PointerEvent) {
+      canvas.addEventListener('pointerdown', function (e) { tapAt(e.clientX, e.clientY); });
+    } else {
+      var lastTouch = 0;
+      canvas.addEventListener('touchstart', function (e) {
+        var t = e.changedTouches && e.changedTouches[0];
+        lastTouch = Date.now();
+        if (t) tapAt(t.clientX, t.clientY);
+      }, { passive: true });
+      canvas.addEventListener('mousedown', function (e) {
+        if (Date.now() - lastTouch < 800) return;
+        tapAt(e.clientX, e.clientY);
+      });
+    }
   }
 
   /* ---------------- Gamepad ---------------- */

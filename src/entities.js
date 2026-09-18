@@ -1298,6 +1298,9 @@
 
   /** Verwandlung starten. Der Dialog kommt erst, wenn sie vorbei ist. */
   function startTransform(b, g) {
+    // Halbzeit ist erreicht, sobald die Verwandlung beginnt — auch wer
+    // genau jetzt stirbt, macht danach ab der Haelfte weiter.
+    g.bossHalf = true;
     b.state = 'transform';
     b.timer = 96;
     b.invuln = 140;
@@ -1329,7 +1332,7 @@
   }
 
   /** Einschlag: Staub, Kamerawackeln und Bodenwellen nach beiden Seiten. */
-  function groundWaves(b, g, col, speed, rows) {
+  function groundWaves(b, g, col, speed, rows, life) {
     g.shake(8, 20);
     global.Sound.play('pound');
     for (var i = 0; i < 18; i++) {
@@ -1343,8 +1346,8 @@
       var sp = (speed || 3.2) * (1 - k * 0.3);
       var wl = g.addProjectile('welle', b.cx() - 7, b.y + b.h - 10, -sp, 0);
       var wr = g.addProjectile('welle', b.cx() - 7, b.y + b.h - 10, sp, 0);
-      if (wl) wl.col = col;
-      if (wr) wr.col = col;
+      if (wl) { wl.col = col; if (life) wl.life = life; }
+      if (wr) { wr.col = col; if (life) wr.life = life; }
     }
   }
 
@@ -1707,7 +1710,7 @@
 
       case 'charge':
         this.vx = this.facing * (this.t === 'mirkan' ? 6.0 : 3.8) * spd;
-        if (this.t === 'mirkan' && this.timer % 12 === 0) {
+        if (this.t === 'mirkan' && this.timer % 18 === 0) {
           g.addProjectile('frage', this.cx() - 5, this.y + 2, -this.facing * 0.6, -2.2);
         }
         if (this.t0 % 2 === 0) {
@@ -1729,7 +1732,7 @@
       case 'fragen':
         this.vx *= 0.8;
         if (this.timer === 16 || this.timer === 4) {
-          var nq = this.rage ? 4 : 3;
+          var nq = this.rage ? 3 : 2;   // erster Boss: nicht zu viele Fragen auf einmal
           for (i = 0; i < nq; i++) {
             s = (i - (nq - 1) / 2) * 1.15;
             g.addProjectile('frage', this.cx() - 5, this.y - 4,
@@ -1753,6 +1756,15 @@
 
       // Er setzt mit dem Wagen ueber und knallt auf den Boden
       case 'carjump':
+        // Vorher heult der Motor auf: kurzes Zittern und Qualm als Warnung
+        if (this.timer > 34) {
+          this.vx *= 0.8;
+          if (this.timer % 3 === 0) {
+            g.particles.spawn({ x: this.cx() - this.facing * this.w / 2, y: this.y + this.h - 4,
+                                vx: -this.facing * 1.4, vy: -0.6, life: 18, col: '#8e8880',
+                                size: 3, grav: -0.02 });
+          }
+        }
         if (this.timer === 34) {
           this.vy = -10.5;
           this.vx = (dx > 0 ? 1 : -1) * 3.4 * spd;
@@ -1761,10 +1773,14 @@
         }
         if (this.grounded && !this.landed && this.vy >= 0 && this.timer < 30) {
           this.landed = true;
-          groundWaves(this, g, '#dfe4f0', 3.4, this.rage ? 2 : 1);
+          // Erster Boss: Wellen erst in der zweiten Form, und sie laufen nicht weit
+          if (this.rage) groundWaves(this, g, '#dfe4f0', 3.0, 1, 55);
+          else { g.shake(8, 20); global.Sound.play('pound'); }
           this.go('idle', this.rage ? 16 : 30);
         }
-        if (this.timer <= 0) this.go('idle', 24);
+        // Erst nach der Landung aufhoeren — vorher lief die Zeit in der Luft
+        // ab, und die Bodenwelle beim Aufprall kam nie.
+        if (this.timer <= 0 && (this.grounded || this.timer < -90)) this.go('idle', 24);
         break;
 
       // TUNING-MODUS: Zickzack quer durch die Arena
@@ -1774,7 +1790,6 @@
           this.facing = -this.facing;
           g.shake(3, 6);
           global.Sound.play('shoot');
-          g.addProjectile('frage', this.cx() - 5, this.y - 2, -this.facing * 1.2, -3.6);
         }
         if (this.t0 % 2 === 0) {
           g.particles.spawn({
@@ -1791,9 +1806,7 @@
         this.vx *= 0.85;
         if (this.timer === 60 || this.timer === 40 || this.timer === 20) {
           this.honk(g, p, dx);
-          for (i = 0; i < 2; i++) {
-            g.addProjectile('frage', this.cx() - 5, this.y - 4, (i - 0.5) * 3.0, -3.8);
-          }
+          g.addProjectile('frage', this.cx() - 5, this.y - 4, (Math.random() < 0.5 ? -1 : 1) * 1.6, -3.8);
         }
         if (this.timer <= 0) this.go('idle', 16);
         break;
@@ -1830,7 +1843,7 @@
           g.addProjectile('hantel', this.cx() - 11, this.y + this.h - 14, 3.2, -2.4);
           this.go('idle', this.rage ? 16 : 32);
         }
-        if (this.timer <= 0) this.go('idle', 24);
+        if (this.timer <= 0 && (this.grounded || this.timer < -90)) this.go('idle', 24);
         break;
 
       // MASSEPHASE: zwei Einschlaege direkt hintereinander
@@ -1844,7 +1857,7 @@
           this.landed = true;
           groundWaves(this, g, '#ff6a4a', 3.6, 2);
         }
-        if (this.timer <= 0) this.go('idle', 20);
+        if (this.timer <= 0 && (this.grounded || this.timer < -90)) this.go('idle', 20);
         break;
 
       // MASSEPHASE: Hanteln fallen von oben
@@ -1933,7 +1946,7 @@
           groundWaves(this, g, '#e8c24a', 3.6, this.rage ? 2 : 1);
           this.go('idle', this.rage ? 16 : 30);
         }
-        if (this.timer <= 0) this.go('idle', 24);
+        if (this.timer <= 0 && (this.grounded || this.timer < -90)) this.go('idle', 24);
         break;
 
       // SAFRAN-EKSTASE: Kubide faellt vom Himmel
@@ -1996,14 +2009,14 @@
         if (r < 0.26) this.go('fragen', 38);
         else if (r < 0.44) this.go('hupe', 40);
         else if (r < 0.70) this.go('chargeprep', 22);
-        else if (r < 0.88) this.go('carjump', 40);
+        else if (r < 0.88) this.go('carjump', 50);
         else this.go('walk', 40);
       } else {
         if (r < 0.20) this.go('fragen', 36);
         else if (r < 0.36) this.go('hupkonzert', 66);
         else if (r < 0.58) this.go('drift', 97);
         else if (r < 0.76) this.go('chargeprep', 16);
-        else this.go('carjump', 40);
+        else this.go('carjump', 50);
       }
     } else if (this.t === 'lennart') {
       if (!R) {
@@ -2226,7 +2239,7 @@
           groundWaves(this, g, '#2fd39e', 3.8, 2);
           this.go('idle', this.phase >= 3 ? 12 : 18);
         }
-        if (this.timer <= 0) this.go('idle', 20);
+        if (this.timer <= 0 && (this.grounded || this.timer < -90)) this.go('idle', 20);
         break;
     }
 

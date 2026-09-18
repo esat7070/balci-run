@@ -8,7 +8,22 @@
 window.__err=[];
 window.onerror=function(m,s,l,c,e){window.__err.push(m+' @'+s+':'+l+(e&&e.stack?'\n'+e.stack:''));};
 </script>
-<script src="src/font.js"></script>
+<script>
+// Testseiten duerfen den echten Spielstand nicht veraendern: sichern,
+// testen, am Ende zurueckschreiben (window.__restore()).
+window.__keep = {};
+['balci_save', 'balci_scores_v2'].forEach(function (k) {
+  try { window.__keep[k] = localStorage.getItem(k); } catch (e) {}
+});
+window.__restore = function () {
+  Object.keys(window.__keep).forEach(function (k) {
+    try {
+      var v = window.__keep[k];
+      if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v);
+    } catch (e) {}
+  });
+};
+</script><script src="src/font.js"></script>
 <script src="src/pixel.js"></script>
 <script src="src/sprites.js"></script>
 <script src="src/audio.js"></script>
@@ -221,6 +236,7 @@ setTimeout(function () {
     window.__err.forEach(function (e) { log(e); });
   }
 
+  window.__restore();
   document.getElementById('R').textContent = out.join('\n');
 }, 400);
 </script>

@@ -56,7 +56,7 @@ Steh mal zu lange still. Yusuf schläft dann einfach ein. Und knurren tut er sow
 | 1 | Aufstehen ist schwer | Yusufs Zimmer, 6:45 Uhr |
 | 2 | Bienen vergessen nichts | Der Garten hinterm Haus |
 | 3 | Muckibude des Grauens | Huseyins zweites Zuhause |
-| 4 | Die Küche der Versuchung | Iranisch. Mit Geiselnahme. |
+| 4 | Die Küche der Versuchung | Iranisch. Mit Safran. |
 | 5 | Huseyins Salat-Festung | Gebaut aus Disziplin. Und Salat. |
 | 6 | Mustang nach Stilbruch | Siegerfahrt, 2 Uhr nachts |
 | 7 | Der letzte Kampf | Esat hat es zu weit getrieben |
@@ -216,6 +216,16 @@ python -m http.server 8000
 - ob Startpunkte, Ziele, Gegner, Checkpoints und Schilder wirklich auf Boden stehen,
 - und lässt zum Schluss einen Bot jedes Level durchlaufen, um zu sehen,
   ob es überhaupt schaffbar ist.
+
+`qatest.html` prüft die Abläufe drumherum: ganzer Durchgang mit Speichern
+und WEITER, Namenseingabe (inklusive „Sprung-Taste schickt nicht versehentlich
+ab“), Teil-Durchgänge ohne Bestenliste, bereinigte Serverdaten, Menüs per
+Antippen, Handy-Ansicht, Mustang-Level (Kolonne, Ampel, Polizei), jede
+Boss-Verwandlung samt Tod mitten darin, Sprungangriffe mit Bodenwelle und
+einen Zufalls-Stresstest in allen Leveln. Er schickt nie etwas an die echte
+Bestenliste. Alle Testseiten sichern den Spielstand vorher und schreiben ihn
+danach zurück — auch wer sie versehentlich auf der echten Seite öffnet,
+verliert nichts.
 
 `bosstest.html?lvl=N` lässt einen Bot gegen einen Boss antreten
 (1 = Mirkan, 2 = Lennart, 3 = Erfan, 4 = Huseyin, 6 = Esat) und protokolliert

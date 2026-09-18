@@ -445,7 +445,7 @@
     ..kddddddddk..
   `;
 
-  // Nach der Snooze-Taste. Wach, aber falsch wach.
+  // Wuetendes Gesicht — nach dem Snus traegt er nur noch dieses.
   var E_HEAD_RAGE = `
     ....kkkkkk....
     ..kkhhhhhhkk..

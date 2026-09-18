@@ -24,6 +24,8 @@ body{
   line-height:0;
 }
 
+.noscript{color:#fff;font:16px monospace;padding:24px}
+
 #screen{
   display:block;
   image-rendering:-webkit-optimize-contrast; /* aeltere Safari/Android */
@@ -193,3 +195,12 @@ body.inmenu .pad-left,body.inmenu .pad-right{display:none}
   touch-action:manipulation;
 }
 #nfok:disabled{opacity:.5}
+
+/* Handy: Feld am ganzen Bildschirm ausrichten und beim Tippen nach oben,
+   damit die Tastatur es nicht verdeckt */
+@media (pointer:coarse){
+  #nameform{position:fixed;padding-bottom:max(12px, env(safe-area-inset-bottom))}
+  #nameform.typing{align-items:flex-start;padding:6px 0 0}
+  #nameform.typing .nf-inner{padding:8px 14px 10px;gap:6px}
+  #nameform.typing small,#nameform.typing label{display:none}
+}

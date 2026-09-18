@@ -178,12 +178,17 @@
     // Im Mustang ist die Trefferbox so breit wie das (doppelt grosse) Auto
     G.player.w = lvl.driving ? 64 : 12;
     G.player.h = lvl.driving ? 24 : 26;
+    // Nach einem Tod kurz unverwundbar (blinkt), damit ein Gegner neben
+    // dem Checkpoint nicht sofort das naechste Herz nimmt.
+    if (G.respawning) G.player.invuln = 90;
 
     if (!fromCheckpoint) G.checkpointStats = snapshotStats();
     if (!fromCheckpoint) {
       G.checkpoint = null; G.bossIntroSeen = false; G.bossHalf = false;
-      G.convoySeen = {};
     }
+    // Wer in die Kolonne eingestiegen ist, bleibt es auch nach einem Tod —
+    // sonst kommt Erfans Dialog nach jedem Sturz wieder.
+    if (!G.respawning || !G.convoySeen) G.convoySeen = {};
 
     // Level 6: Kolonne und Ampeln. Wer schon eingestiegen war, ist nach
     // einem Checkpoint direkt wieder dabei — ohne den Dialog nochmal.
@@ -343,7 +348,9 @@
       });
     } else {
       fadeTo(function () {
+        G.respawning = true;
         loadLevel(G.lvlIndex, !!G.checkpoint);
+        G.respawning = false;
         var l = LV.deathLines;
         G.floats.add(G.player.cx(), G.player.y - 12,
                      l[(Math.random() * l.length) | 0], '#ffd257', 100);
@@ -467,10 +474,17 @@
 
   /** Das Menue haengt vom Fortschritt ab, darum wird es gebaut statt
       fest verdrahtet. Levelauswahl gibt es erst nach dem Durchspielen. */
+  /** Wohin "WEITER" fuehrt: zum gespeicherten Durchgang, sonst zum
+      zuletzt freigeschalteten Level. Menue und Start nutzen dieselbe Zahl. */
+  function continueTarget() {
+    var r = save.run && validRun(save.run.next) ? save.run : null;
+    return r ? r.next : Math.min(LV.list.length - 1, save.unlocked - 1);
+  }
+
   function menuItems() {
     var items = [{ k: 'play', label: 'NEUES SPIEL' }];
     if (save.unlocked > 1) {
-      items.push({ k: 'continue', label: 'WEITER AB LEVEL ' + save.unlocked });
+      items.push({ k: 'continue', label: 'WEITER AB LEVEL ' + (continueTarget() + 1) });
     }
     // Levelauswahl ist immer da. Freigeschaltet wird Level fuer Level,
     // damit man nach einem Absturz nicht wieder von vorne anfangen muss.
@@ -494,10 +508,7 @@
     S.resume();
     S.play('select');
     if (it.k === 'play') startGame(0);
-    else if (it.k === 'continue') {
-      var r = save.run && validRun(save.run.next) ? save.run : null;
-      startGame(r ? r.next : Math.min(LV.list.length - 1, save.unlocked - 1), true);
-    }
+    else if (it.k === 'continue') startGame(continueTarget(), true);
     else if (it.k === 'select') { G.state = 'select'; G.selIdx = 0; }
     else if (it.k === 'scores') openScores();
     else if (it.k === 'howto') G.state = 'howto';
@@ -535,7 +546,9 @@
     if (global.Input.hit('down')) { G.menuIdx = (G.menuIdx + 1) % n; S.play('move'); }
     if (global.Input.hit('up')) { G.menuIdx = (G.menuIdx + n - 1) % n; S.play('move'); }
     if (global.Input.hit('jump') || global.Input.hit('confirm')) activateMenu(items[G.menuIdx]);
-    if (G.tick % 6 === 0) S.resume();
+    // Ton erst nach der ersten Beruehrung/Taste — vorher verweigert der
+    // Browser ihn ohnehin und schreibt nur Warnungen in die Konsole.
+    if (G.gestured && G.tick % 6 === 0) S.resume();
   }
 
   /** Karten-Masse der Levelauswahl — fuer Zeichnen und Antippen. */
@@ -967,7 +980,10 @@
   }
 
   function saveRun(nextIdx) {
-    if (!G.run) return;
+    // Nur echte Durchgaenge ab Level 1 merken. Sonst hat ein Nochmal-
+    // Spielen ueber die Levelauswahl den gespeicherten Durchgang
+    // ueberschrieben — und damit den Bestenlisten-Eintrag gekostet.
+    if (!G.run || G.run.from !== 0) return;
     var p = G.player;
     var r = {
       from: G.run.from, next: nextIdx,
@@ -1080,6 +1096,10 @@
     // Nur erlaubte Zeichen — was die Pixelschrift nicht kennt, fliegt raus.
     // Erst beim Verlassen des Felds: waehrend des Tippens umschreiben
     // bringt manche Android-Tastaturen durcheinander.
+    // Am Handy schiebt sich die Tastatur von unten rein: waehrend des
+    // Tippens rutscht das Feld deshalb nach oben (siehe style.css).
+    nameInput.addEventListener('focus', function () { nameForm.classList.add('typing'); });
+    nameInput.addEventListener('blur', function () { nameForm.classList.remove('typing'); });
     nameInput.addEventListener('blur', function () {
       var v = nameInput.value.toUpperCase(), out = '';
       for (var i = 0; i < v.length && out.length < NAME_MAX; i++) {
@@ -2777,6 +2797,7 @@
 
   // Musik erst nach der ersten Eingabe (Browser-Regel)
   function firstGesture() {
+    G.gestured = true;
     S.resume();
     if (G.state === 'title') S.music('menu');
     window.removeEventListener('keydown', firstGesture);
@@ -2793,6 +2814,8 @@
   G._loadLevel = loadLevel;
   G._loadScores = loadScores;
   G._storeScore = storeScore;
+  G._board = boardList;
+  G._saveCopy = function () { return JSON.parse(JSON.stringify(save)); };
 
   global.G = G;
 
