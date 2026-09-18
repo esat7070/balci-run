@@ -122,6 +122,18 @@ function run() {
     });
     ok(clash.length === 0, 'L' + (i + 1) + ' nichts steht in Gefahrenfeldern',
        clash.join(' '));
+
+    // Jeder Fragezeichen-Block muss erreichbar sein: entweder von unten
+    // anspringbar (Luft darunter) oder von oben stampfbar (Luft darueber).
+    var unreach = [];
+    L.blocks.forEach(function (b) {
+      if (b.type !== 'q') return;
+      var freeBelow = !w.solid(b.x, b.y + 1);
+      var freeAbove = !w.solid(b.x, b.y - 1);
+      if (!freeBelow && !freeAbove) unreach.push(b.x + ',' + b.y);
+    });
+    ok(unreach.length === 0, 'L' + (i + 1) + ' alle ?-Bloecke erreichbar',
+       unreach.join(' '));
   });
 
   // ---- 3b. Bestenliste: Robustheit und Manipulationsschutz ----
@@ -223,6 +235,45 @@ function run() {
         ok(hpAfter < hpBefore, 'Bauch-Stampfer trifft ' + bl.name,
            hpBefore + ' -> ' + hpAfter);
       }
+    });
+
+    // Und dasselbe als normaler Sprung von oben, bis der Boss tot ist.
+    // Genau dabei ist das Spiel abgestuerzt.
+    bossLevels.forEach(function (bl) {
+      var err = null, hits = 0, died = false;
+      try {
+        G._loadLevel(bl.idx, false);
+        G.state = 'play'; G.frozen = false; G.banner = 0;
+        var p = G.player;
+        p.lives = 999;
+        p.x = G.arena.x + 70;
+        p.y = G.lvl.boss.y * 16 - 26;
+        for (var i = 0; i < 6; i++) G._update();
+        if (G.state === 'dialog') { G.dialog = null; G.frozen = false; G.state = 'play'; }
+        var b = G.boss;
+        if (!b) { err = 'kein Boss erschienen'; }
+        else {
+          // So oft draufspringen, bis er faellt — inklusive Phasenwechsel
+          for (var t = 0; t < 4000 && !b.dead; t++) {
+            if (G.state === 'dialog') {
+              G.dialog = null; G.frozen = false; G.state = 'play';
+            }
+            if (b.invuln <= 0) {
+              var hpWas = b.hp;
+              p.x = b.cx() - p.w / 2;
+              p.y = b.y - p.h + 6;
+              p.vy = 4; p.grounded = false; p.invuln = 60; p.pound = 0;
+              G._update();
+              if (b.hp < hpWas) hits++;
+            } else G._update();
+          }
+          died = b.dead;
+          for (var j = 0; j < 200; j++) G._update();
+        }
+      } catch (e) { err = e.message + ' | ' + (e.stack || '').split('\n')[1]; }
+      ok(!err, 'Draufspringen auf ' + bl.name + ' stuerzt nicht ab', err || '');
+      ok(err || died, 'Draufspringen besiegt ' + bl.name,
+         hits + ' Treffer, tot=' + died);
     });
   })();
 

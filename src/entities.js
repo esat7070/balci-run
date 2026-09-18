@@ -576,13 +576,23 @@
     g.floats.add(b.x * T + 8, b.y * T, '+50', '#e8dcc0', 40);
   };
 
-  /** Einschlag des Bauch-Stampfers: Kisten unten drunter + Gegner in der Nähe. */
+  /** Einschlag des Bauch-Stampfers: Blöcke drunter + Gegner in der Nähe. */
   Player.prototype.poundImpact = function (g) {
     var tx0 = Math.floor((this.x - 6) / T), tx1 = Math.floor((this.x + this.w + 6) / T);
     var ty = Math.floor((this.feet() + 2) / T);
     for (var tx = tx0; tx <= tx1; tx++) {
       var b = g.world.blockAt(tx, ty);
-      if (b && !b.dead && b.type === 'kiste') this.breakCrate(g, b);
+      if (!b || b.dead) continue;
+      if (b.type === 'kiste') this.breakCrate(g, b);
+      // Fragezeichen-Bloecke, die auf Boden oder einer Plattform stehen,
+      // kann man von unten gar nicht erreichen. Der Stampfer von oben
+      // loest sie deshalb genauso aus.
+      else if (b.type === 'q' && !b.used) {
+        b.bump = 8;
+        b.count--;
+        this.spawnFromBlock(g, b);
+        if (b.count <= 0) b.used = true;
+      }
     }
     // Schockwelle
     for (var i = 0; i < g.enemies.length; i++) {

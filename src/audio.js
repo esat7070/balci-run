@@ -257,6 +257,34 @@
       drums: 'K.hhS.h.K.hhS.hh'
     },
 
+    // Level-Bosse: kuerzer, frecher, nicht so bedrohlich wie die Brueder.
+    boss2: {
+      bpm: 164, duty: 'p50',
+      lead: S(`E5 . E5 . C5 . E5 . G5 . . . E5 . . .
+               D5 . D5 . B4 . D5 . F5 . . . D5 . . .
+               C5 . E5 . G5 . E5 . C5 . B4 . A4 . . .
+               A4 . C5 . E5 . C5 . B4 . . . E5 . . .`),
+      bass: S(`A2 . A2 . A2 . A2 . E2 . E2 . E2 . E2 .
+               G2 . G2 . G2 . G2 . D2 . D2 . D2 . D2 .
+               F2 . F2 . C3 . C3 . F2 . F2 . E2 . E2 .
+               A2 . A2 . E2 . E2 . A2 . A2 . A2 . A2 .`),
+      drums: 'K.hhS.h.K.hhS.hh'
+    },
+
+    // Der allerletzte Kampf. Schneller und haerter als alles davor.
+    bossfinal: {
+      bpm: 182, duty: 'p125',
+      lead: S(`D5 D5 D5 . A#4 . D5 . F5 F5 . E5 . D5 . .
+               C5 C5 C5 . G4 . C5 . E5 E5 . D5 . C5 . .
+               A#4 A#4 A#4 . F4 . A#4 . D5 D5 . C5 . A#4 . .
+               A5 . G5 . F5 . E5 . D5 . C5 . A#4 . A4 .`),
+      bass: S(`D2 D2 . D2 . D2 D2 . D2 D2 . D2 . D2 D2 .
+               C2 C2 . C2 . C2 C2 . C2 C2 . C2 . C2 C2 .
+               A#1 A#1 . A#1 . A#1 A#1 . A#1 A#1 . A#1 . A#1 A#1 .
+               A1 A1 . A1 . A1 A1 . A2 A2 . A2 . A2 A2 .`),
+      drums: 'KKhKS.hKKKhKS.hh'
+    },
+
     // Endgegner.
     boss: {
       bpm: 172, duty: 'p125',

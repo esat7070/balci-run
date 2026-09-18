@@ -204,9 +204,10 @@
       .g(137, 150, 14).g(155, 168, 15).g(173, 182, 12).g(187, 200, 15)
       .g(201, 229, 15);
 
-  // Boss-Arena: flach, genau eine Bildschirmbreite
+  // MIRKANS ARENA: weite Strasse. Er stuermt mit dem Wagen, also braucht
+  // man Platz zum Ausweichen und niedrige Stufen zum Runterspringen.
   lvl2.g(230, 261, 15);
-  lvl2.p(236, 11, 5).p(250, 11, 5);
+  lvl2.p(234, 12, 4).p(244, 9, 4).p(254, 12, 4);
   lvl2.bossAt(246, 15);
   lvl2.d.bossType = 'mirkan';
   lvl2.d.arena = { x: 230, w: 32 };
@@ -288,9 +289,10 @@
       .g(79, 90, 19).g(95, 108, 23).g(113, 124, 17).g(129, 142, 21)
       .g(147, 158, 15).g(163, 176, 19).g(181, 192, 13).g(197, 215, 11);
 
-  // Boss-Arena
+  // LENNARTS ARENA: Hanteln fliegen im Bogen. Eine Pyramide zum
+  // Hochklettern, damit man von oben auf ihn drauf kommt.
   lvl3.g(216, 247, 11);
-  lvl3.p(222, 7, 5).p(236, 7, 5);
+  lvl3.p(220, 8, 3).p(228, 5, 5).p(238, 8, 3).p(244, 6, 3);
   lvl3.bossAt(232, 11);
   lvl3.d.bossType = 'lennart';
   lvl3.d.arena = { x: 216, w: 32 };
@@ -385,9 +387,10 @@
       .g(132, 140, 11).g(146, 158, 14).g(164, 172, 12).g(178, 190, 15)
       .g(196, 206, 13).g(212, 237, 15);
 
-  // Erfans Küche: hier kämpft er, weil Huseyin ihn dazu zwingt
+  // ERFANS ARENA: sein Pfannenschlag schickt Wellen ueber den Boden.
+  // Drei kleine Inseln, auf denen man ihnen ausweichen kann.
   lvl4.g(238, 269, 15);
-  lvl4.p(244, 11, 5).p(258, 11, 5);
+  lvl4.p(242, 12, 3).p(250, 12, 3).p(258, 12, 3).p(249, 8, 5);
   lvl4.bossAt(254, 15);
   lvl4.d.bossType = 'erfan';
   lvl4.d.arena = { x: 238, w: 32 };
@@ -618,7 +621,7 @@
 
   var lvl7 = L({
     id: 7, name: 'DER LETZTE KAMPF', sub: 'ESAT HAT ES ZU WEIT GETRIEBEN',
-    theme: 'strasse', music: 'boss', w: 56, h: 18, spawn: [4, 15], par: 200,
+    theme: 'strasse', music: 'bossfinal', w: 56, h: 18, spawn: [4, 15], par: 200,
     goal: [52, 15], diff: 1.5,
     intro: [
       ['esat', 'YUSUF. JETZT BERUHIG DICH MAL.'],

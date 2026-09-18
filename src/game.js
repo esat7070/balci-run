@@ -482,7 +482,8 @@
         G.checkpoint = [aTile + 4, 15];
       }
       G.boss.intro = false;
-      S.music('boss');
+      // Jeder Kampf klingt anders
+      S.music(bt === 'esat' ? 'bossfinal' : (E.MINIBOSS[bt] ? 'boss2' : 'boss'));
       G.shake(5, 20);
 
       if (!G.bossIntroSeen) {
@@ -558,7 +559,7 @@
           fadeTo(function () {
             G.checkpoint = null;
             loadLevel(6, false);
-            S.music('boss');
+            S.music('bossfinal');
             startDialog(LV.list[6].intro, function () { G.state = 'play'; });
           });
         });
