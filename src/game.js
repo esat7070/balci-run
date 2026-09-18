@@ -2692,6 +2692,8 @@
   global.Input.init(canvas);
   applyView();
   resize();
+  // Weltweite Bestenliste sofort holen, damit sie beim Start schon dasteht
+  if (global.Online) global.Online.refresh(true);
 
   /* ---------- Handy: Vollbild ----------
      Browser erlauben Vollbild nur nach einem Tippen. Darum gibt es am

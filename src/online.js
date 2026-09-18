@@ -15,8 +15,8 @@
   'use strict';
 
   var CONFIG = {
-    url: '',   // z.B. 'https://abcdefghijklmnop.supabase.co'
-    key: ''    // der oeffentliche "anon public"-Schluessel
+    url: 'https://njiibgalxrpyzcwpvfmh.supabase.co',
+    key: 'sb_publishable_mS2HnfX2BOT738bn3x8SMA__53_LkxW'   // oeffentlich, siehe oben
   };
 
   var TABLE = 'scores';

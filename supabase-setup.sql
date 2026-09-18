@@ -42,7 +42,8 @@ create policy "scores eintragen" on public.scores
   for insert to anon with check (true);
 
 -- Nur diese Spalten darf der Browser setzen; id und Zeit setzt der Server.
-revoke all on public.scores from anon;
+-- Auch angemeldete Supabase-Nutzer bekommen keine Sonderrechte.
+revoke all on public.scores from anon, authenticated;
 grant select (n, s, h, t, d, created_at) on public.scores to anon;
 grant insert (n, s, h, t, d) on public.scores to anon;
 

@@ -129,15 +129,16 @@ Durchgang** über alle sieben Level. In die Liste kommen nur Durchgänge, die be
 **Level 1** begonnen haben (auch wenn sie zwischendurch mit WEITER fortgesetzt
 wurden) — sonst könnte man mit Level 7 allein die Zeitwertung gewinnen.
 
-Solange nichts weiter eingerichtet ist, liegt die Liste im Browser des Spielers
-(„LOKAL“). Jeder Eintrag wird beim Laden streng geprüft und bekommt eine
-Prüfsumme — von Hand veränderte Einträge fliegen raus, kaputte Daten bringen
-das Spiel nicht zum Absturz.
+Die Liste ist **weltweit**: Alle sehen auf allen Geräten dieselbe (auf dem
+Titelbild steht dann „WELTWEIT“). Sie liegt bei Supabase. Ist der Server mal
+nicht erreichbar, zeigt das Spiel die Einträge aus dem eigenen Browser
+(„LOKAL“) — jeder Eintrag wird zusätzlich dort gespeichert, streng geprüft
+und mit einer Prüfsumme versehen, damit von Hand veränderte oder kaputte
+Daten das Spiel nicht aus dem Tritt bringen.
 
-### Weltweite Bestenliste einrichten (einmalig, ca. 5 Minuten)
+### So ist die weltweite Liste eingerichtet
 
-Damit alle Freunde auf allen Geräten dieselbe Liste sehen, braucht es einen
-kleinen Server. Der Code dafür ist schon drin, er ist nur ausgeschaltet:
+Zum Nachvollziehen oder für ein neues Projekt:
 
 1. Kostenloses Konto bei [supabase.com](https://supabase.com) anlegen, neues Projekt erstellen.
 2. Im Projekt **SQL Editor** öffnen, den Inhalt von `supabase-setup.sql`
