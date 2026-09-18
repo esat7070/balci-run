@@ -160,8 +160,32 @@ Absturz direkt nach dem Bosssieg.
 ## Credits
 
 **Yusuf Balci** — Hauptrolle, Locken, grüne Augen, großes Herz
-**Huseyin Balci** — Endgegner, derselbe Mensch, nur dünn und laut
+**Huseyin Balci** — Bruder und Endgegner, derselbe Mensch, nur dünn und laut
+**Lennart** — Gym. Immer Gym.
+**Erfan** — Kubide, und zwar richtig
+**Mirkan** — Fragen
+**Esat** — bester Kollege, letzter Endgegner, hat immer schon bestellt
 
 Kein Salat wurde bei den Dreharbeiten gegessen.
 
 HÖ HÖ HÖÖÖ.
+
+---
+
+## Über dieses Projekt
+
+Ein privates Spaßprojekt unter Freunden. Die Figuren sind Karikaturen von
+echten Menschen aus dem Freundes- und Familienkreis, gezeichnet mit ihrem
+Einverständnis und in freundschaftlicher Absicht.
+
+**Alles im Spiel ist selbst gemacht.** Jedes Sprite, die Schrift, jeder Ton
+und jede Note wurden für dieses Projekt erstellt. Es wurden keine Grafiken,
+Klänge, Schriftarten oder Codebestandteile aus anderen Spielen übernommen.
+
+Dieses Projekt steht in keiner Verbindung zu und wird nicht unterstützt von
+Nintendo oder irgendeinem anderen Unternehmen. Genannte Marken- oder
+Ortsnamen dienen ausschließlich der beschreibenden Erwähnung im Rahmen einer
+persönlichen Geschichte; es besteht keine Zusammenarbeit und keine Werbung.
+
+Keine Lizenz zur Weiterverwendung — alle Rechte vorbehalten. Wenn du etwas
+davon nutzen willst, frag einfach.

@@ -1108,7 +1108,7 @@
     }
 
     if (this.t === 'kippe') {
-      // Kippen hüpfen über den Boden wie Marios Feuerbälle.
+      // Kippen hüpfen über den Boden statt geradeaus zu fliegen.
       var below = Math.floor((this.y + this.h) / T);
       if (this.vy > 0 && g.world.solid(cxT, below)) {
         this.y = below * T - this.h;
