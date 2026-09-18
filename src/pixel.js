@@ -169,7 +169,9 @@
     b: '#4a6fa8', // Jeans
     B: '#33507d',
     n: '#dedad2', // Sneaker
-    N: '#9d998f'
+    N: '#9d998f',
+    c: '#f4f2ec', // Zigarettenpapier
+    o: '#ff8a2a'  // Glut
   });
 
   palette('huseyin', {
@@ -277,6 +279,40 @@
     khsdsHHHHsdsdk
     khsdkmmmmkdsdk
     kdsddssssddsdk
+    .kddddddddddk.
+    ..kddddddddk..
+  `;
+
+  // Das tiefe Goblin-Knurren. KRRRRR.
+  var Y_HEAD_GROWL = `
+    ....kkkkkk....
+    ..kkhhhhhhkk..
+    .khhHhhhhhHhhk
+    khhhhhhhhhhhhk
+    khhssssssssHhk
+    khkkssssskkhdk
+    khsgwsssswgsdk
+    khssssdsssssdk
+    khsssHHHHsssdk
+    khkmmmmmmmmkdk
+    kdkmwwwwwwmkdk
+    .kdkmmmmmmkdk.
+    ..kddddddddk..
+  `;
+
+  // Mit Kippe im Mundwinkel.
+  var Y_HEAD_SMOKE = `
+    ....kkkkkk....
+    ..kkhhhhhhkk..
+    .khhHhhhhhHhhk
+    khhhhhhhhhhhhk
+    khhssssssssHhk
+    khssssssssssdk
+    khsgwsssswgsdk
+    khssssdsssssdk
+    khsssHHHHsssdk
+    khsskmmkcccok.
+    kdssssssssssdk
     .kddddddddddk.
     ..kddddddddk..
   `;
@@ -425,6 +461,8 @@
   def('y_head_hurt', Y_HEAD_HURT, 'yusuf');
   def('y_head_sleep', Y_HEAD_SLEEP, 'yusuf');
   def('y_head_eat', Y_HEAD_EAT, 'yusuf');
+  def('y_head_growl', Y_HEAD_GROWL, 'yusuf');
+  def('y_head_smoke', Y_HEAD_SMOKE, 'yusuf');
   def('y_torso', TORSO_FAT, 'yusuf');
   def('y_arm', ARM_FAT, 'yusuf');
   def('y_leg', LEG_FAT, 'yusuf');
@@ -443,7 +481,8 @@
   var CHARS = {
     yusuf: {
       heads: { normal: 'y_head', laugh: 'y_head_laugh', hurt: 'y_head_hurt',
-               sleep: 'y_head_sleep', eat: 'y_head_eat' },
+               sleep: 'y_head_sleep', eat: 'y_head_eat',
+               growl: 'y_head_growl', smoke: 'y_head_smoke' },
       torso: 'y_torso', arm: 'y_arm', leg: 'y_leg',
       headOX: 3, headOY: -11,
       armBackOX: -4, armFrontOX: 18, armOY: 2,
@@ -465,15 +504,18 @@
 
   /* Posen: h=Kopf-Versatz, t=Rumpf-Versatz, l*=Beine, a*=Arme [dx,dy] */
   var POSES = {
+    // h ist der Versatz des Kopfes ZUSAETZLICH zum Rumpf (t). Beide auf
+    // denselben Wert zu setzen verdoppelt die Bewegung — das sieht aus
+    // wie Zittern. Darum bewegt sich hier nur der Rumpf.
     idle: [
       { h: 0, t: 0, lL: [0, 0], lR: [0, 0], aB: [0, 0], aF: [0, 0] },
-      { h: 1, t: 1, lL: [0, 0], lR: [0, 0], aB: [0, 1], aF: [0, 1] }
+      { h: 0, t: 1, lL: [0, 0], lR: [0, 0], aB: [0, 1], aF: [0, 1] }
     ],
     run: [
       { h: 0, t: 0, lL: [-2, -1], lR: [3, 0], aB: [2, 1], aF: [-3, 0] },
-      { h: -1, t: -1, lL: [0, 0], lR: [1, 0], aB: [0, 0], aF: [0, 0] },
+      { h: 0, t: -1, lL: [0, 0], lR: [1, 0], aB: [0, 0], aF: [0, 0] },
       { h: 0, t: 0, lL: [3, 0], lR: [-2, -1], aB: [-3, 0], aF: [2, 1] },
-      { h: -1, t: -1, lL: [1, 0], lR: [0, 0], aB: [0, 0], aF: [0, 0] }
+      { h: 0, t: -1, lL: [1, 0], lR: [0, 0], aB: [0, 0], aF: [0, 0] }
     ],
     jump: [{ h: -1, t: 0, lL: [-1, -2], lR: [2, 1], aB: [1, -3], aF: [-2, -3] }],
     fall: [{ h: 1, t: 0, lL: [-2, 1], lR: [3, -1], aB: [2, -4], aF: [-3, -4] }],

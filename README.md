@@ -18,34 +18,47 @@ Handy und Tablet funktionieren auch (Touch-Steuerung blendet sich automatisch ei
 | `Leertaste` / `W` / `↑` | Springen |
 | Nochmal in der Luft | **Bauch-Boost** (Doppelsprung) |
 | `↓` in der Luft | **Bauch-Stampfer** — zerbricht Kisten, plättet alles in der Nähe |
-| `Shift` | Rennen |
+| `Shift` / `E` | Rennen + **Kippe werfen** |
 | `Esc` / `P` | Pause |
 | `M` | Ton an / aus |
 
 Gamepad wird ebenfalls erkannt.
+**Am Handy: quer halten.** A = Sprung, B = Kippe werfen.
 
 ## Worum es geht
 
 - **Honig sammeln.** 100 Gläser = ein Extraleben.
 - **Auf Gegner springen.** Mehrere ohne Bodenkontakt geben Combo-Bonus.
+- **Kippen-Päckchen** wirkt wie die Feuerblume: du wirfst Kippen, und ein
+  Treffer kostet dich nur das Päckchen statt eines Herzens.
 - **Nicht in die Gabeln treten.** Küchen sind gefährlicher als sie aussehen.
+- **Erfan befreien.** Huseyin hat den Koch eingesperrt, damit es kein Kubide mehr gibt.
 - **Huseyin besiegen.** Drei Phasen. Er macht mittendrin Liegestütze.
 
-Steh mal zu lange still. Yusuf schläft dann einfach ein.
+Steh mal zu lange still. Yusuf schläft dann einfach ein. Und knurren tut er sowieso.
 
-## Die fünf Level
+## Die sechs Level
 
 | # | Level | Wo |
 |---|---|---|
 | 1 | Aufstehen ist schwer | Yusufs Zimmer, 6:45 Uhr |
 | 2 | Bienen vergessen nichts | Der Garten hinterm Haus |
 | 3 | Muckibude des Grauens | Huseyins zweites Zuhause |
-| 4 | Die Küche der Versuchung | Gefährlichster Raum im Haus |
+| 4 | Die Küche der Versuchung | Iranisch. Mit Geiselnahme. |
 | 5 | Huseyins Salat-Festung | Gebaut aus Disziplin. Und Salat. |
+| 6 | Mustang nach Stilbruch | Siegerfahrt, 2 Uhr nachts |
 
-Dazu: Wecker, Bienen, wütender Brokkoli, hüpfende Salatköpfe, Fitness-Bros mit
-Sonnenbrille in der Halle, Diät-Drohnen. Und ein Gold-Döner, der kurzzeitig
-unbesiegbar macht.
+Die Level ziehen von Stufe zu Stufe an — Gegner werden schneller und
+angriffslustiger.
+
+**Besetzung:** Wecker, Bienen, wütender Brokkoli, hüpfende Salatköpfe,
+Diät-Drohnen und **Lennart**, der dich jedes Mal fragt, ob du auch ins Gym gehst.
+**Erfan** macht das Kubide. **Esat** wartet im Stilbruch und hat schon bestellt.
+
+## Bestenliste
+
+Wer durchspielt, trägt sich mit Namen ein. Die zehn besten Läufe stehen im
+Hauptmenü unter **BESTENLISTE**.
 
 ---
 
@@ -70,8 +83,9 @@ Alles selbst gebaut, **kein einziges externes Asset**:
 
 ```
 index.html          Einstieg
-style.css           Rahmen + Touch-Buttons
+style.css           Rahmen + Touch-Buttons + Querformat-Hinweis
 smoketest.html      Automatischer Testlauf (siehe unten)
+bosstest.html       Bot spielt den Bosskampf bis zur Bestenliste durch
 src/font.js         Pixel-Font
 src/pixel.js        Sprite-Engine + Yusuf & Huseyin
 src/sprites.js      Gegner, Items, Blöcke, Tiles
@@ -100,6 +114,11 @@ python -m http.server 8000
 - ob Startpunkte, Ziele, Gegner, Checkpoints und Schilder wirklich auf Boden stehen,
 - und lässt zum Schluss einen Bot jedes Level durchlaufen, um zu sehen,
   ob es überhaupt schaffbar ist.
+
+`bosstest.html` lässt einen Bot gegen Huseyin antreten und protokolliert
+jeden Treffer, jede Schadensquelle und jeden Zustandswechsel bis zur
+Bestenliste. Beides hat echte Fehler gefunden — unter anderem einen
+Absturz direkt nach dem Bosssieg.
 
 ---
 

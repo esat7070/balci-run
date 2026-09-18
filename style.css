@@ -70,10 +70,48 @@ body{
   #touch .tbtn{pointer-events:auto}
   .pad-left,.pad-right{position:fixed}
   .tbtn.tiny{position:fixed}
+  /* Rand des Geräts respektieren (Notch / Home-Indicator) */
+  .pad-left{left:max(14px, env(safe-area-inset-left));bottom:max(14px, env(safe-area-inset-bottom))}
+  .pad-right{right:max(14px, env(safe-area-inset-right));bottom:max(14px, env(safe-area-inset-bottom))}
+  #screen{box-shadow:none;border-radius:0}
+  body{background:#000}
 }
 
-/* very small screens: shrink the pads a bit */
-@media (pointer:coarse) and (max-height:420px){
-  .tbtn{width:52px;height:52px}
-  .tbtn.big{width:66px;height:66px}
+/* Handy quer: Bild so gross wie möglich, Knöpfe drüberlegen */
+@media (pointer:coarse) and (orientation:landscape){
+  .tbtn{width:54px;height:54px;font-size:20px}
+  .tbtn.big{width:70px;height:70px;font-size:24px}
+  .pad-left{gap:10px}
+  .pad-right{gap:10px}
+}
+
+@media (pointer:coarse) and (orientation:landscape) and (max-height:380px){
+  .tbtn{width:46px;height:46px;font-size:17px;border-radius:11px}
+  .tbtn.big{width:58px;height:58px;font-size:20px}
+}
+
+/* ---- Hinweis, wenn das Handy hochkant gehalten wird ---- */
+#rotate{display:none}
+
+@media (pointer:coarse) and (orientation:portrait){
+  #rotate{
+    display:grid;place-items:center;
+    position:fixed;inset:0;z-index:50;
+    background:#0b0710;
+    color:#ffe9b8;
+    font:600 16px/1.5 system-ui,sans-serif;
+    text-align:center;
+  }
+  #rotate p{margin:20px 0 6px;letter-spacing:.06em}
+  #rotate small{color:#8f86a8;font-weight:400}
+  .rot-phone{
+    width:56px;height:92px;margin:0 auto;
+    border:3px solid #ffc23c;border-radius:10px;
+    animation:tip 1.6s ease-in-out infinite;
+  }
+  @keyframes tip{
+    0%,35%{transform:rotate(0deg)}
+    65%,100%{transform:rotate(-90deg)}
+  }
+  #frame,#touch{visibility:hidden}
 }

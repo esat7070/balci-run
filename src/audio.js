@@ -243,6 +243,20 @@
       drums: 'K.h.S.h.K.h.S.hh'
     },
 
+    // Level 6 — Mustang bei Nacht. Breit, triumphal, ein bisschen kitschig.
+    l6: {
+      bpm: 154, duty: 'p25',
+      lead: S(`C5 . E5 . G5 . C6 . G5 . E5 . G5 . . .
+               A#4 . D5 . F5 . A#5 . F5 . D5 . F5 . . .
+               F4 . A4 . C5 . F5 . C5 . A4 . C5 . . .
+               G4 . B4 . D5 . G5 . F5 . E5 . D5 . C5 .`),
+      bass: S(`C3 . C3 . G2 . G2 . C3 . C3 . G2 . G2 .
+               A#2 . A#2 . F2 . F2 . A#2 . A#2 . F2 . F2 .
+               F2 . F2 . C3 . C3 . F2 . F2 . C3 . C3 .
+               G2 . G2 . D3 . D3 . G2 . G2 . C3 . C3 .`),
+      drums: 'K.hhS.h.K.hhS.hh'
+    },
+
     // Endgegner.
     boss: {
       bpm: 172, duty: 'p125',
@@ -383,6 +397,27 @@
                f1: pitches[i] * 0.86, dur: 0.075, gain: 0.5,
                vibrato: 28, vibratoDepth: 22 });
       }
+    },
+    // Yusufs tiefes Goblin-Knurren. KRRRRR.
+    growl: function () {
+      if (!init()) return;
+      var t = ctx.currentTime;
+      tone({ at: t, wave: 'sawtooth', f0: 98, f1: 58, dur: 0.44, gain: 0.52,
+             vibrato: 19, vibratoDepth: 28, attack: 0.02 });
+      tone({ at: t + 0.015, wave: 'square', f0: 49, f1: 31, dur: 0.42, gain: 0.30,
+             vibrato: 24, vibratoDepth: 13, attack: 0.02 });
+      noise({ at: t, filter: 'lowpass', f0: 560, f1: 170, dur: 0.40,
+              gain: 0.20, q: 0.7 });
+    },
+    // Kippe werfen
+    flick: function () {
+      tone({ wave: 'p125', f0: 1250, f1: 430, dur: 0.07, gain: 0.24 });
+      noise({ filter: 'highpass', f0: 2700, dur: 0.09, gain: 0.13 });
+    },
+    // Päckchen aufheben: Feuerzeug-Klick, dann Fanfare
+    smokePower: function () {
+      noise({ filter: 'highpass', f0: 3400, dur: 0.05, gain: 0.24, q: 1.4 });
+      jingle(['G4', 'C5', 'E5', 'G5', 'C6'], 400, 'p125');
     },
     bossHit: function () {
       tone({ wave: 'sawtooth', f0: 300, f1: 80, dur: 0.22, gain: 0.5 });

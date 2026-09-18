@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="de"><head><meta charset="utf-8"><title>Boss-Test</title></head>
+<body>
+<canvas id="screen" width="512" height="288"></canvas><div id="touch"></div>
+<pre id="R">...</pre>
+
+<script>
+window.__err=[];
+window.onerror=function(m,s,l,c,e){window.__err.push(m+' @'+s+':'+l+(e&&e.stack?'\n'+e.stack:''));};
+</script>
+<script src="src/font.js"></script>
+<script src="src/pixel.js"></script>
+<script src="src/sprites.js"></script>
+<script src="src/audio.js"></script>
+<script src="src/input.js"></script>
+<script src="src/levels.js"></script>
+<script src="src/entities.js"></script>
+<script src="src/game.js"></script>
+
+<script>
+var out = [];
+function log(s) { out.push(s); }
+
+setTimeout(function () {
+  if (window.__err.length) {
+    log('=== LADEFEHLER ==='); window.__err.forEach(function (e) { log(e); });
+  }
+
+  var dir = 0, wantJump = false, pressJump = false, jumpHold = 0, jumpCool = 0;
+  var pressConfirm = false;
+
+  Input.axis = function () { return dir; };
+  Input.down = function (a) {
+    if (a === 'left') return dir < 0;
+    if (a === 'right') return dir > 0;
+    if (a === 'jump') return jumpHold > 0;
+    return false;
+  };
+  Input.hit = function (a) {
+    if (a === 'jump') return pressJump;
+    if (a === 'confirm') return pressConfirm;
+    return false;
+  };
+  Input.anyHit = function () { return pressConfirm; };
+  Input.up = function () { return false; };
+  Input.poll = function () {}; Input.endFrame = function () {};
+
+  G._loadLevel(4, false);
+  G.state = 'play'; G.frozen = false; G.banner = 0;
+  var p = G.player;
+  p.lives = 99; p.x = G.arena.x + 70; p.y = 15 * 16 - 26; p.vy = 0;
+
+  // Schadensquellen mitschreiben
+  var dmg = {};
+  var origHurt = Ent.Player.prototype.hurt;
+  Ent.Player.prototype.hurt = function (g, d, fromX) {
+    var before = this.hp, hadSmoke = this.smoke, inv = this.invuln;
+    var src = 'unbekannt';
+    if (inv <= 0 && !this.power) {
+      var b = g.boss;
+      if (b && !b.dead && Ent.overlap(this, b)) src = 'Boss-Koerper (' + b.state + ')';
+      else {
+        var best = null, bd = 1e9;
+        for (var i = 0; i < g.projectiles.length; i++) {
+          var pr = g.projectiles[i];
+          var d2 = Math.abs(pr.x - this.x) + Math.abs(pr.y - this.y);
+          if (d2 < bd) { bd = d2; best = pr; }
+        }
+        if (best && bd < 40) src = 'Wurfgeschoss ' + best.t;
+        else {
+          for (var j = 0; j < g.enemies.length; j++) {
+            if (!g.enemies[j].dead && Ent.overlap(this, g.enemies[j])) {
+              src = 'Gegner ' + g.enemies[j].t; break;
+            }
+          }
+          if (src === 'unbekannt') src = 'Gefahrenfeld/Sturz';
+        }
+      }
+      dmg[src] = (dmg[src] || 0) + 1;
+    }
+    return origHurt.call(this, g, d, fromX);
+  };
+
+  var seenStates = {};
+  var hits = 0, deaths = 0, prevBossHp = null, seen = {}, phases = [];
+  var dialogTicks = 0, playTicks = 0, frozenTicks = 0;
+  var lastBossHpTick = 0, stalled = -1;
+  var err = null;
+
+  try {
+    for (var tick = 0; tick < 12000; tick++) {
+      pressJump = false; pressConfirm = false;
+
+      if (!seenStates[G.state]) { seenStates[G.state] = tick; log('>> Status "' + G.state + '" ab Tick ' + tick); }
+
+      if (G.state === 'dialog') {
+        dialogTicks++;
+        if (tick % 6 === 0) pressConfirm = true;
+        dir = 0; jumpHold = 0;
+      } else if (G.state === 'nameentry' || G.state === 'teaser') {
+        if (tick % 20 === 0) pressConfirm = true;
+        dir = 0; jumpHold = 0;
+      } else if (G.state === 'scores') {
+        log('>> ZIEL ERREICHT: Bestenliste bei Tick ' + tick);
+        break;
+      } else if (G.state === 'gameover') {
+        log('>> GAME OVER bei Tick ' + tick);
+        break;
+      } else {
+        playTicks++;
+        if (G.frozen) frozenTicks++;
+        var b = G.boss;
+        if (b && !b.dead) {
+          seen[b.state] = (seen[b.state] || 0) + 1;
+          var dx = (b.x + b.w / 2) - p.cx();
+          var adx = Math.abs(dx);
+          // So wuerde ein Mensch spielen: nur angreifen, wenn er offen ist.
+          if (b.open || p.vy > 0) {
+            dir = adx > 14 ? (dx > 0 ? 1 : -1) : 0;
+            if (p.grounded && adx < 64 && jumpCool <= 0) {
+              pressJump = true; jumpHold = 20; jumpCool = 24;
+            }
+          } else {
+            // Abstand halten, bis der Angriff vorbei ist
+            dir = adx < 110 ? (dx > 0 ? -1 : 1) : 0;
+            if (p.grounded && adx < 46 && jumpCool <= 0) {
+              pressJump = true; jumpHold = 14; jumpCool = 30;
+            }
+          }
+          if (b.hp !== prevBossHp) {
+            if (prevBossHp !== null && b.hp < prevBossHp) { hits++; lastBossHpTick = tick; }
+            if (prevBossHp !== null) phases.push('T' + tick + ': HP ' + prevBossHp + '->' + b.hp + ' (Phase ' + b.phase + ')');
+            prevBossHp = b.hp;
+          }
+        } else if (!b) {
+          dir = 1;  // noch auf dem Weg in die Arena
+          if (p.grounded && jumpCool <= 0) { pressJump = true; jumpHold = 18; jumpCool = 24; }
+        } else {
+          dir = 0; jumpHold = 0;
+        }
+      }
+
+      if (jumpCool > 0) jumpCool--;
+      if (jumpHold > 0) jumpHold--;
+
+      var beforeLives = p.lives;
+      G._update();
+      if (G.player.lives < beforeLives) { deaths++; }
+      p = G.player;
+
+      // Stillstand erkennen: Boss verliert 1500 Ticks lang kein Leben
+      if (G.boss && !G.boss.dead && lastBossHpTick > 0 &&
+          tick - lastBossHpTick > 1800 && stalled < 0) {
+        stalled = tick;
+      }
+    }
+  } catch (e) { err = e.message + '\n' + (e.stack || ''); }
+
+  log('=== BOSSKAMPF ===');
+  log('Absturz: ' + (err ? err : 'nein'));
+  log('Treffer gelandet : ' + hits + ' von 12');
+  log('Boss-HP am Ende  : ' + (G.boss ? G.boss.hp : 'kein Boss') +
+      '   tot=' + (G.boss ? G.boss.dead : '-'));
+  log('Boss-Phase       : ' + (G.boss ? G.boss.phase : '-'));
+  log('Spieler-Tode     : ' + deaths);
+  log('Endstatus        : ' + G.state);
+  log('Ticks: Spiel=' + playTicks + ' Dialog=' + dialogTicks + ' eingefroren=' + frozenTicks);
+  log('Stillstand ab Tick: ' + (stalled < 0 ? 'nein' : stalled));
+  log('Boss-Zustände    : ' + JSON.stringify(seen));
+  log('SCHADENSQUELLEN  : ' + JSON.stringify(dmg, null, 1));
+  log('Bestenliste      : ' + (localStorage.getItem('balci_scores') || 'leer'));
+  log('');
+  log('=== TREFFERVERLAUF ===');
+  phases.forEach(function (s) { log('  ' + s); });
+  if (window.__err.length) {
+    log(''); log('=== LAUFZEITFEHLER ===');
+    window.__err.forEach(function (e) { log(e); });
+  }
+
+  document.getElementById('R').textContent = out.join('\n');
+}, 400);
+</script>
+</body></html>

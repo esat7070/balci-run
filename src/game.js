@@ -14,15 +14,15 @@
 
   /* ================= Speicherstand ================= */
 
-  var save = { unlocked: 1, best: [null, null, null, null, null], seen: false };
+  var save = { unlocked: 1, best: [], seen: false };
   try {
     var raw = localStorage.getItem('balci_save');
     if (raw) {
       var s = JSON.parse(raw);
       if (s && typeof s.unlocked === 'number') save = s;
-      if (!save.best) save.best = [null, null, null, null, null];
     }
   } catch (e) {}
+  if (!Array.isArray(save.best)) save.best = [];
 
   function persist() {
     try { localStorage.setItem('balci_save', JSON.stringify(save)); } catch (e) {}
@@ -53,6 +53,10 @@
     endScroll: 0
   };
 
+  /** Etwas in N Spiel-Ticks ausführen. Bewusst NICHT setTimeout:
+      das läuft in Echtzeit weiter, auch wenn das Spiel pausiert ist. */
+  G.after = function (ticks, fn) { G.pending = { t: ticks, fn: fn }; };
+
   G.shake = function (amp, dur) {
     G.cam.shake = Math.max(G.cam.shake, dur);
     G.cam.shakeAmp = Math.max(G.cam.shakeAmp, amp);
@@ -70,6 +74,7 @@
     var lvl = LV.list[idx];
     G.lvl = lvl;
     G.world.load(lvl);
+    E.setDifficulty(lvl.diff || 1);
 
     G.enemies = []; G.items = []; G.projectiles = [];
     G.particles.list.length = 0; G.floats.list.length = 0;
@@ -94,12 +99,13 @@
       G.player.reset(sp[0] * T, sp[1] * T - 26);
       G.player.lives = lives; G.player.honey = honey; G.player.score = score;
     }
-    if (!fromCheckpoint) G.checkpoint = null;
+    if (!fromCheckpoint) { G.checkpoint = null; G.bossIntroSeen = false; }
 
     G.cam.x = Math.max(0, Math.min(lvl.w * T - W, G.player.cx() - W / 2));
     G.cam.y = Math.max(0, Math.min(lvl.h * T - H, G.player.y - H / 2));
     G.banner = 190;
     G.combo = 0;
+    G.rescued = false;
     if (!fromCheckpoint) G.time = 0;
     G.frozen = false;
   }
@@ -117,6 +123,10 @@
   }
 
   function updateDialog() {
+    // Der Dialog kann schon beendet sein, während die Blende noch läuft
+    // (die Rückruffunktion setzt den Zustand erst danach). Ohne diese
+    // Zeile stürzt das Spiel direkt nach dem Bosssieg ab.
+    if (!G.dialog) return;
     var line = G.dialog[G.dialogIdx];
     var full = line[1];
     if (G.dialogChar < full.length) {
@@ -180,19 +190,30 @@
   };
 
   G.onBossPhase = function (phase) {
+    // Alles Fliegende wegräumen, sonst hängt beim Weiterspielen noch
+    // ein Salatblatt in der Luft, das man nie kommen sah.
+    G.projectiles.length = 0;
+    G.player.invuln = Math.max(G.player.invuln, 70);
     var d = phase === 2 ? LV.boss.phase2 : LV.boss.phase3;
     startDialog(d, function () { G.state = 'play'; });
   };
 
   G.onBossDead = function () {
     G.frozen = true;
-    setTimeout(function () {
+    G.projectiles.length = 0;
+    G.after(85, function () {
       startDialog(LV.boss.end, function () {
-        save.unlocked = 5;
+        save.unlocked = Math.max(save.unlocked, 6);
         persist();
-        fadeTo(function () { G.state = 'ending'; G.endScroll = 0; S.play('win'); });
+        // Weiter geht's: Mustang, Stilbruch, Siegerehrung.
+        fadeTo(function () {
+          G.checkpoint = null;
+          loadLevel(5, false);
+          S.music('l6');
+          startDialog(LV.list[5].intro, function () { G.state = 'play'; });
+        });
       });
-    }, 1400);
+    });
   };
 
   /* ================= Update ================= */
@@ -202,16 +223,25 @@
     global.Input.poll();
     updateFade();
 
+    if (G.pending && G.state !== 'paused') {
+      if (--G.pending.t <= 0) {
+        var pf = G.pending.fn; G.pending = null; pf();
+      }
+    }
+
     switch (G.state) {
       case 'title': updateTitle(); break;
       case 'select': updateSelect(); break;
       case 'howto': updateHowto(); break;
-      case 'dialog': updateDialog(); updateWorld(true); break;
+      case 'dialog': updateDialog(); updateWorld(); break;
       case 'play': updatePlay(); break;
       case 'paused': updatePaused(); break;
       case 'clear': updateClear(); break;
       case 'gameover': updateGameover(); break;
       case 'ending': updateEnding(); break;
+      case 'nameentry': updateNameEntry(); break;
+      case 'teaser': updateTeaser(); break;
+      case 'scores': updateScores(); break;
     }
 
     if (global.Input.hit('mute')) {
@@ -224,26 +254,22 @@
   }
 
   function updateTitle() {
-    var n = 4;
+    var n = 5;
     if (global.Input.hit('down')) { G.menuIdx = (G.menuIdx + 1) % n; S.play('move'); }
     if (global.Input.hit('up')) { G.menuIdx = (G.menuIdx + n - 1) % n; S.play('move'); }
     if (global.Input.hit('jump') || global.Input.hit('confirm')) {
       S.resume(); S.play('select');
-      if (G.menuIdx === 0) {
-        startGame(0);
-      } else if (G.menuIdx === 1) {
-        G.state = 'select'; G.selIdx = 0;
-      } else if (G.menuIdx === 2) {
-        G.state = 'howto';
-      } else {
-        S.toggleMute();
-      }
+      if (G.menuIdx === 0) startGame(0);
+      else if (G.menuIdx === 1) { G.state = 'select'; G.selIdx = 0; }
+      else if (G.menuIdx === 2) { G.scoreList = loadScores(); G.state = 'scores'; }
+      else if (G.menuIdx === 3) G.state = 'howto';
+      else S.toggleMute();
     }
     if (G.tick % 6 === 0) S.resume();
   }
 
   function updateSelect() {
-    var max = Math.min(5, save.unlocked);
+    var max = Math.min(LV.list.length, save.unlocked);
     if (global.Input.hit('right')) { G.selIdx = Math.min(max - 1, G.selIdx + 1); S.play('move'); }
     if (global.Input.hit('left')) { G.selIdx = Math.max(0, G.selIdx - 1); S.play('move'); }
     if (global.Input.hit('jump') || global.Input.hit('confirm')) {
@@ -281,32 +307,39 @@
   function updatePlay() {
     if (global.Input.hit('pause')) { G.state = 'paused'; S.play('pause'); return; }
     G.time++;
-    updateWorld(false);
+    updateWorld();
   }
 
-  function updateWorld(frozen) {
+  function updateWorld() {
     var p = G.player, i;
-    G.world.updateMovers();
+    // Während eines Dialogs steht die ganze Welt still. Vorher lief
+    // Huseyin weiter und hat Yusuf verprügelt, während man nicht
+    // steuern konnte — das war der unfairste Bug im Spiel.
+    var frozen = G.frozen;
+
+    if (!frozen) G.world.updateMovers();
     p.update(G);
 
     if (G.comboTimer > 0) { G.comboTimer--; if (G.comboTimer === 0) G.combo = 0; }
     if (p.grounded) G.comboTimer = Math.min(G.comboTimer, 20);
 
-    // Gegner nur in der Nähe der Kamera bewegen
-    for (i = G.enemies.length - 1; i >= 0; i--) {
-      var e = G.enemies[i];
-      var near = (e.x > G.cam.x - 160 && e.x < G.cam.x + W + 160);
-      if (near || e.dead) e.update(G);
-      if (e.dead && e.deadTimer > 70) G.enemies.splice(i, 1);
-    }
-    for (i = G.items.length - 1; i >= 0; i--) {
-      var it = G.items[i];
-      if (it.x > G.cam.x - 120 && it.x < G.cam.x + W + 120) it.update(G);
-      if (it.dead) G.items.splice(i, 1);
-    }
-    for (i = G.projectiles.length - 1; i >= 0; i--) {
-      G.projectiles[i].update(G);
-      if (G.projectiles[i].dead) G.projectiles.splice(i, 1);
+    if (!frozen) {
+      // Gegner nur in der Nähe der Kamera bewegen
+      for (i = G.enemies.length - 1; i >= 0; i--) {
+        var e = G.enemies[i];
+        var near = (e.x > G.cam.x - 160 && e.x < G.cam.x + W + 160);
+        if (near || e.dead) e.update(G);
+        if (e.dead && e.deadTimer > 70) G.enemies.splice(i, 1);
+      }
+      for (i = G.items.length - 1; i >= 0; i--) {
+        var it = G.items[i];
+        if (it.x > G.cam.x - 120 && it.x < G.cam.x + W + 120) it.update(G);
+        if (it.dead) G.items.splice(i, 1);
+      }
+      for (i = G.projectiles.length - 1; i >= 0; i--) {
+        G.projectiles[i].update(G);
+        if (G.projectiles[i].dead) G.projectiles.splice(i, 1);
+      }
     }
 
     // Blöcke "wackeln"
@@ -329,6 +362,20 @@
       }
     }
 
+    // Erfan aus dem Käfig holen
+    if (G.lvl.rescue && !G.rescued) {
+      var rx = G.lvl.rescue.x * T, ry = G.lvl.rescue.y * T;
+      if (Math.abs(p.cx() - (rx + 12)) < 34 && p.feet() > ry - 64 && p.feet() < ry + 30) {
+        G.rescued = true;
+        S.play('power');
+        p.score += 1000;
+        G.shake(5, 14);
+        G.floats.add(rx + 12, ry - 50, 'ERFAN IST FREI!  +1000', '#8ad8a0', 140);
+        G.particles.burst(rx + 12, ry - 22, 30,
+          { col: '#ffd257', spread: 3.2, up: 1.2, life: 50 });
+      }
+    }
+
     // Boss auslösen
     if (G.arena && !G.bossStarted && p.cx() > G.arena.x + 56) {
       G.bossStarted = true;
@@ -336,11 +383,18 @@
       G.boss.intro = false;
       // Tür zu. Ab hier gibt es nur noch einen Weg raus.
       G.world.fill(Math.floor(G.arena.x / T) - 1, 2, 1, 13, 1);
+      // Wiedereinstieg IN der Arena: sonst laeuft man nach jedem Tod
+      // den halben Weg zurueck und hoert das Intro nochmal.
+      G.checkpoint = [Math.floor(G.arena.x / T) + 4, 15];
       S.music('boss');
       G.shake(5, 20);
-      startDialog(LV.boss.start, function () { G.state = 'play'; });
+      if (!G.bossIntroSeen) {
+        G.bossIntroSeen = true;
+        startDialog(LV.boss.start, function () { G.state = 'play'; });
+      }
     }
-    if (G.boss) G.boss.update(G);
+    // Der Boss bewegt sich im Dialog nicht — nur seine Todesanimation läuft weiter.
+    if (G.boss && (!frozen || G.boss.dead)) G.boss.update(G);
 
     // Ziel
     if (!p.won && !p.dead) {
@@ -348,7 +402,11 @@
       var canFinish = !G.lvl.boss;
       if (canFinish && Math.abs(p.cx() - (gx + 12)) < 30 &&
           p.feet() > gy - 60 && p.feet() < gy + 40) {
-        finishLevel();
+        if (G.lvl.rescue && !G.rescued) {
+          if (G.tick % 70 === 0) {
+            G.floats.add(p.cx(), p.y - 14, 'ERST ERFAN BEFREIEN!', '#ff8a8a', 70);
+          }
+        } else finishLevel();
       }
     }
 
@@ -373,15 +431,103 @@
     rec.score = Math.max(rec.score, p.score);
     rec.time = Math.min(rec.time, Math.floor(G.time / 60));
     save.best[idx] = rec;
-    if (save.unlocked < idx + 2 && idx < 4) save.unlocked = idx + 2;
+    if (save.unlocked < idx + 2 && idx < LV.list.length - 1) save.unlocked = idx + 2;
     persist();
 
-    setTimeout(function () {
+    // Letztes Level: Siegerehrung im Stilbruch, danach Bestenliste.
+    if (G.lvlIndex === LV.list.length - 1) {
+      G.after(50, function () {
+        startDialog(LV.stilbruch, function () {
+          fadeTo(function () { startNameEntry(); });
+        });
+      });
+      return;
+    }
+
+    G.after(66, function () {
       startDialog(G.lvl.outro, function () {
         G.state = 'clear';
         G.resultTimer = 0;
       });
-    }, 1100);
+    });
+  }
+
+  /* ================= Bestenliste ================= */
+
+  var NAME_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-. ';
+
+  function loadScores() {
+    try {
+      var l = JSON.parse(localStorage.getItem('balci_scores') || '[]');
+      return Array.isArray(l) ? l : [];
+    } catch (e) { return []; }
+  }
+
+  function storeScore(name, score, honey, timeSec) {
+    var l = loadScores();
+    l.push({ n: name, s: score, h: honey, t: timeSec, d: Date.now() });
+    l.sort(function (a, b) { return b.s - a.s; });
+    l = l.slice(0, 10);
+    try { localStorage.setItem('balci_scores', JSON.stringify(l)); } catch (e) {}
+    return l;
+  }
+
+  function startNameEntry() {
+    G.nameIdx = [24, 20, 18, 38, 38, 38];   // "YUS" + Leerzeichen als Vorschlag
+    G.namePos = 0;
+    G.state = 'nameentry';
+    S.play('win');
+  }
+
+  function currentName() {
+    var s = '';
+    for (var i = 0; i < G.nameIdx.length; i++) s += NAME_CHARS.charAt(G.nameIdx[i]);
+    return s.replace(/\s+$/, '') || 'YUSUF';
+  }
+
+  function updateNameEntry() {
+    var In = global.Input;
+    if (In.hit('right')) { G.namePos = (G.namePos + 1) % 6; S.play('move'); }
+    if (In.hit('left')) { G.namePos = (G.namePos + 5) % 6; S.play('move'); }
+    if (In.hit('up')) {
+      G.nameIdx[G.namePos] = (G.nameIdx[G.namePos] + 1) % NAME_CHARS.length;
+      S.play('move');
+    }
+    if (In.hit('down')) {
+      G.nameIdx[G.namePos] = (G.nameIdx[G.namePos] + NAME_CHARS.length - 1) % NAME_CHARS.length;
+      S.play('move');
+    }
+    if (In.hit('jump') || In.hit('confirm')) {
+      var sec = Math.floor(G.time / 60);
+      G.scoreList = storeScore(currentName(), G.player.score, G.player.honey, sec);
+      G.lastName = currentName();
+      S.play('oneUp');
+      fadeTo(function () { G.state = 'teaser'; G.endScroll = 0; });
+    }
+  }
+
+  function updateScores() {
+    if (global.Input.hit('back') || global.Input.hit('pause') ||
+        global.Input.hit('jump') || global.Input.hit('confirm')) {
+      G.state = 'title'; S.play('select');
+    }
+  }
+
+  function updateTeaser() {
+    G.endScroll += 0.5;
+    G.particles.update();
+    if (G.tick % 10 === 0) {
+      G.particles.spawn({
+        x: Math.random() * W, y: H + 6,
+        vx: (Math.random() - 0.5) * 0.4, vy: -0.7 - Math.random() * 0.5,
+        life: 250, col: '#ffc23c', size: 2, grav: -0.002
+      });
+    }
+    if (G.endScroll > 150 && (global.Input.hit('jump') || global.Input.hit('confirm'))) {
+      fadeTo(function () {
+        G.state = 'scores'; S.music('menu');
+      });
+    }
   }
 
   function updateClear() {
@@ -470,6 +616,9 @@
     else if (G.state === 'select') { drawSelect(); }
     else if (G.state === 'howto') { drawHowto(); }
     else if (G.state === 'ending') { drawEnding(); }
+    else if (G.state === 'nameentry') { drawNameEntry(); }
+    else if (G.state === 'teaser') { drawTeaser(); }
+    else if (G.state === 'scores') { drawScores(); }
     else if (G.state === 'gameover') { drawScene(); drawGameover(); }
     else {
       drawScene();
@@ -563,9 +712,10 @@
         x = i * 180 - (n % 180);
         rect(x + 16, 96, 60, 84, t.near);
         rect(x + 20, 100, 52, 60, '#1b1626');
-        F.draw(ctx, 'NO', x + 46, 122, { color: '#ff6fa8', align: 'center' });
-        F.draw(ctx, 'PAIN', x + 46, 134, { color: '#ff6fa8', align: 'center' });
-        F.draw(ctx, 'NO', x + 46, 146, { color: '#ff6fa8', align: 'center' });
+        F.draw(ctx, 'NO', x + 46, 108, { color: '#ff6fa8', align: 'center' });
+        F.draw(ctx, 'PAIN', x + 46, 120, { color: '#ff6fa8', align: 'center' });
+        F.draw(ctx, 'NO', x + 46, 132, { color: '#ff6fa8', align: 'center' });
+        F.draw(ctx, 'GAIN', x + 46, 144, { color: '#ff6fa8', align: 'center' });
         P.draw(ctx, 'hantel', x + 110, 150);
       }
     } else if (theme === 'kueche') {
@@ -582,6 +732,39 @@
         rect(x + 62, 44, 54, 48, '#2a2230');
         rect(x + 140, 74, 44, 26, t.near);
         rect(x + 146, 66, 32, 8, '#6a6270');
+      }
+      // Iranische Flagge — Yusufs Lieblingskueche haengt an der Wand
+      for (i = -1; i < 5; i++) {
+        x = i * 380 - (n % 380) + 190;
+        var fw = 52, fh = 30, fy = 108;
+        rect(x - 3, fy - 6, 3, fh + 16, '#6a6270');      // Stange
+        var wave = Math.sin(G.tick * 0.05 + i) * 2;
+        rect(x, fy + wave, fw, fh / 3, '#2a9c4a');       // gruen
+        rect(x, fy + fh / 3 + wave, fw, fh / 3, '#f2f2ec'); // weiss
+        rect(x, fy + 2 * fh / 3 + wave, fw, fh / 3, '#d8342e'); // rot
+        rect(x + fw / 2 - 4, fy + fh / 3 + 3 + wave, 8, 4, '#d8342e');
+      }
+    } else if (theme === 'strasse') {
+      // Naechtliche Stadt, Neon, Strassenlaternen
+      ctx.fillStyle = '#f4e8a0';
+      ctx.beginPath(); ctx.arc(92, 44, 14, 0, 6.3); ctx.fill();
+      for (i = -1; i < 16; i++) {
+        x = i * 88 - (f % 88);
+        var bh2 = 60 + ((i * 37) % 5) * 26;
+        rect(x, H - 88 - bh2, 70, bh2 + 88, t.far);
+        for (var wy = 0; wy < bh2; wy += 16) {
+          for (var wx = 0; wx < 60; wx += 14) {
+            if (((i * 7 + wy + wx) % 5) < 2) {
+              rect(x + 6 + wx, H - 84 - bh2 + wy, 7, 8, '#ffd88a');
+            }
+          }
+        }
+      }
+      for (i = -1; i < 11; i++) {
+        x = i * 128 - (n % 128);
+        rect(x, 150, 4, 140, '#12141c');         // Laternenmast
+        rect(x - 8, 146, 20, 5, '#12141c');
+        rect(x - 6, 151, 16, 3, '#ffe9a8');      // Licht
       }
     } else {
       // Festung: Türme, Blitze, Salatbanner
@@ -675,7 +858,8 @@
           }
         }
       } else if (b.type === 'kiste') {
-        P.draw(ctx, 'kiste', px, py);
+        // Auf der Strasse sind es Absperrungen statt Kekskisten.
+        P.draw(ctx, G.lvl.driving ? 'sperre' : 'kiste', px, py);
       } else if (b.type === 'feder') {
         P.draw(ctx, 'feder', px, py);
       }
@@ -725,10 +909,63 @@
     }
   }
 
+  /** Der Käfig mit Erfan — und Erfan, sobald er frei ist. */
+  function drawRescue(camX, camY) {
+    if (!G.lvl.rescue) return;
+    var rx = G.lvl.rescue.x * T - camX, ry = G.lvl.rescue.y * T - camY;
+    if (rx < -80 || rx > W + 80) return;
+    if (G.rescued) {
+      P.draw(ctx, 'erfan_frei', rx + 4, ry - 28);
+      F.draw(ctx, 'FREI!', rx + 12, ry - 42,
+             { color: '#8ad8a0', align: 'center', shadow: true });
+      if (G.tick % 10 === 0) {
+        G.particles.spawn({
+          x: G.lvl.rescue.x * T + 12 + (Math.random() - 0.5) * 20,
+          y: G.lvl.rescue.y * T - 30, vx: 0, vy: -0.5,
+          life: 40, col: '#8ad8a0', size: 2, grav: -0.01
+        });
+      }
+    } else {
+      P.draw(ctx, 'erfan', rx + 4, ry - 28);
+      P.draw(ctx, 'kaefig', rx, ry - 32);
+      if ((G.tick >> 4) % 2 === 0) {
+        F.draw(ctx, 'ERFAN', rx + 12, ry - 44,
+               { color: '#ff8a8a', align: 'center', shadow: true });
+      }
+    }
+  }
+
   function drawGoal(camX, camY) {
     if (G.lvl.boss) return;
     var gx = G.lvl.goal[0] * T - camX, gy = G.lvl.goal[1] * T - camY;
     var bob = Math.sin(G.tick * 0.05) * 2;
+
+    // Level 6 endet nicht am Honigtopf, sondern vor dem Stilbruch.
+    if (G.lvl.id === 6) {
+      rect(gx - 40, gy - 104, 132, 104, '#241d3a');
+      rect(gx - 34, gy - 98, 120, 54, '#17122a');
+      rect(gx - 34, gy - 98, 120, 2, '#ff8ad8');
+      var pulse = (G.tick % 90) < 6 ? '#ffd8f0' : '#ff8ad8';
+      F.draw(ctx, 'STILBRUCH', gx + 26, gy - 90,
+             { color: pulse, align: 'center', scale: 2, shadow: true });
+      F.draw(ctx, 'SHISHA BAR', gx + 26, gy - 70,
+             { color: '#8ad8e8', align: 'center' });
+      F.draw(ctx, 'OFFEN', gx + 26, gy - 58,
+             { color: '#ffe9a8', align: 'center' });
+      rect(gx + 6, gy - 40, 38, 40, '#3a2a1e');
+      rect(gx + 10, gy - 36, 30, 36, '#1a1220');
+      P.draw(ctx, 'esat', gx + 54, gy - 23);
+      P.draw(ctx, 'shisha', gx - 24, gy - 19);
+      P.draw(ctx, 'brisket', gx - 4, gy - 14);
+      if (G.tick % 6 === 0) {
+        G.particles.spawn({
+          x: G.lvl.goal[0] * T - 18 + Math.random() * 6,
+          y: G.lvl.goal[1] * T - 20,
+          vx: 0.1, vy: -0.4, life: 60, col: '#9aa8b8', size: 2, grav: -0.006
+        });
+      }
+      return;
+    }
     P.draw(ctx, 'ziel', gx, gy - 26 + bob);
     F.draw(ctx, 'ZIEL', gx + 12, gy - 40 + bob, {
       color: '#ffe9a8', align: 'center', shadow: true,
@@ -765,6 +1002,7 @@
     drawHazards(camX, camY);
     drawBlocks(camX, camY);
     drawMovers(camX, camY);
+    drawRescue(camX, camY);
 
     var i;
     for (i = 0; i < G.items.length; i++) {
@@ -829,6 +1067,26 @@
   function drawPlayer(camX, camY) {
     var p = G.player;
     if (p.invuln > 0 && (G.tick >> 1) % 2 === 0 && !p.dead) return;
+
+    // Level 6: Yusuf sitzt im Mustang.
+    if (G.lvl.driving && !p.dead) {
+      var cw = P.get('mustang').w, chh = P.get('mustang').h;
+      var carX = Math.round(p.cx() - camX - cw / 2);
+      var carY = Math.round(p.feet() - camY - chh + 1);
+      // Kopf zuerst, Auto drueber — so schaut er aus dem Fenster
+      P.draw(ctx, 'y_head', carX + (p.facing < 0 ? 12 : 14), carY - 7, p.facing < 0);
+      P.draw(ctx, 'mustang', carX, carY, p.facing < 0);
+      // Auspuff
+      if (Math.abs(p.vx) > 1 && G.tick % 4 === 0) {
+        G.particles.spawn({
+          x: p.cx() - p.facing * 20, y: p.feet() - 5,
+          vx: -p.facing * 0.8, vy: -0.25, life: 26,
+          col: '#8e8880', size: 2, grav: -0.01
+        });
+      }
+      return;
+    }
+
     var ps = p.pose();
     var opts = {
       pose: ps.pose, face: ps.face,
@@ -978,15 +1236,30 @@
   /* ---------- Dialog ---------- */
 
   function drawPortrait(who, x, y, talking) {
-    var spr;
-    if (who === 'huseyin') spr = talking ? 'h_head_angry' : 'h_head';
-    else spr = talking ? 'y_head_laugh' : 'y_head';
     ctx.save();
+    ctx.beginPath();
+    ctx.rect(Math.round(x), Math.round(y), 30, 30);
+    ctx.clip();
     ctx.translate(Math.round(x), Math.round(y));
     ctx.scale(2, 2);
-    P.draw(ctx, spr, 0, 0, who === 'huseyin');
+    if (who === 'huseyin') {
+      P.draw(ctx, talking ? 'h_head_angry' : 'h_head', 0, 0, true);
+    } else if (who === 'erfan') {
+      P.draw(ctx, 'erfan', -1, 0);
+    } else if (who === 'esat') {
+      P.draw(ctx, 'esat', -1, 0);
+    } else {
+      P.draw(ctx, talking ? 'y_head_laugh' : 'y_head', 0, 0);
+    }
     ctx.restore();
   }
+
+  var SPEAKER = {
+    yusuf:   { name: 'YUSUF',   col: '#ffc23c' },
+    huseyin: { name: 'HUSEYIN', col: '#cfd4e0' },
+    erfan:   { name: 'ERFAN',   col: '#8ad8a0' },
+    esat:    { name: 'ESAT',    col: '#6fc8e8' }
+  };
 
   function drawDialog() {
     if (!G.dialog) return;
@@ -997,23 +1270,22 @@
     var bx = 16, by = H - 84, bw = W - 32, bh = 68;
     ctx.fillStyle = 'rgba(10,6,16,0.92)';
     ctx.fillRect(bx, by, bw, bh);
-    ctx.strokeStyle = who === 'huseyin' ? '#cfd4e0' : (who ? '#ffc23c' : '#8f86a8');
+    ctx.strokeStyle = SPEAKER[who] ? SPEAKER[who].col : '#8f86a8';
     ctx.lineWidth = 2;
     ctx.strokeRect(bx + 1, by + 1, bw - 2, bh - 2);
 
     var tx = bx + 12;
-    if (who) {
-      drawPortrait(who, bx + 10, by + 8, Math.floor(G.dialogChar) < full.length && (G.tick >> 2) % 2 === 0);
+    var sp = SPEAKER[who];
+    if (sp) {
+      drawPortrait(who, bx + 10, by + 8,
+                   Math.floor(G.dialogChar) < full.length && (G.tick >> 2) % 2 === 0);
       tx = bx + 46;
-      var name = who === 'huseyin' ? 'HUSEYIN' : 'YUSUF';
-      F.draw(ctx, name, tx, by + 8, {
-        color: who === 'huseyin' ? '#cfd4e0' : '#ffc23c', shadow: true
-      });
+      F.draw(ctx, sp.name, tx, by + 8, { color: sp.col, shadow: true });
     }
 
-    var lines = F.wrap(shown, bw - (who ? 64 : 28), 1, 1);
+    var lines = F.wrap(shown, bw - (sp ? 64 : 28), 1, 1);
     for (var i = 0; i < lines.length && i < 4; i++) {
-      F.draw(ctx, lines[i], tx, by + (who ? 24 : 16) + i * 11, { color: '#ffffff' });
+      F.draw(ctx, lines[i], tx, by + (sp ? 24 : 16) + i * 11, { color: '#ffffff' });
     }
 
     if (Math.floor(G.dialogChar) >= full.length && (G.tick >> 3) % 2 === 0) {
@@ -1055,11 +1327,11 @@
       color: '#ffe9a8', align: 'center', scale: 2, shadow: true
     });
 
-    var items = ['SPIELEN', 'LEVEL WÄHLEN', 'STEUERUNG',
+    var items = ['SPIELEN', 'LEVEL WÄHLEN', 'BESTENLISTE', 'STEUERUNG',
                  S.isMuted() ? 'TON: AUS' : 'TON: AN'];
     for (i = 0; i < items.length; i++) {
       var sel = (i === G.menuIdx);
-      var y = 172 + i * 16;
+      var y = 166 + i * 15;
       if (sel) {
         F.draw(ctx, '|', W / 2 - F.measure(items[i], 1, 1) / 2 - 14, y,
                { color: '#ffd257' });
@@ -1086,9 +1358,9 @@
       color: '#ffd257', align: 'center', scale: 3, shadow: true
     });
 
-    for (var i = 0; i < 5; i++) {
+    for (var i = 0; i < LV.list.length; i++) {
       var unlocked = i < save.unlocked;
-      var x = 20 + i * 96, y = 80, cw = 88, ch = 130;
+      var x = 14 + i * 82, y = 80, cw = 76, ch = 130;
       var sel = (i === G.selIdx);
 
       ctx.fillStyle = sel ? 'rgba(52,34,20,0.95)' : 'rgba(22,15,30,0.9)';
@@ -1139,23 +1411,150 @@
       ['LEERTASTE / W', 'SPRINGEN'],
       ['NOCHMAL IN DER LUFT', 'BAUCH-BOOST (DOPPELSPRUNG)'],
       ['PFEIL RUNTER IN DER LUFT', 'BAUCH-STAMPFER'],
-      ['SHIFT', 'RENNEN'],
+      ['SHIFT / E', 'RENNEN + KIPPE WERFEN'],
       ['ESC / P', 'PAUSE'],
       ['M', 'TON AN / AUS']
     ];
     for (var i = 0; i < rows.length; i++) {
-      var y = 60 + i * 18;
-      F.draw(ctx, rows[i][0], 40, y, { color: '#ffe9a8' });
-      F.draw(ctx, rows[i][1], 240, y, { color: '#ffffff' });
+      var y = 54 + i * 16;
+      F.draw(ctx, rows[i][0], 30, y, { color: '#ffe9a8' });
+      F.draw(ctx, rows[i][1], 210, y, { color: '#ffffff' });
     }
 
-    F.draw(ctx, 'AUF GEGNER SPRINGEN MACHT SIE PLATT.', 40, 200, { color: '#a094b8' });
-    F.draw(ctx, 'DER BAUCH-STAMPFER ZERBRICHT KISTEN.', 40, 212, { color: '#a094b8' });
-    F.draw(ctx, '100 HONIG = EIN EXTRALEBEN.', 40, 224, { color: '#a094b8' });
-    F.draw(ctx, 'STEH ZU LANGE STILL UND YUSUF SCHLÄFT EIN.', 40, 236, { color: '#a094b8' });
+    F.draw(ctx, 'AUF GEGNER SPRINGEN MACHT SIE PLATT.', 30, 180, { color: '#a094b8' });
+    F.draw(ctx, 'DER BAUCH-STAMPFER ZERBRICHT KISTEN.', 30, 192, { color: '#a094b8' });
+    F.draw(ctx, 'MIT DEM KIPPEN-PÄCKCHEN WIRFST DU KIPPEN.', 30, 204, { color: '#a094b8' });
+    F.draw(ctx, 'EIN TREFFER KOSTET DANN NUR DAS PÄCKCHEN.', 30, 216, { color: '#a094b8' });
+    F.draw(ctx, '100 HONIG = EIN EXTRALEBEN.', 30, 228, { color: '#a094b8' });
+    F.draw(ctx, 'STEH ZU LANGE STILL UND YUSUF SCHLÄFT EIN.', 30, 240, { color: '#a094b8' });
+    F.draw(ctx, 'AM HANDY: QUER HALTEN. A = SPRUNG, B = KIPPE.', 30, 252, { color: '#8f86a8' });
 
     F.draw(ctx, 'BELIEBIGE TASTE = ZURÜCK', W / 2, H - 18,
            { color: '#ffd257', align: 'center' });
+  }
+
+  function drawNameEntry() {
+    drawSky('strasse');
+    drawParallax('strasse', G.tick * 0.2, 0);
+    ctx.fillStyle = 'rgba(8,5,12,0.78)';
+    ctx.fillRect(0, 0, W, H);
+
+    F.draw(ctx, 'DURCHGESPIELT!', W / 2, 22, {
+      color: '#ffd257', align: 'center', scale: 3, shadow: true,
+      wave: G.tick * 0.06, waveAmp: 1
+    });
+    F.draw(ctx, 'TRAG DICH IN DIE BESTENLISTE EIN', W / 2, 56,
+           { color: '#c8b8e0', align: 'center' });
+
+    var sec = Math.floor(G.time / 60);
+    F.draw(ctx, 'PUNKTE ' + G.player.score + '   HONIG ' + G.player.honey +
+                '   ZEIT ' + Math.floor(sec / 60) + ':' + ('0' + (sec % 60)).slice(-2),
+           W / 2, 72, { color: '#ffe9a8', align: 'center' });
+
+    // Namensfelder
+    var slotW = 34, total = 6 * slotW, sx = (W - total) / 2;
+    for (var i = 0; i < 6; i++) {
+      var x = sx + i * slotW, sel = (i === G.namePos);
+      ctx.fillStyle = sel ? 'rgba(80,58,24,0.95)' : 'rgba(26,18,34,0.9)';
+      ctx.fillRect(x + 2, 104, slotW - 6, 44);
+      ctx.strokeStyle = sel ? '#ffd257' : '#6a5f80';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x + 3, 105, slotW - 8, 42);
+      F.draw(ctx, NAME_CHARS.charAt(G.nameIdx[i]), x + slotW / 2 - 2, 116,
+             { color: '#ffffff', align: 'center', scale: 3 });
+      if (sel && (G.tick >> 3) % 2 === 0) {
+        F.draw(ctx, '`', x + slotW / 2 - 2, 92, { color: '#ffd257', align: 'center' });
+        F.draw(ctx, '\\', x + slotW / 2 - 2, 152, { color: '#ffd257', align: 'center' });
+      }
+    }
+
+    F.draw(ctx, 'HOCH / RUNTER  =  BUCHSTABE', W / 2, 180,
+           { color: '#a094b8', align: 'center' });
+    F.draw(ctx, 'LINKS / RECHTS  =  FELD', W / 2, 194,
+           { color: '#a094b8', align: 'center' });
+    if ((G.tick >> 4) % 2 === 0) {
+      F.draw(ctx, 'SPRUNG = EINTRAGEN', W / 2, 214,
+             { color: '#ffd257', align: 'center', scale: 2 });
+    }
+
+    P.drawChar(ctx, 'yusuf', 60, H - 16, { pose: 'cheer', face: 'laugh', frame: (G.tick >> 3) });
+    P.drawChar(ctx, 'huseyin', W - 60, H - 16,
+               { pose: 'idle', face: 'normal', frame: (G.tick >> 3), flip: true });
+  }
+
+  function drawScores() {
+    drawSky('zimmer');
+    drawParallax('zimmer', G.tick * 0.14, 0);
+    ctx.fillStyle = 'rgba(8,5,12,0.82)';
+    ctx.fillRect(0, 0, W, H);
+
+    F.draw(ctx, 'BESTENLISTE', W / 2, 16, {
+      color: '#ffd257', align: 'center', scale: 3, shadow: true
+    });
+
+    var list = G.scoreList || loadScores();
+    if (!list.length) {
+      F.draw(ctx, 'NOCH NIEMAND HAT DURCHGESPIELT.', W / 2, 120,
+             { color: '#c8b8e0', align: 'center' });
+      F.draw(ctx, 'YUSUF FINDET DAS PEINLICH.', W / 2, 136,
+             { color: '#8f86a8', align: 'center' });
+    } else {
+      F.draw(ctx, 'PLATZ', 40, 54, { color: '#8f86a8' });
+      F.draw(ctx, 'NAME', 92, 54, { color: '#8f86a8' });
+      F.draw(ctx, 'HONIG', 240, 54, { color: '#8f86a8' });
+      F.draw(ctx, 'ZEIT', 320, 54, { color: '#8f86a8' });
+      F.draw(ctx, 'PUNKTE', W - 40, 54, { color: '#8f86a8', align: 'right' });
+      rect(36, 64, W - 72, 1, '#4a4258');
+
+      for (var i = 0; i < list.length && i < 10; i++) {
+        var e = list[i], y = 72 + i * 17;
+        var mine = (G.lastName && e.n === G.lastName &&
+                    G.player && e.s === G.player.score);
+        var col = mine ? '#ffd257' : (i === 0 ? '#ffe9a8' : '#ffffff');
+        if (mine) rect(34, y - 3, W - 68, 15, 'rgba(255,210,87,0.14)');
+        F.draw(ctx, (i + 1) + '.', 40, y, { color: col });
+        F.draw(ctx, e.n, 92, y, { color: col });
+        F.draw(ctx, 'x' + (e.h || 0), 240, y, { color: col });
+        var t = e.t || 0;
+        F.draw(ctx, Math.floor(t / 60) + ':' + ('0' + (t % 60)).slice(-2), 320, y, { color: col });
+        F.draw(ctx, '' + e.s, W - 40, y, { color: col, align: 'right' });
+      }
+    }
+
+    F.draw(ctx, 'BELIEBIGE TASTE = ZURÜCK', W / 2, H - 14,
+           { color: '#ffd257', align: 'center' });
+  }
+
+  function drawTeaser() {
+    drawSky('strasse');
+    drawParallax('strasse', G.tick * 0.3, 0);
+    ctx.fillStyle = 'rgba(8,5,12,0.66)';
+    ctx.fillRect(0, 0, W, H);
+    drawParticles(0, 0);
+
+    var a = Math.min(1, G.endScroll / 60);
+    ctx.globalAlpha = a;
+    F.draw(ctx, 'DEMNÄCHST', W / 2, 54, {
+      color: '#8f86a8', align: 'center', scale: 2
+    });
+    F.draw(ctx, 'ESATS', W / 2, 84, {
+      color: '#6fc8e8', align: 'center', scale: 5, shadow: 1,
+      shadowColor: '#10303f', wave: G.tick * 0.05, waveAmp: 1
+    });
+    F.draw(ctx, "JUMP'N'RUN", W / 2, 132, {
+      color: '#ffd257', align: 'center', scale: 4, shadow: 1, shadowColor: '#5e2a10'
+    });
+    ctx.globalAlpha = 1;
+
+    P.draw(ctx, 'esat', W / 2 - 8, 178);
+    if (G.endScroll > 90) {
+      F.draw(ctx, 'ER WEISS NOCH NICHTS DAVON.', W / 2, H - 44,
+             { color: '#c8b8e0', align: 'center' });
+    }
+    if (G.endScroll > 150 && (G.tick >> 4) % 2 === 0) {
+      F.draw(ctx, 'SPRUNG = BESTENLISTE', W / 2, H - 18,
+             { color: '#ffd257', align: 'center' });
+    }
   }
 
   function drawPause() {

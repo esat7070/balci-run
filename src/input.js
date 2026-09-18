@@ -5,7 +5,8 @@
 (function (global) {
   'use strict';
 
-  var ACTIONS = ['left', 'right', 'up', 'down', 'jump', 'run', 'pause', 'mute', 'confirm', 'back'];
+  var ACTIONS = ['left', 'right', 'up', 'down', 'jump', 'run', 'throw',
+                 'pause', 'mute', 'confirm', 'back'];
 
   var KEYMAP = {
     'ArrowLeft': ['left'], 'KeyA': ['left'],
@@ -15,7 +16,8 @@
     'Space': ['jump', 'confirm'],
     'KeyK': ['jump'],
     'KeyJ': ['jump'],
-    'ShiftLeft': ['run'], 'ShiftRight': ['run'],
+    'ShiftLeft': ['run', 'throw'], 'ShiftRight': ['run', 'throw'],
+    'KeyE': ['throw'], 'KeyF': ['throw'], 'KeyX': ['throw'],
     'Enter': ['confirm'],
     'NumpadEnter': ['confirm'],
     'Escape': ['pause', 'back'],
@@ -69,6 +71,7 @@
       var key = b.getAttribute('data-key');
       var acts = (key === 'jump') ? ['jump', 'confirm']
                : (key === 'pause') ? ['pause']
+               : (key === 'throw') ? ['throw', 'run']
                : [key];
 
       function on(e) {
@@ -122,6 +125,7 @@
       down: (p.axes[1] !== undefined && p.axes[1] > padAxisThresh) || btn(p, 13),
       jump: btn(p, 0) || btn(p, 1),
       run: btn(p, 2) || btn(p, 5) || btn(p, 7),
+      throw: btn(p, 2) || btn(p, 5) || btn(p, 7),
       pause: btn(p, 9),
       confirm: btn(p, 0) || btn(p, 9),
       back: btn(p, 1) || btn(p, 8)

@@ -20,7 +20,10 @@
       goal: cfg.goal || [cfg.w - 8, 14],
       boss: null,
       intro: cfg.intro || [], outro: cfg.outro || [],
-      par: cfg.par || 120
+      par: cfg.par || 120,
+      diff: cfg.diff || 1,    // Gegner-Tempo; steigt von Level zu Level
+      driving: !!cfg.driving, // Level 6: Yusuf sitzt im Mustang
+      rescue: cfg.rescue || null
     };
   }
 
@@ -115,7 +118,7 @@
   var lvl1 = L({
     id: 1, name: 'AUFSTEHEN IST SCHWER', sub: 'YUSUFS ZIMMER, 6:45 UHR',
     theme: 'zimmer', music: 'l1', w: 208, h: 18, spawn: [3, 15], par: 90,
-    goal: [199, 15],
+    goal: [199, 15], diff: 0.82,
     intro: [
       ['huseyin', 'YUSUF! AUFSTEHEN! ES IST SCHON 6:45!'],
       ['yusuf', 'NOCH FÜNF MINUTEN. ODER SECHZIG.'],
@@ -145,7 +148,8 @@
   lvl1.p(10, 10, 4).p(34, 9, 4).p(70, 10, 5).p(104, 9, 4).p(140, 8, 5).p(172, 10, 4);
 
   lvl1.q(14, 11, 'honig', 3).q(30, 11, 'doener').q(66, 11, 'honig', 3)
-      .q(102, 10, 'honig', 3).q(136, 11, 'baklava').q(176, 11, 'gold');
+      .q(102, 10, 'honig', 3).q(136, 11, 'baklava').q(176, 11, 'gold')
+      .q(90, 10, 'kippen');
 
   lvl1.k(38, 12).k(39, 12).k(88, 10, 'honig').k(120, 9).k(121, 9, 'doener');
 
@@ -180,7 +184,7 @@
   var lvl2 = L({
     id: 2, name: 'BIENEN VERGESSEN NICHTS', sub: 'DER GARTEN HINTERM HAUS',
     theme: 'garten', music: 'l2', w: 228, h: 18, spawn: [3, 15], par: 110,
-    goal: [220, 15],
+    goal: [220, 15], diff: 1.0,
     intro: [
       ['yusuf', 'DER GARTEN. HIER STEHEN DIE BIENENSTÖCKE.'],
       ['huseyin', 'VIEL SPASS. DIE BIENEN KENNEN DICH NOCH.'],
@@ -213,7 +217,7 @@
 
   lvl2.q(12, 11, 'honig', 4).q(45, 10, 'doener').q(66, 11, 'honig', 4)
       .q(97, 10, 'honig', 4).q(127, 8, 'gold').q(146, 10, 'baklava')
-      .q(196, 10, 'honig', 4);
+      .q(196, 10, 'honig', 4).q(94, 8, 'kippen');
 
   lvl2.k(32, 12).k(33, 12, 'honig').k(80, 9).k(114, 12).k(115, 12, 'doener')
       .k(164, 12).k(165, 12).k(166, 12, 'honig');
@@ -252,14 +256,18 @@
   var lvl3 = L({
     id: 3, name: 'MUCKIBUDE DES GRAUENS', sub: 'HUSEYINS ZWEITES ZUHAUSE',
     theme: 'gym', music: 'l3', w: 212, h: 26, spawn: [3, 23], par: 130,
-    goal: [204, 11],
+    goal: [204, 11], diff: 1.15,
     intro: [
       ['huseyin', 'WILLKOMMEN IM FITNESSSTUDIO. KENNST DU NICHT, WA?'],
       ['yusuf', 'ICH WAR HIER. 2021. EINMAL. WAR VOLL.'],
-      ['huseyin', 'DU WARST IM CAFE NEBENAN.'],
+      ['huseyin', 'DU WARST IM TANGENTE KAFFEE NEBENAN.'],
       ['yusuf', 'DAS GEBÄUDE ZÄHLT.'],
+      ['huseyin', 'DU SITZT JEDEN TAG IM TANGENTE.'],
+      ['yusuf', 'DAS IST MEIN BÜRO.'],
       ['huseyin', 'HEUTE IST BEINTAG.'],
-      ['yusuf', 'BEI MIR IST HEUTE SITZTAG.']
+      ['yusuf', 'BEI MIR IST HEUTE SITZTAG.'],
+      ['huseyin', 'LENNART TRAINIERT HIER AUCH. VIEL SPASS.'],
+      ['yusuf', 'LENNART FRAGT JEDES MAL, OB ICH INS GYM GEHE.']
     ],
     outro: [
       ['yusuf', 'ICH HAB DEN GANZEN LADEN GESTAMPFT. OHNE ANMELDUNG.'],
@@ -293,7 +301,7 @@
   lvl3.q(20, 19, 'honig', 4).q(32, 13, 'doener').q(54, 17, 'honig', 4)
       .q(68, 11, 'gold').q(86, 15, 'honig', 4).q(100, 9, 'baklava')
       .q(120, 13, 'honig', 4).q(134, 7, 'doener').q(154, 11, 'honig', 4)
-      .q(186, 9, 'gold');
+      .q(186, 9, 'gold').q(50, 18, 'kippen');
 
   // Hanteln liegen als zerstörbare Kisten herum
   lvl3.k(15, 22).k(16, 22).k(38, 10).k(64, 22).k(65, 22, 'honig')
@@ -311,12 +319,12 @@
       .it('honig', 37, 9).it('honig', 43, 7).it('honig', 105, 6)
       .it('honig', 141, 5).it('honig', 169, 5).it('honig', 197, 4);
 
-  lvl3.row('bro', 23, [12, 34, 68, 102, 106])
-      .row('bro', 21, [50, 138])
-      .row('bro', 19, [84, 170])
-      .row('bro', 17, [120])
-      .row('bro', 15, [152])
-      .row('bro', 13, [188])
+  lvl3.row('lennart', 23, [12, 34, 68, 102, 106])
+      .row('lennart', 21, [50, 138])
+      .row('lennart', 19, [84, 170])
+      .row('lennart', 17, [120])
+      .row('lennart', 15, [152])
+      .row('lennart', 13, [188])
       .row('drohne', 16, [30, 56, 92, 126, 158, 186])
       .row('drohne', 10, [70, 136, 200])
       .row('wecker', 23, [20, 72, 98])
@@ -336,19 +344,26 @@
   var lvl4 = L({
     id: 4, name: 'DIE KÜCHE DER VERSUCHUNG', sub: 'GEFÄHRLICHSTER RAUM IM HAUS',
     theme: 'kueche', music: 'l4', w: 236, h: 18, spawn: [3, 15], par: 140,
-    goal: [228, 15],
+    goal: [228, 15], diff: 1.22,
     intro: [
       ['yusuf', 'DIE KÜCHE. ENDLICH HEIMSPIEL.'],
       ['huseyin', 'ICH HABE DEN KÜHLSCHRANK UMGEBAUT.'],
       ['huseyin', 'DA IST JETZT SALAT DRIN. NUR SALAT.'],
       ['yusuf', 'DAS IST EIN VERBRECHEN.'],
       ['huseyin', 'DAS IST ERNÄHRUNG.'],
-      ['yusuf', 'ICH HOL MIR MEIN GLASRECHT ZURÜCK.']
+      ['yusuf', 'UND WO IST ERFAN?'],
+      ['huseyin', 'DER KOCH? EINGESPERRT. GANZ HINTEN.'],
+      ['huseyin', 'SOLANGE ER KUBIDE MACHT, HÖRST DU NIE AUF.'],
+      ['yusuf', 'DU HAST EINEN IRANISCHEN KOCH EINGESPERRT.'],
+      ['yusuf', 'DAS IST DAS SCHLIMMSTE, WAS DU JE GEMACHT HAST.']
     ],
     outro: [
-      ['yusuf', 'ICH HAB DEN SALAT GEFUNDEN. UND DEN DÖNER DAHINTER.'],
-      ['huseyin', '...WIE HAST DU DEN GEFUNDEN?'],
-      ['yusuf', 'ICH HÖRE DÖNER, HUSEYIN. ICH HÖRE IHN.']
+      ['erfan', 'DANKE, YUSUF. ICH DACHTE SCHON, DAS WARS.'],
+      ['yusuf', 'NIEMAND SPERRT DEN KUBIDE-MANN EIN.'],
+      ['erfan', 'ICH MACH DIR WELCHE. SO VIELE DU WILLST.'],
+      ['yusuf', 'ICH HAB EIGENTLICH GAR KEINEN HUNGER.'],
+      ['erfan', '...'],
+      ['yusuf', 'MACH VIERZEHN.']
     ]
   });
 
@@ -407,9 +422,14 @@
       .row('broki', 11, [136])
       .row('drohne', 9, [36, 80, 112, 160, 194])
       .row('biene', 10, [54, 128, 206])
-      .row('bro', 15, [56, 124, 190]);
+      .row('lennart', 15, [56, 124, 190]);
 
   lvl4.cp(58, 15).cp(122, 15).cp(186, 15);
+
+  // Huseyin hat Erfan eingesperrt, damit niemand mehr Kubide macht.
+  lvl4.d.rescue = { x: 222, y: 15 };
+  lvl4.it('kubide', 45, 7).it('kubide', 121, 8).it('kubide', 202, 8);
+  lvl4.q(50, 11, 'kippen').q(176, 10, 'kippen');
 
   lvl4.sign(5, 15, 'GABELN IM BODEN. GANZ NORMALE KÜCHE.')
       .sign(54, 15, 'NUR EIN DÖNER, HAT ER GESAGT. VOR NEUN DÖNERN.')
@@ -423,6 +443,7 @@
   var lvl5 = L({
     id: 5, name: 'HUSEYINS SALAT-FESTUNG', sub: 'GEBAUT AUS DISZIPLIN. UND SALAT.',
     theme: 'festung', music: 'l5', w: 214, h: 18, spawn: [3, 15], par: 150,
+    diff: 1.34,
     goal: [204, 14],
     intro: [
       ['huseyin', 'DU KOMMST NICHT WEITER. DAS IST MEINE FESTUNG.'],
@@ -465,8 +486,9 @@
 
   lvl5.q(13, 11, 'honig', 5).q(31, 11, 'doener').q(64, 11, 'honig', 5)
       .q(78, 8, 'gold').q(96, 11, 'honig', 5).q(120, 10, 'baklava')
-      .q(142, 7, 'doener').q(160, 10, 'gold')
-      .q(176, 10, 'doener').q(196, 10, 'doener');
+      .q(142, 7, 'doener').q(160, 10, 'gold').q(60, 11, 'kippen')
+      .q(176, 10, 'doener', 3).q(196, 10, 'doener', 3)
+      .q(186, 6, 'kippen');
 
   lvl5.k(16, 12).k(17, 12, 'honig').k(42, 12).k(70, 11).k(71, 11)
       .k(102, 12).k(103, 12, 'doener').k(134, 10).k(135, 10)
@@ -481,15 +503,17 @@
 
   lvl5.it('herz', 47, 6).it('herz', 141, 5).it('herz', 157, 8)
       .it('honig', 10, 9).it('honig', 11, 9).it('honig', 77, 7)
-      .it('honig', 141, 6).it('honig', 183, 6).it('honig', 184, 6);
+      .it('honig', 141, 6).it('honig', 183, 6).it('honig', 184, 6)
+      // Verpflegung in der Arena — der Kampf soll fordernd sein, nicht unfair
+      .it('herz', 172, 9).it('herz', 194, 9).it('kubide', 183, 5);
 
   lvl5.row('salat', 15, [12, 28, 62, 90, 126])
       .row('salat', 13, [44, 106])
       .row('broki', 15, [8, 32, 94, 122])
       .row('broki', 12, [74, 138])
       .row('broki', 11, [140])
-      .row('bro', 15, [58, 96, 128])
-      .row('bro', 13, [48, 110])
+      .row('lennart', 15, [58, 96, 128])
+      .row('lennart', 13, [48, 110])
       .row('drohne', 9, [38, 84, 116, 152])
       .row('biene', 10, [56, 100, 144])
       .row('biene', 8, [80, 148])
@@ -503,6 +527,63 @@
       .sign(153, 14, 'AB HIER NUR NOCH HUSEYIN.');
 
   lvl5.bossAt(202, 14);
+
+  /* ---------------------------------------------------------------
+     LEVEL 6 — Mustang nach Stilbruch (Fahr-Level + Siegerehrung)
+     --------------------------------------------------------------- */
+
+  var lvl6 = L({
+    id: 6, name: 'MUSTANG NACH STILBRUCH', sub: 'SIEGERFAHRT, 2 UHR NACHTS',
+    theme: 'strasse', music: 'l6', w: 268, h: 18, spawn: [3, 15], par: 100,
+    goal: [258, 15], diff: 1.2, driving: true,
+    intro: [
+      ['huseyin', 'WAS IST DAS FÜR EIN AUTO?'],
+      ['yusuf', 'MEIN MUSTANG. STEHT SEIT DREI JAHREN DA.'],
+      ['huseyin', 'DU HAST NIE ERZÄHLT, DASS DU EIN AUTO HAST.'],
+      ['yusuf', 'ICH BIN NIE GEFAHREN. ZU WEIT ZUM PARKPLATZ.'],
+      ['huseyin', 'WO FAHREN WIR HIN?'],
+      ['yusuf', 'STILBRUCH. ESAT WARTET SCHON.'],
+      ['huseyin', 'UM ZWEI UHR NACHTS?'],
+      ['yusuf', 'ESAT WARTET IMMER. STEIG EIN.'],
+      ['', 'GAS GEBEN MIT RECHTS. SPERREN WERDEN ÜBERFAHREN.']
+    ],
+    outro: []
+  });
+
+  // Lange Strasse mit wenigen, klar sichtbaren Luecken
+  lvl6.g(0, 46, 15).g(52, 96, 15).g(102, 148, 15)
+      .g(154, 198, 15).g(204, 244, 15).g(250, 267, 15);
+
+  // Trittsteine ueber den Luecken, damit der Sprung immer klappt
+  lvl6.p(47, 13, 5).p(97, 13, 5).p(149, 13, 5).p(199, 13, 5).p(245, 13, 5);
+
+  // Strassensperren: der Mustang raeumt sie einfach weg
+  lvl6.k(14, 14).k(26, 14).k(38, 14).k(60, 14).k(61, 14)
+      .k(74, 14).k(88, 14).k(110, 14).k(111, 14).k(124, 14)
+      .k(138, 14).k(160, 14).k(161, 14).k(176, 14).k(190, 14)
+      .k(210, 14).k(211, 14).k(224, 14).k(236, 14);
+
+  lvl6.k(30, 11).k(82, 11).k(132, 11).k(184, 11).k(230, 11);
+
+  lvl6.q(20, 11, 'honig', 6).q(68, 11, 'kubide').q(118, 11, 'honig', 6)
+      .q(168, 11, 'kubide').q(218, 11, 'honig', 6);
+
+  lvl6.trail(5, 13, 8, 2, 2).trail(54, 13, 8, 2, 2).trail(104, 13, 8, 2, 2)
+      .trail(156, 13, 8, 2, 2).trail(206, 13, 8, 2, 2).trail(252, 13, 6, 2, 2);
+
+  lvl6.it('herz', 44, 11).it('herz', 146, 11).it('herz', 242, 11);
+
+  // Wer auf der Strasse steht, hat Pech
+  lvl6.row('salat', 15, [18, 34, 66, 92, 116, 142, 172, 194, 222, 240])
+      .row('broki', 15, [24, 58, 108, 158, 208, 234])
+      .row('wecker', 15, [40, 80, 130, 186, 228])
+      .row('biene', 10, [30, 90, 140, 200, 250]);
+
+  lvl6.cp(110, 15).cp(212, 15);
+
+  lvl6.sign(8, 15, 'GAS GEBEN. SPERREN SIND KEIN PROBLEM.')
+      .sign(106, 15, 'NOCH 8 MINUTEN BIS STILBRUCH. SAGT ESAT.')
+      .sign(208, 15, 'ESAT HAT SCHON BESTELLT. FÜR ALLE.');
 
   /* ---------------------------------------------------------------
      Dialoge für den Bosskampf & das Ende
@@ -535,12 +616,34 @@
       ['yusuf', 'ICH HABE IMMER NOCH HONIG.'],
       ['yusuf', 'ICH HABE IMMER HONIG.'],
       ['huseyin', 'DANN LASS UNS ESSEN.'],
-      ['', 'SIE ASSEN 40 GLÄSER HONIG.'],
-      ['', 'HUSEYIN SAGTE, ES WAR PROTEIN.'],
-      ['', 'YUSUF SCHLIEF DIREKT DANACH EIN.'],
-      ['', 'ENDE.']
+      ['yusuf', 'NICHT HIER. HIER RIECHT ALLES NACH SALAT.'],
+      ['yusuf', 'ICH HOL DEN MUSTANG.'],
+      ['huseyin', 'DU HAST EINEN MUSTANG?']
     ]
   };
+
+  /* Siegerehrung im Stilbruch. */
+  var STILBRUCH_DIALOG = [
+    ['', 'SHISHA-BAR STILBRUCH. 2:14 UHR.'],
+    ['esat', 'DA SEID IHR JA ENDLICH.'],
+    ['esat', 'ICH SITZ HIER SEIT HALB ZWÖLF.'],
+    ['yusuf', 'ICH MUSSTE KURZ MEINEN BRUDER BESIEGEN.'],
+    ['esat', 'WIEDER?'],
+    ['huseyin', 'ES WAR KNAPP.'],
+    ['yusuf', 'ES WAR NICHT KNAPP.'],
+    ['esat', 'ICH HAB SCHON BESTELLT. TEXAS BARBECUE BRISKET.'],
+    ['yusuf', 'ESAT. DU BIST DER BESTE MENSCH, DEN ICH KENNE.'],
+    ['esat', 'UND DIE SHISHA LÄUFT SEIT EINER STUNDE.'],
+    ['yusuf', 'ICH HAB EIGENTLICH GAR KEINEN HUNGER.'],
+    ['huseyin', '...'],
+    ['esat', '...'],
+    ['yusuf', 'ABER ICH ESS DAS JETZT KOMPLETT.'],
+    ['yusuf', 'HÖ HÖ HÖÖÖ.'],
+    ['', 'YUSUF BALCI BEKOMMT: 1x BRISKET, 1x SHISHA,'],
+    ['', 'UND DEN TITEL "HAT NIE HUNGER".'],
+    ['', 'HUSEYIN BESTELLT SALAT. AUS PRINZIP.'],
+    ['', 'ER ISST DANN DOCH VOM BRISKET.']
+  ];
 
   /* ---------------------------------------------------------------
      Sprüche, die zufällig eingestreut werden
@@ -560,9 +663,64 @@
     'ICH BIN VERLETZT. SEELISCH.', 'DAS ZAHLT MEINE VERSICHERUNG NICHT.'
   ];
 
+  /* Der Laufgag: Yusuf hat NIE Hunger. Er isst trotzdem. Immer. */
   var EAT_LINES = [
-    'MHHHH.', 'GENAU DAS BRAUCHTE ICH.', 'DAS IST MEDIZIN.',
-    'NOCH EINEN?', 'HÖ HÖ HÖÖÖ!', 'LECKER. WEITER.'
+    'ICH HAB EIGENTLICH KEINEN HUNGER.',
+    'NUR EINEN. DANN IST SCHLUSS.',
+    'DAS ZÄHLT NICHT, ICH STEH DABEI.',
+    'ICH ESS NUR, DAMIT ER NICHT SCHLECHT WIRD.',
+    'DAS IST MEIN ERSTER HEUTE. GLAUB ICH.',
+    'ICH BIN SATT. ABER NICHT FERTIG.',
+    'MEIN MAGEN HAT ANGERUFEN. ICH GEH RAN.',
+    'ESSEN IST KEIN HOBBY. ES IST EIN BERUF.',
+    'ICH HAB HEUTE SCHON GEGESSEN. VORGESTERN AUCH.',
+    'DER LETZTE. ALSO DER VORLETZTE LETZTE.',
+    'SATT IST EIN GEFÜHL. HUNGER IST EINE ENTSCHEIDUNG.',
+    'ICH MACH DAS NUR AUS HÖFLICHKEIT.',
+    'MHHHH. ABER HUNGER IST WAS ANDERES.',
+    'ICH PROBIER NUR KURZ. SEIT ZWEI STUNDEN.'
+  ];
+
+  /* Eskaliert mit der Anzahl. Er sagt trotzdem, er hat keinen Hunger. */
+  function eatLine(n) {
+    if (n === 3) return 'DAS WAR DER DRITTE. ABER WER ZÄHLT.';
+    if (n === 5) return 'FÜNF. ICH HAB KEINEN HUNGER, ICH SAMMLE NUR.';
+    if (n === 8) return 'ACHT. IMMER NOCH KEIN HUNGER ÜBRIGENS.';
+    if (n === 12) return 'ZWÖLF. ICH ESSE AUS RESPEKT VOR DEM KOCH.';
+    if (n === 16) return 'SECHZEHN. DAS IST JETZT FORSCHUNG.';
+    if (n === 20) return 'ZWANZIG. ICH BIN SATT SEIT NUMMER DREI.';
+    if (n === 25) return 'FÜNFUNDZWANZIG. FRAG NICHT.';
+    if (n === 30) return 'DREISSIG. ICH HAB NIE HUNGER GESAGT. NIE.';
+    return EAT_LINES[(Math.random() * EAT_LINES.length) | 0];
+  }
+
+  var KUBIDE_LINES = [
+    'KUBIDE! ENDLICH RICHTIGES ESSEN.',
+    'IRANISCH SCHLÄGT ALLES. PUNKT.',
+    'DAFÜR STEH ICH SOGAR AUF.',
+    'ERFAN MACHT DAS BESSER. ABER OKAY.',
+    'ICH HAB KEINEN HUNGER. ICH HAB RESPEKT.',
+    'REIS UND FLEISCH. MEHR BRAUCHT KEINER.'
+  ];
+
+  function kubideLine(n) {
+    if (n === 7) return 'SIEBEN KUBIDE. DAS IST KEINE MAHLZEIT, DAS IST EIN BESUCH.';
+    if (n === 14) return 'VIERZEHN. ICH ZAHL DAS NATÜRLICH ALLES.';
+    return KUBIDE_LINES[(Math.random() * KUBIDE_LINES.length) | 0];
+  }
+
+  /* Das tiefe Goblin-Knurren. */
+  var GROWL_LINES = [
+    'KRRRRR.', 'GRRRRH.', 'KRRRÖÖÖ.', 'HRRRMPF.',
+    'KRRR... KRRR...', 'GRRR. ALLES GUT.', 'KRRRRRRR!'
+  ];
+
+  /* Lennart. Bulky. Sagt Dinge. */
+  var LENNART_LINES = [
+    'NOCH EINE WIEDERHOLUNG!', 'DAS IST NUR WASSER, BRO!',
+    'BEINTAG IST JEDEN TAG!', 'HAST DU HEUTE SCHON TRAINIERT?',
+    'GEHST DU AUCH INS GYM?', 'DAS SIND NUR 20 KILO!',
+    'ICH MACH DAS IM DEFIZIT!', 'SITZ DU DA ODER TRAINIERST DU?'
   ];
 
   var DEATH_LINES = [
@@ -573,15 +731,21 @@
     'ICH BRAUCHE EINEN DÖNER UND EINE MINUTE.'
   ];
 
-  var LEVELS = [lvl1.out(), lvl2.out(), lvl3.out(), lvl4.out(), lvl5.out()];
+  var LEVELS = [lvl1.out(), lvl2.out(), lvl3.out(), lvl4.out(),
+                lvl5.out(), lvl6.out()];
 
   global.Levels = {
     list: LEVELS,
     boss: BOSS_DIALOG,
+    stilbruch: STILBRUCH_DIALOG,
     sleepLines: SLEEP_LINES,
     hurtLines: HURT_LINES,
     eatLines: EAT_LINES,
-    deathLines: DEATH_LINES
+    deathLines: DEATH_LINES,
+    growlLines: GROWL_LINES,
+    lennartLines: LENNART_LINES,
+    eatLine: eatLine,
+    kubideLine: kubideLine
   };
 
 })(window);

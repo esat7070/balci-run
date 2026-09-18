@@ -188,7 +188,222 @@
     w: '#ffffff', b: '#1b1220', m: '#7d2724'
   });
 
-  /* Der Fitness-Bro. Sonnenbrille in der Halle. Natürlich. */
+  /* LENNART. Bulky, nicht lean. Sonnenbrille in der Halle. Natürlich. */
+  P.def('lennart', `
+    .......kkkkkk.......
+    .....kkhhhhhhkk.....
+    ....khhhhhhhhhhk....
+    ....khsssssssshk....
+    ....kbbbbbbbbbbk....
+    ....kssssssssssk....
+    ....ksskmmmmkssk....
+    .....kssssssssk.....
+    .kksssssssssssssskk.
+    kssssswwwwwwwwsssssk
+    kssssswwWWWWwwsssssk
+    kssssswwwwwwwwsssssk
+    kdsssswwwwwwwwssssdk
+    kdsssswwwwwwwwssssdk
+    .kdsswwwwwwwwwwssdk.
+    .kssssssssssssssssk.
+    ..kssssssssssssssk..
+    ..kbbbbbbbbbbbbbbk..
+    ..kbbbbbbkkbbbbbbk..
+    ..kbbbk......kbbbk..
+    ..ksssk......ksssk..
+    .kWWWWk......kWWWWk.
+  `, {
+    k: '#1b1220', h: '#e8c86a', s: '#e0a068', d: '#b87c4a',
+    b: '#2a2030', w: '#f2f4f8', W: '#c0c6d2', m: '#8e2f2c'
+  });
+
+  P.def('lennart2', `
+    .......kkkkkk.......
+    .....kkhhhhhhkk.....
+    ....khhhhhhhhhhk....
+    ....khsssssssshk....
+    ....kbbbbbbbbbbk....
+    ....kssssssssssk....
+    ....kskkmmmmkksk....
+    .....kssssssssk.....
+    .kksssssssssssssskk.
+    kssssswwwwwwwwsssssk
+    kssssswwWWWWwwsssssk
+    kssssswwwwwwwwsssssk
+    kdsssswwwwwwwwssssdk
+    kdsssswwwwwwwwssssdk
+    .kdsswwwwwwwwwwssdk.
+    .kssssssssssssssssk.
+    ..kssssssssssssssk..
+    ..kbbbbbbbbbbbbbbk..
+    ..kbbbbbbkkbbbbbbk..
+    ..kbbkk......kkbbk..
+    .ksssk........ksssk.
+    kWWWWk........kWWWWk
+  `, {
+    k: '#1b1220', h: '#e8c86a', s: '#e0a068', d: '#b87c4a',
+    b: '#2a2030', w: '#f2f4f8', W: '#c0c6d2', m: '#8e2f2c'
+  });
+
+  /* Kubide vom Spiess. Yusufs Lieblingskueche ist iranisch. */
+  P.def('kubide', `
+    .....kkkkkk.....
+    ...kkmmmmmmkk...
+    ..kmmmmmmmmmmk..
+    .kmmMmmmmmmMmmk.
+    skmmmmmmmmmmmmks
+    skmMmmmmmmmmMmks
+    .kmmmmmmmmmmmmk.
+    ..kmmmmmmmmmmk..
+    ...kkmmmmmmkk...
+    .....kkkkkk.....
+    ..krrrrrrrrrrk..
+    ..kkkkkkkkkkkk..
+  `, {
+    k: '#3a2410', m: '#a8542a', M: '#7a3818', s: '#c8cede', r: '#f4f0e4'
+  });
+
+  /* ERFAN — der Koch. Vollbart an den Seiten, Kinnmitte frei. */
+  P.def('erfan', `
+    ...kkkkkkkkkk...
+    ..kwwwwwwwwwwk..
+    ..kwwwwwwwwwwk..
+    ..kwwwwwwwwwwk..
+    ...kkwwwwwwkk...
+    ....kWWWWWWk....
+    ...khhhhhhhhk...
+    ..khssssssshk...
+    ..kjssssssssjk..
+    ..kjsgwsswgsjk..
+    ..kjsssdssssjk..
+    ..kjssHHHHssjk..
+    ..kjskmmmmksjk..
+    ..kjjssssssjjk..
+    ...kjjssssjjk...
+    ....kjssssjk....
+    .....kssssk.....
+    ..kkwwwwwwwwkk..
+    .kwwwwwwwwwwwwk.
+    kwwwwWwwwwWwwwwk
+    kwwwwWwwwwWwwwwk
+    kwwwwWwwwwWwwwwk
+    kwwwwwwwwwwwwwwk
+    kWWWWWWWWWWWWWWk
+    .kWWWWWWWWWWWWk.
+    .kbbbbkkkkbbbbk.
+    .kbbbk....kbbbk.
+    .kkkkk....kkkkk.
+  `, {
+    k: '#1b1220', w: '#f2f2ec', W: '#c8c6be', h: '#2a1a10',
+    j: '#3d2718', s: '#e8ac7e', d: '#c2865c', g: '#3a2a1a',
+    m: '#7d2724', H: '#4a301c', b: '#3a4560'
+  });
+
+  /* Erfan frei und gluecklich — Arme hoch. */
+  P.def('erfan_frei', `
+    ...kkkkkkkkkk...
+    ..kwwwwwwwwwwk..
+    ..kwwwwwwwwwwk..
+    ..kwwwwwwwwwwk..
+    ...kkwwwwwwkk...
+    ....kWWWWWWk....
+    ...khhhhhhhhk...
+    ..khssssssshk...
+    ..kjssssssssjk..
+    ..kjskwsswksjk..
+    ..kjsssdssssjk..
+    ..kjssHHHHssjk..
+    ..kjkmmmmmmkjk..
+    ..kjjmmmmmmjjk..
+    ...kjjssssjjk...
+    ....kjssssjk....
+    kk...kssssk...kk
+    kwkkwwwwwwwwkkwk
+    kwkwwwwwwwwwwkwk
+    kwwwwWwwwwWwwwwk
+    .kwwwWwwwwWwwwk.
+    .kwwwWwwwwWwwwk.
+    .kwwwwwwwwwwwwk.
+    .kWWWWWWWWWWWWk.
+    ..kWWWWWWWWWWk..
+    .kbbbbkkkkbbbbk.
+    .kbbbk....kbbbk.
+    .kkkkk....kkkkk.
+  `, {
+    k: '#1b1220', w: '#f2f2ec', W: '#c8c6be', h: '#2a1a10',
+    j: '#3d2718', s: '#e8ac7e', d: '#c2865c',
+    m: '#7d2724', H: '#4a301c', b: '#3a4560'
+  });
+
+  /* Der Kaefig, in dem Huseyin ihn eingesperrt hat. */
+  P.def('kaefig', `
+    kkkkkkkkkkkkkkkkkkkkkkkk
+    kkkkkkkkkkkkkkkkkkkkkkkk
+    k...k...k...k...k...k..k
+    k...k...k...k...k...k..k
+    k...k...k...k...k...k..k
+    k...k...k...k...k...k..k
+    k...k...k...k...k...k..k
+    kkkkkkkkkkkkkkkkkkkkkkkk
+    k...k...k...k...k...k..k
+    k...k...k...k...k...k..k
+    k...k...k...k...k...k..k
+    k...k...k...k...k...k..k
+    k...k...k...k...k...k..k
+    k...k...k...k...k...k..k
+    k...k...k...k...k...k..k
+    kkkkkkkkkkkkkkkkkkkkkkkk
+    k...k...k...k...k...k..k
+    k...k...k...k...k...k..k
+    k...k...k...k...k...k..k
+    k...k...k...k...k...k..k
+    k...k...k...k...k...k..k
+    k...k...k...k...k...k..k
+    k...k...k...k...k...k..k
+    kkkkkkkkkkkkkkkkkkkkkkkk
+    k...k...k...k...k...k..k
+    k...k...k...k...k...k..k
+    k...k...k...k...k...k..k
+    k...k...k...k...k...k..k
+    k...k...k...k...k...k..k
+    k...k...k...k...k...k..k
+    kkkkkkkkkkkkkkkkkkkkkkkk
+    kkkkkkkkkkkkkkkkkkkkkkkk
+  `, { k: '#7c8399' });
+
+  /* Das Kippen-Päckchen. Macht Yusuf rauchig. */
+  P.def('kippen', `
+    ..kkkkkkkk..
+    .kwwwwwwwwk.
+    .kwyywyywwk.
+    .kkkkkkkkkk.
+    krrrrrrrrrrk
+    krrrrrrrrrrk
+    krrwwwwwwrrk
+    krwwwwwwwwrk
+    krwwRRRRwwrk
+    krwwwwwwwwrk
+    krrwwwwwwrrk
+    krrrrrrrrrrk
+    kRRRRRRRRRRk
+    .kkkkkkkkkk.
+  `, {
+    k: '#2a1018', r: '#d8342e', R: '#8f1f1c', w: '#f4f2ec', y: '#e8c86a'
+  });
+
+  /* Die geworfene Kippe. Glut vorne, Filter hinten. */
+  P.def('kippe', `
+    .kkkkkkkk.
+    koRwwwwyyk
+    korwwwwyyk
+    koRwwwwyyk
+    .kkkkkkkk.
+  `, {
+    k: '#2a1018', o: '#ffb43c', R: '#ff5a24', r: '#e03a12',
+    w: '#f4f2ec', y: '#e8c86a'
+  });
+
+  /* Alter Fitness-Bro bleibt als Sprite erhalten (unbenutzt, aber harmlos). */
   P.def('bro', `
     .....kkkkkk.....
     ...kkhhhhhhkk...
@@ -659,7 +874,129 @@
   `, { k: '#1b1220', m: '#8a93ab', M: '#5b6376' });
 
   /* ---------------------------------------------------------------
-     TILES — zwei Masken, fünf Welten
+     LEVEL 6 — Mustang, Stilbruch, Siegerehrung
+     --------------------------------------------------------------- */
+
+  /* Der Mustang. Yusuf faehrt, Huseyin sitzt hinten und sagt nichts. */
+  P.def('mustang', `
+    ..........kkkkkkkkkkkkk.................
+    .........kkwwwwwwwwwwwkk................
+    ........kkwwwwwwwwwwwwwkk...............
+    .......kkwwwwwwwwwwwwwwwkk..............
+    kkkkkkkkrrrrrrrrrrrrrrrrrkkkkkkkkkkkkkkk
+    krrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrllk
+    krrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrllk
+    kRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRk
+    kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+    ....kkkkkk.............kkkkkk...........
+    ...kttttttk...........kttttttk..........
+    ..kttTTTTttk.........kttTTTTttk.........
+    ..kttTTTTttk.........kttTTTTttk.........
+    ...kttttttk...........kttttttk..........
+    ....kkkkkk.............kkkkkk...........
+  `, {
+    k: '#1b1220', r: '#d8342e', R: '#8f1f1c', w: '#8ec8e8',
+    l: '#fff0a8', t: '#241f28', T: '#b9c1d6'
+  });
+
+  /* ESAT — bester Kollege. Steht bei der Siegerehrung daneben. */
+  P.def('esat', `
+    ....kkkkkkkk....
+    ..kkhhhhhhhhkk..
+    .khhhhhhhhhhhhk.
+    .khhssssssssHhk.
+    .khssssssssssdk.
+    .khsgwsssswgsdk.
+    .khssssdssssssk.
+    .khsskmmmmkssdk.
+    ..kdssssssssdk..
+    ...kddddddddk...
+    .....kddddk.....
+    ..kkkkkkkkkkkk..
+    .kppppppppppppk.
+    kppppppppppppppk
+    kppPPPPPPPPPPppk
+    kppPPPPPPPPPPppk
+    kppppppppppppppk
+    kppppppppppppppk
+    .kbbbbbbbbbbbbk.
+    .kbbbbbkkbbbbbk.
+    .kbbbk....kbbbk.
+    .knnnk....knnnk.
+    .kkkkk....kkkkk.
+  `, {
+    k: '#1b1220', h: '#2b1d14', H: '#46301d', s: '#f0b487', d: '#ce8f66',
+    w: '#ffffff', g: '#5a8ad8', m: '#8e2f2c',
+    p: '#3aa88a', P: '#26775f', b: '#2f3344', n: '#d8d4cc'
+  });
+
+  /* Shisha. Steht bei der Siegerehrung bereit. */
+  P.def('shisha', `
+    .....kk.....
+    ....kmmk....
+    ....kmmk....
+    ...kmmmmk...
+    ...kbbbbk...
+    ....kmmk....
+    ....kmmk....
+    ....kmmk....
+    ....kmmk....
+    ....kmmk....
+    ...kmmmmk...
+    ..kmmmmmmk..
+    ..kwwwwwwk..
+    .kwwwwwwwwk.
+    .kwwwwwwwwk.
+    .kwwwwwwwwk.
+    ..kwwwwwwk..
+    ..kmmmmmmk..
+    ...kkkkkk...
+  `, {
+    k: '#1b1220', m: '#c8a24a', b: '#5e3a18', w: '#8ad8e8'
+  });
+
+  /* Texas Barbecue Brisket. Verdient. */
+  P.def('brisket', `
+    ................
+    ....kkkkkkkk....
+    ..kkmmmmmmmmkk..
+    .kmmMMmmmmMMmmk.
+    .kmMMMMmmMMMMmk.
+    kmmMMMMMMMMMMmmk
+    kmMMMMMMMMMMMMmk
+    kmmMMMMMMMMMMmmk
+    .kmmMMMMMMMMmmk.
+    ..kkmmmmmmmmkk..
+    .kwwwwwwwwwwwwk.
+    kwwwwwwwwwwwwwwk
+    .kWWWWWWWWWWWWk.
+    ..kkkkkkkkkkkk..
+  `, {
+    k: '#2a1810', m: '#8f3a1e', M: '#5e2410', w: '#e8e4dc', W: '#b8b4ac'
+  });
+
+  /* Strassensperre, die der Mustang wegraeumt. */
+  P.def('sperre', `
+    kkkkkkkkkkkkkkkk
+    kyyyykkkkyyyykkk
+    kyyyykkkkyyyykkk
+    kkkkyyyykkkkyyyk
+    kkkkyyyykkkkyyyk
+    kyyyykkkkyyyykkk
+    kyyyykkkkyyyykkk
+    kkkkyyyykkkkyyyk
+    kkkkyyyykkkkyyyk
+    kyyyykkkkyyyykkk
+    kyyyykkkkyyyykkk
+    kkkkyyyykkkkyyyk
+    kkkkyyyykkkkyyyk
+    kyyyykkkkyyyykkk
+    kyyyykkkkyyyykkk
+    kkkkkkkkkkkkkkkk
+  `, { k: '#3a3a44', y: '#ffb43c' });
+
+  /* ---------------------------------------------------------------
+     TILES — zwei Masken, sechs Welten
      --------------------------------------------------------------- */
 
   var MASK_TOP = P.art(`
@@ -740,6 +1077,14 @@
       sky:  ['#140f22', '#2a1a3a', '#4a2250', '#6a2a48'],
       far:  '#2a2038', near: '#1a1426',
       accent: '#9dff6a'
+    },
+    // Nachtstrasse Richtung Stilbruch
+    strasse: {
+      top:  ['#5a5f6e', '#43485a', '#2e3242', '#1a1c26'],
+      fill: ['#3a3e4c', '#2c303c', '#1f222c', '#12141c'],
+      sky:  ['#0c0a18', '#1d1636', '#43215a', '#a8425a'],
+      far:  '#241d3a', near: '#171228',
+      accent: '#ff8ad8'
     }
   };
 

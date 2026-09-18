@@ -23,6 +23,11 @@
   var POUND_SPEED = 13;
   var SLEEP_AFTER = 300;  // 5 Sekunden nichts tun -> Yusuf pennt
 
+  /* Schwierigkeitsgrad pro Level. Wirkt auf Tempo und Angriffslust
+     der Gegner, damit es von Level zu Level anzieht. */
+  var DIFF = 1;
+  function setDifficulty(d) { DIFF = d || 1; }
+
   /* ================= Welt ================= */
 
   function World() {
@@ -144,12 +149,16 @@
     if (dx > 0) {
       tx = Math.floor((e.x + e.w - 1) / T);
       for (ty = y0; ty <= y1; ty++) {
-        if (world.solid(tx, ty)) { e.x = tx * T - e.w; e.vx = 0; return 1; }
+        if (world.solid(tx, ty)) {
+          e.x = tx * T - e.w; e.vx = 0; e.wallTile = [tx, ty]; return 1;
+        }
       }
     } else if (dx < 0) {
       tx = Math.floor(e.x / T);
       for (ty = y0; ty <= y1; ty++) {
-        if (world.solid(tx, ty)) { e.x = (tx + 1) * T; e.vx = 0; return -1; }
+        if (world.solid(tx, ty)) {
+          e.x = (tx + 1) * T; e.vx = 0; e.wallTile = [tx, ty]; return -1;
+        }
       }
     }
     return 0;
@@ -160,7 +169,11 @@
     var x0 = Math.floor(e.x / T), x1 = Math.floor((e.x + e.w - 1) / T);
     var tx, ty;
     if (dy > 0) {
-      ty = Math.floor((e.y + e.h - 1) / T);
+      // WICHTIG: hier KEIN "-1". Sonst greift die Kollision erst, wenn die
+      // Figur schon einen Pixel im Boden steckt — sie sinkt ein, wird
+      // zurueckgeschnappt und gilt jeden zweiten Frame als "in der Luft".
+      // Genau das war das Zittern.
+      ty = Math.floor((e.y + e.h) / T);
       for (tx = x0; tx <= x1; tx++) {
         if (world.solid(tx, ty)) {
           e.y = ty * T - e.h; e.vy = 0;
@@ -253,6 +266,7 @@
     this.honey = 0;
     this.score = 0;
     this.maxHp = 3;
+    this.eatCount = 0;   // fuer den Laufgag: er hat NIE Hunger
   }
 
   Player.prototype.reset = function (x, y) {
@@ -277,6 +291,10 @@
     this.snore = 0;
     this.eatTimer = 0;
     this.laughTimer = 0;
+    this.smoke = false;      // Kippen-Power-Up aktiv
+    this.smokeCool = 0;
+    this.growlTimer = 0;
+    this.growlCool = 0;
     this.anim = 0;
     this.animT = 0;
     this.ridingY = null;
@@ -303,12 +321,32 @@
     }
     if (this.eatTimer > 0) this.eatTimer--;
     if (this.laughTimer > 0) this.laughTimer--;
+    if (this.growlTimer > 0) this.growlTimer--;
+    if (this.growlCool > 0) this.growlCool--;
+    if (this.smokeCool > 0) this.smokeCool--;
+
+    // Knurrt einfach so vor sich hin. Tiefe Goblin-Stimme.
+    if (!frozen && !this.sleeping && this.growlCool === 0 && Math.random() < 0.0034) {
+      this.doGrowl(g);
+    }
 
     var ax = frozen ? 0 : In.axis();
     var wantJump = !frozen && In.hit('jump');
     var holdJump = !frozen && In.down('jump');
     var wantDown = !frozen && In.down('down');
     var running = !frozen && In.down('run');
+
+    /* --- Kippe werfen (nur mit Päckchen) --- */
+    if (!frozen && this.smoke && this.smokeCool === 0 && In.hit('throw')) {
+      this.smokeCool = 20;
+      g.addProjectile('kippe', this.cx() + this.facing * 9, this.y + 11,
+                      this.facing * 4.3, -1.7, true);
+      global.Sound.play('flick');
+      g.particles.spawn({ x: this.cx() + this.facing * 10, y: this.y + 11,
+                          vx: this.facing * 0.3, vy: -0.4, life: 26,
+                          col: '#9a9088', size: 2, grav: -0.012 });
+      if (Math.random() < 0.3) this.doGrowl(g);
+    }
 
     /* --- Schlaf-Gag --- */
     if (!frozen && (ax !== 0 || wantJump || wantDown || !this.grounded)) {
@@ -337,8 +375,10 @@
     }
 
     /* --- Horizontal --- */
+    var driving = !!(g.lvl && g.lvl.driving);
     var maxS = running ? MAX_RUN : MAX_WALK;
     if (this.power > 0) maxS += 0.5;
+    if (driving) maxS = running ? 4.8 : 3.8;   // der Mustang zieht
     if (ax !== 0) {
       this.vx += ACC * ax;
       this.facing = ax > 0 ? 1 : -1;
@@ -401,9 +441,19 @@
 
     /* --- Bewegung + Kollision --- */
     var wasGrounded = this.grounded;
-    this.landTile = null; this.headTile = null;
+    this.landTile = null; this.headTile = null; this.wallTile = null;
 
-    moveX(this, world, this.vx);
+    var keepVx = this.vx;
+    var hitX = moveX(this, world, this.vx);
+    // Im Mustang werden Strassensperren einfach ueberfahren.
+    if (driving && hitX !== 0 && this.wallTile) {
+      var wb = world.blockAt(this.wallTile[0], this.wallTile[1]);
+      if (wb && !wb.dead && wb.type === 'kiste') {
+        this.breakCrate(g, wb);
+        this.vx = keepVx * 0.85;
+        g.shake(3, 6);
+      }
+    }
 
     this.grounded = false;
     var hitY = moveY(this, world, this.vy);
@@ -452,9 +502,19 @@
     /* --- Aus der Welt gefallen --- */
     if (this.y > world.h * T + 40) this.kill(g, true);
 
+    /* --- Rauchfahne --- */
+    if (this.smoke && g.tick % 9 === 0) {
+      g.particles.spawn({
+        x: this.cx() + this.facing * 9, y: this.y + 10,
+        vx: this.facing * 0.12 + (Math.random() - 0.5) * 0.25, vy: -0.42,
+        life: 48, col: '#8e8880', size: 2, grav: -0.008
+      });
+    }
+
     /* --- Animation --- */
-    this.animT += Math.max(0.35, Math.abs(this.vx) * 0.55);
-    if (this.animT > 4) { this.animT = 0; this.anim++; }
+    // Ruhig halten: Laufzyklus ca. 5 Frames pro Bild, Atmen im Stand sehr langsam.
+    this.animT += Math.max(0.022, Math.abs(this.vx) * 0.065);
+    while (this.animT >= 1) { this.animT -= 1; this.anim++; }
   };
 
   Player.prototype.rideMovers = function (world) {
@@ -544,9 +604,38 @@
     }
   };
 
+  /** Das tiefe Knurren. Kommt oft. Ohne Vorwarnung. */
+  Player.prototype.doGrowl = function (g, line) {
+    if (this.growlCool > 0 || this.dead) return;
+    this.growlCool = 80;
+    this.growlTimer = 24;
+    global.Sound.play('growl');
+    var l = global.Levels.growlLines;
+    g.floats.add(this.cx(), this.y - 6,
+                 line || l[(Math.random() * l.length) | 0], '#d8b478', 48);
+  };
+
   Player.prototype.hurt = function (g, dmg, fromX) {
     if (this.invuln > 0 || this.dead) return;
     if (this.power > 0) return;
+
+    // Mit Kippen im Sack kostet ein Treffer nur das Päckchen, kein Herz.
+    if (this.smoke) {
+      this.smoke = false;
+      this.invuln = 90;
+      this.hurtTimer = 30;
+      this.sleeping = false;
+      var d0 = (fromX !== undefined && fromX > this.cx()) ? -1 : 1;
+      this.vx = d0 * 2.6; this.vy = -3.6; this.grounded = false;
+      g.shake(4, 8);
+      global.Sound.play('hurt');
+      g.floats.add(this.cx(), this.y - 8, 'MEINE KIPPEN!', '#ffb46a', 60);
+      g.particles.burst(this.cx(), this.y + 10, 12,
+        { col: '#9a9088', spread: 2.2, up: 0.8, life: 34, grav: -0.02 });
+      this.doGrowl(g, 'KRRRRR!');
+      return;
+    }
+
     this.hp -= dmg;
     this.invuln = 96;
     this.hurtTimer = 40;
@@ -596,9 +685,11 @@
     if (this.won || this.cheer > 0) return { pose: 'cheer', face: 'laugh' };
     if (this.sleeping) return { pose: 'sleep', face: 'sleep' };
     var face = 'normal';
-    if (this.hurtTimer > 0) face = 'hurt';
+    if (this.growlTimer > 0) face = 'growl';
+    else if (this.hurtTimer > 0) face = 'hurt';
     else if (this.eatTimer > 0) face = 'eat';
     else if (this.laughTimer > 0) face = 'laugh';
+    else if (this.smoke) face = 'smoke';
 
     if (this.pound > 0) return { pose: 'duck', face: face };
     if (this.pound === -1) return { pose: 'pound', face: face };
@@ -615,7 +706,7 @@
     biene:   { w: 13, h: 11, spr: ['biene', 'biene2'], score: 150, hp: 1, fly: true },
     broki:   { w: 14, h: 14, spr: ['broki', 'broki2'], score: 120, hp: 1 },
     salat:   { w: 14, h: 12, spr: ['salat', 'salat2'], score: 140, hp: 1 },
-    bro:     { w: 16, h: 22, spr: ['bro', 'bro2'], score: 320, hp: 2 },
+    lennart: { w: 20, h: 22, spr: ['lennart', 'lennart2'], score: 320, hp: 2 },
     drohne:  { w: 16, h: 12, spr: ['drohne', 'drohne2'], score: 200, hp: 1, fly: true }
   };
 
@@ -663,9 +754,9 @@
     switch (this.t) {
       case 'wecker': this.upWecker(g, dx, dist); break;
       case 'biene': this.upBiene(g, p, dx); break;
-      case 'broki': this.upWalker(g, 0.72); break;
+      case 'broki': this.upWalker(g, 0.72 * DIFF); break;
       case 'salat': this.upSalat(g); break;
-      case 'bro': this.upBro(g, dx, dist); break;
+      case 'lennart': this.upLennart(g, dx, dist); break;
       case 'drohne': this.upDrohne(g, p, dx); break;
     }
 
@@ -674,7 +765,8 @@
 
     // Kontakt mit Yusuf
     if (overlap(this, p) && !p.dead) {
-      if (p.power > 0 || p.pound === -1) {
+      // Im Auto wird nicht diskutiert.
+      if (p.power > 0 || p.pound === -1 || (g.lvl && g.lvl.driving)) {
         this.squash(g, p);
       } else if (p.vy > 0.8 && p.feet() - this.y < 14) {
         this.stomped(g, p);
@@ -686,9 +778,9 @@
 
   Enemy.prototype.upWecker = function (g, dx, dist) {
     this.vy += GRAV;
-    if (this.grounded && this.stun <= 0 && this.t0 % 52 === 0) {
+    if (this.grounded && this.stun <= 0 && this.t0 % Math.round(62 / DIFF) === 0) {
       this.vy = -5.4;
-      this.vx = (dist < 150 ? (dx > 0 ? 0.95 : -0.95) : this.vx);
+      this.vx = (dist < 150 ? (dx > 0 ? 0.95 : -0.95) * DIFF : this.vx);
       this.facing = this.vx > 0 ? 1 : -1;
     }
     this.grounded = false;
@@ -727,19 +819,21 @@
     if (Math.abs(this.vx) < 1) this.vx = this.vx >= 0 ? 1.15 : -1.15;
   };
 
-  Enemy.prototype.upBro = function (g, dx, dist) {
+  Enemy.prototype.upLennart = function (g, dx, dist) {
     this.vy += GRAV;
     if (this.stun > 0) { this.grounded = (moveY(this, g.world, this.vy) === 1); return; }
 
     if (this.charge > 0) {
       this.charge--;
-      this.vx = this.facing * 2.75;
+      this.vx = this.facing * 2.75 * DIFF;
       if (this.charge === 0) this.vx = 0;
-    } else if (dist < 96 && Math.abs(dx) > 8 && this.t0 % 30 === 0) {
+    } else if (dist < 80 * DIFF && Math.abs(dx) > 8 && this.t0 % 30 === 0) {
       this.facing = dx > 0 ? 1 : -1;
       this.charge = 42;
       global.Sound.play('shoot');
-      g.floats.add(this.cx(), this.y - 8, 'NOCH EINE!', '#ffd257', 45);
+      var lines = global.Levels.lennartLines;
+      g.floats.add(this.cx(), this.y - 8,
+                   lines[(Math.random() * lines.length) | 0], '#ffd257', 55);
     } else {
       this.vx = this.facing * 0.85;
     }
@@ -760,7 +854,7 @@
       this.x = this.homeX + Math.sin(this.t0 * 0.02) * 30;
     }
     this.facing = dx > 0 ? 1 : -1;
-    if (this.t0 % 96 === 0 && Math.abs(dx) < 170) {
+    if (this.t0 % Math.round(120 / DIFF) === 0 && Math.abs(dx) < 170) {
       g.addProjectile('sellerie', this.cx() - 3, this.y + this.h, 0, 1.2);
       global.Sound.play('shoot');
     }
@@ -820,7 +914,9 @@
     doener: { w: 14, h: 11, spr: 'doener' },
     baklava: { w: 13, h: 9, spr: 'baklava' },
     herz: { w: 11, h: 10, spr: 'herz' },
-    gold: { w: 16, h: 13, spr: 'golddoener' }
+    gold: { w: 16, h: 13, spr: 'golddoener' },
+    kippen: { w: 12, h: 14, spr: 'kippen' },
+    kubide: { w: 16, h: 12, spr: 'kubide' }
   };
 
   function Item(type, x, y, popped) {
@@ -873,17 +969,32 @@
         }
         break;
       case 'doener':
-        p.heal(g, 1); p.score += 150; p.eatTimer = 50; p.laughTimer = 30;
-        g.floats.add(p.cx(), p.y - 8,
-          global.Levels.eatLines[(Math.random() * global.Levels.eatLines.length) | 0],
-          '#ffd257', 60);
+        p.heal(g, 1); p.score += 150; p.eatTimer = 50; p.eatCount++;
+        g.floats.add(p.cx(), p.y - 8, global.Levels.eatLine(p.eatCount), '#ffd257', 70);
+        if (Math.random() < 0.4) p.doGrowl(g);
+        break;
+      case 'kubide':
+        // Yusufs Lieblingsküche. Da wird nicht diskutiert.
+        p.heal(g, 1); p.score += 220; p.eatTimer = 60; p.eatCount++;
+        global.Sound.play('heal');
+        g.floats.add(p.cx(), p.y - 8, global.Levels.kubideLine(p.eatCount), '#ffd257', 80);
+        if (Math.random() < 0.6) p.doGrowl(g);
+        break;
+      case 'kippen':
+        p.smoke = true; p.score += 250; p.laughTimer = 30;
+        global.Sound.play('smokePower');
+        g.shake(2, 6);
+        g.floats.add(p.cx(), p.y - 12, 'KIPPEN! WERFEN MIT SHIFT / E', '#ffb46a', 130);
+        g.particles.burst(p.cx(), p.y + 10, 18,
+          { col: '#9a9088', spread: 2.4, up: 0.8, life: 44, grav: -0.02 });
+        p.doGrowl(g, 'KRRRR... DANKE.');
         break;
       case 'herz':
         p.heal(g, 1); p.score += 100;
         g.floats.add(p.cx(), p.y - 8, '+1 HERZ', '#ff8aa0', 55);
         break;
       case 'baklava':
-        p.lives++; p.score += 500; p.eatTimer = 60;
+        p.lives++; p.score += 500; p.eatTimer = 60; p.eatCount++;
         global.Sound.play('oneUp');
         g.floats.add(p.cx(), p.y - 10, 'EXTRALEBEN! BAKLAVA!', '#ffd257', 95);
         break;
@@ -900,32 +1011,67 @@
 
   /* ================= Projektile ================= */
 
-  function Projectile(type, x, y, vx, vy) {
+  function Projectile(type, x, y, vx, vy, friendly) {
     this.t = type;
     this.x = x; this.y = y;
     this.vx = vx; this.vy = vy;
     this.t0 = 0;
     this.dead = false;
+    this.friendly = !!friendly;
+    this.bounces = 3;
     if (type === 'sellerie') { this.w = 6; this.h = 12; this.spr = 'sellerie'; this.grav = 0.1; }
     else if (type === 'blatt') { this.w = 10; this.h = 8; this.spr = 'blatt'; this.grav = 0.14; }
+    else if (type === 'kippe') { this.w = 10; this.h = 5; this.spr = 'kippe'; this.grav = 0.26; }
     else { this.w = 10; this.h = 14; this.spr = 'shaker'; this.grav = 0; }
   }
+
+  Projectile.prototype.pop = function (g, col) {
+    if (this.dead) return;
+    this.dead = true;
+    g.particles.burst(this.x + this.w / 2, this.y + this.h / 2, 7,
+      { col: col || '#8cd85a', spread: 2, up: 0.5, life: 20 });
+  };
 
   Projectile.prototype.update = function (g) {
     this.t0++;
     this.vy += this.grav;
     this.x += this.vx; this.y += this.vy;
 
-    var tx = Math.floor((this.x + this.w / 2) / T);
-    var ty = Math.floor((this.y + this.h / 2) / T);
-    if (g.world.solid(tx, ty)) {
-      this.dead = true;
-      g.particles.burst(this.x + this.w / 2, this.y + this.h / 2, 7,
-        { col: '#8cd85a', spread: 2, up: 0.5, life: 20 });
-    }
-    if (this.t0 > 420 || this.y > g.world.h * T + 60) this.dead = true;
+    var cxT = Math.floor((this.x + this.w / 2) / T);
+    var cyT = Math.floor((this.y + this.h / 2) / T);
 
-    if (!g.player.dead && overlap(this, g.player)) {
+    if (this.t === 'kippe') {
+      // Kippen hüpfen über den Boden wie Marios Feuerbälle.
+      var below = Math.floor((this.y + this.h) / T);
+      if (this.vy > 0 && g.world.solid(cxT, below)) {
+        this.y = below * T - this.h;
+        this.vy = -3.5;
+        g.particles.spawn({ x: this.x + 5, y: this.y + 4, vx: 0, vy: -0.5,
+                            life: 22, col: '#ffb43c', size: 2, grav: 0 });
+        if (--this.bounces <= 0) this.pop(g, '#ffb43c');
+      }
+      var ahead = Math.floor((this.x + (this.vx > 0 ? this.w : 0)) / T);
+      if (g.world.solid(ahead, cyT)) this.pop(g, '#ffb43c');
+    } else if (g.world.solid(cxT, cyT)) {
+      this.pop(g);
+    }
+
+    if (this.t0 > 420 || this.y > g.world.h * T + 60) this.dead = true;
+    if (this.dead) return;
+
+    if (this.friendly) {
+      for (var i = 0; i < g.enemies.length; i++) {
+        var e = g.enemies[i];
+        if (e.dead || !overlap(this, e)) continue;
+        e.squash(g, g.player);
+        this.pop(g, '#ffb43c');
+        return;
+      }
+      if (g.boss && !g.boss.dead && overlap(this, g.boss)) {
+        g.boss.hit(g, 1, false, null);
+        this.pop(g, '#ffb43c');
+      }
+    } else if (!g.player.dead && overlap(this, g.player)) {
       this.dead = true;
       if (g.player.power > 0 || g.player.pound === -1) {
         g.particles.burst(this.x, this.y, 8, { col: '#ffd257', spread: 2, life: 18 });
@@ -942,7 +1088,7 @@
     this.x = tx * T; this.y = ty * T - this.h;
     this.vx = 0; this.vy = 0;
     this.facing = -1;
-    this.hp = 12; this.maxHp = 12;
+    this.hp = 9; this.maxHp = 9;   // 3 Treffer pro Phase
     this.phase = 1;
     this.t0 = 0;
     this.anim = 0; this.animT = 0;
@@ -998,32 +1144,43 @@
       case 'throw':
         this.vx *= 0.8;
         if (this.timer === 12) {
-          var n = this.phase >= 3 ? 3 : (this.phase === 2 ? 2 : 1);
+          var n = this.phase >= 3 ? 4 : (this.phase === 2 ? 3 : 2);
           for (var i = 0; i < n; i++) {
             g.addProjectile('blatt', this.cx(), this.y + 20,
-              this.facing * (2.1 + i * 0.35), -2.4 - i * 0.5);
+              this.facing * (2.2 + i * 0.4), -2.6 - i * 0.55);
           }
           global.Sound.play('shoot');
         }
-        if (this.timer <= 0) { this.state = 'idle'; this.timer = 30; }
+        // Nach jedem Angriff eine klare Lücke zum Draufspringen.
+        if (this.timer <= 0) { this.state = 'idle'; this.timer = 48; }
         break;
 
       case 'shake':   // Protein-Shaker, waagerecht
         this.vx *= 0.8;
         if (this.timer === 14) {
-          g.addProjectile('shaker', this.cx(), this.y + 24, this.facing * 3.4, 0);
+          g.addProjectile('shaker', this.cx(), this.y + 24, this.facing * 3.0, 0);
           global.Sound.play('shoot');
         }
-        if (this.timer <= 0) { this.state = 'idle'; this.timer = 26; }
+        if (this.timer <= 0) { this.state = 'idle'; this.timer = 44; }
         break;
 
       case 'jump':
-        if (this.grounded && this.timer < 44) { this.state = 'idle'; this.timer = 24; }
+        if (this.grounded && this.timer < 44) { this.state = 'idle'; this.timer = 42; }
+        break;
+
+      // Sichtbares Ausholen, damit der Sturmlauf fair ist
+      case 'dashprep':
+        this.vx *= 0.7;
+        if (this.timer <= 0) {
+          this.state = 'dash'; this.timer = 34;
+          global.Sound.play('bossRoar');
+          g.shake(3, 8);
+        }
         break;
 
       case 'dash':
-        this.vx = this.facing * 4.6;
-        if (this.timer <= 0) { this.state = 'idle'; this.timer = 34; }
+        this.vx = this.facing * 3.7;
+        if (this.timer <= 0) { this.state = 'idle'; this.timer = 52; }
         break;
 
       // Der Gag: er macht mitten im Kampf Liegestütze, um sich zu "pushen".
@@ -1043,11 +1200,12 @@
 
       case 'rain':
         this.vx *= 0.8;
-        if (this.timer % 14 === 0) {
-          var rx = g.arena.x + 20 + Math.random() * (g.arena.w - 40);
-          g.addProjectile('blatt', rx, g.cameraTopY(), 0, 1.4);
+        // Nur im sichtbaren Bereich regnen lassen — sonst verpufft es.
+        if (this.timer % 18 === 0) {
+          var rx = g.cam.x + 30 + Math.random() * 450;
+          g.addProjectile('blatt', rx, g.cameraTopY(), 0, 1.3);
         }
-        if (this.timer <= 0) { this.state = 'idle'; this.timer = 34; }
+        if (this.timer <= 0) { this.state = 'idle'; this.timer = 50; }
         break;
     }
 
@@ -1066,12 +1224,20 @@
     this.animT++;
     if (this.animT > (this.state === 'dash' ? 3 : 7)) { this.animT = 0; this.anim++; }
 
-    // Kontakt
-    if (!p.dead && overlap(this, p)) {
-      if (p.vy > 0.9 && p.feet() - this.y < 22) this.hit(g, 1, false, p);
-      else if (p.power > 0) this.hit(g, 1, false, p);
+    // Kontakt. Zwei Regeln machen den Kampf ueberhaupt erst lernbar:
+    //  1) nach einem Treffer ist er kurz komplett ungefaehrlich,
+    //  2) waehrend er durchatmet (idle/Liegestuetze) tut er nichts.
+    // Sonst verliert man Leben allein dadurch, dass man ihm nahe kommt —
+    // und naeher kommen MUSS man, um auf seinen Kopf zu springen.
+    // Nur der angekuendigte Sturmlauf tut weh. Sein blosser Koerper nicht —
+    // sonst bestraft das Spiel genau die Bewegung, die es verlangt.
+    // Die eigentliche Gefahr sind seine Wuerfe.
+    this.open = (this.state !== 'dash');
+    if (!p.dead && this.invuln <= 0 && overlap(this, p)) {
+      var stomp = p.vy > 0.5 && (p.feet() - this.y) < 32;
+      if (stomp || p.power > 0) this.hit(g, 1, false, p);
       else if (p.pound === -1) this.hit(g, 1, true, p);
-      else p.hurt(g, 1, this.cx());
+      else if (!this.open) p.hurt(g, 1, this.cx());
     }
   };
 
@@ -1092,11 +1258,11 @@
     } else if (this.phase === 2) {
       if (r < 0.30) { this.state = 'throw'; this.timer = 36; }
       else if (r < 0.52) { this.state = 'shake'; this.timer = 34; }
-      else if (r < 0.74) { this.state = 'dash'; this.timer = 34; global.Sound.play('bossRoar'); }
+      else if (r < 0.74) { this.state = 'dashprep'; this.timer = 26; }
       else { this.state = 'jump'; this.timer = 60; this.vy = -9.2; this.vx = this.facing * 2.1; }
     } else {
       if (r < 0.22) { this.state = 'rain'; this.timer = 86; }
-      else if (r < 0.42) { this.state = 'dash'; this.timer = 32; global.Sound.play('bossRoar'); }
+      else if (r < 0.42) { this.state = 'dashprep'; this.timer = 22; }
       else if (r < 0.60) { this.state = 'shake'; this.timer = 30; }
       else if (r < 0.80) { this.state = 'throw'; this.timer = 32; }
       else { this.state = 'pushups'; this.timer = 82; this.pushups = 0; }
@@ -1120,7 +1286,7 @@
       { col: '#9dff6a', spread: 3, up: 1, life: 30 });
     g.floats.add(this.cx(), this.y - 6, 'TREFFER!', '#9dff6a', 45);
 
-    var newPhase = this.hp > 8 ? 1 : (this.hp > 4 ? 2 : 3);
+    var newPhase = this.hp > 6 ? 1 : (this.hp > 3 ? 2 : 3);
     if (newPhase !== this.phase && this.hp > 0) {
       this.phase = newPhase;
       g.onBossPhase(newPhase);
@@ -1149,6 +1315,7 @@
     Floats: Floats,
     ENEMY: ENEMY,
     ITEM: ITEM,
+    setDifficulty: setDifficulty,
     overlap: overlap,
     moveX: moveX,
     moveY: moveY,
