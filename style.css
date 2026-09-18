@@ -1,0 +1,79 @@
+*{margin:0;padding:0;box-sizing:border-box}
+
+html,body{
+  height:100%;
+  background:#07050b;
+  overflow:hidden;
+  touch-action:none;
+  -webkit-user-select:none;user-select:none;
+  -webkit-tap-highlight-color:transparent;
+}
+
+body{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  /* subtle vignette so the pixel screen floats in the dark */
+  background:
+    radial-gradient(ellipse at 50% 45%, #171024 0%, #07050b 70%);
+}
+
+#frame{
+  position:relative;
+  line-height:0;
+}
+
+#screen{
+  display:block;
+  image-rendering:pixelated;
+  image-rendering:crisp-edges;
+  background:#0e0a14;
+  box-shadow:
+    0 0 0 2px #241a33,
+    0 0 0 4px #0b0710,
+    0 18px 60px rgba(0,0,0,.8),
+    0 0 90px rgba(255,180,60,.07);
+  border-radius:2px;
+}
+
+/* ---- touch controls: hidden unless the device has no fine pointer ---- */
+#touch{display:none}
+
+.tbtn{
+  -webkit-appearance:none;appearance:none;
+  font:700 22px/1 system-ui,sans-serif;
+  color:#ffe9b8;
+  background:rgba(38,26,54,.72);
+  border:2px solid rgba(255,206,110,.45);
+  border-radius:14px;
+  width:60px;height:60px;
+  display:grid;place-items:center;
+  backdrop-filter:blur(2px);
+  touch-action:none;
+}
+.tbtn:active{background:rgba(255,196,80,.55);color:#2a1a08}
+.tbtn.big{width:78px;height:78px;font-size:26px}
+.tbtn.tiny{
+  position:absolute;top:8px;right:8px;
+  width:38px;height:38px;font-size:16px;border-radius:10px;
+}
+
+.pad-left,.pad-right{
+  position:absolute;bottom:14px;
+  display:flex;gap:12px;align-items:flex-end;
+}
+.pad-left{left:14px}
+.pad-right{right:14px}
+
+@media (pointer:coarse){
+  #touch{display:block;position:absolute;inset:0;pointer-events:none}
+  #touch .tbtn{pointer-events:auto}
+  .pad-left,.pad-right{position:fixed}
+  .tbtn.tiny{position:fixed}
+}
+
+/* very small screens: shrink the pads a bit */
+@media (pointer:coarse) and (max-height:420px){
+  .tbtn{width:52px;height:52px}
+  .tbtn.big{width:66px;height:66px}
+}

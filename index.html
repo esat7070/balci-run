@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Balci Run – Yusufs Honig-Jagd</title>
+<meta name="description" content="Ein handgepixeltes Jump'n'Run: Yusuf Balci sammelt Honig, schläft zu viel und muss seinen dünnen Erzfeind Hussein besiegen. 5 Level, 1 Endgegner, 0 Salat.">
+<meta name="theme-color" content="#0e0a14">
+<meta property="og:title" content="Balci Run – Yusufs Honig-Jagd">
+<meta property="og:description" content="5 Level Pixel-Jump'n'Run. Honig sammeln, Salat vermeiden, Hussein besiegen.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%230e0a14'/%3E%3Crect x='5' y='2' width='6' height='2' fill='%238a5a2a'/%3E%3Crect x='4' y='4' width='8' height='9' fill='%23ffc23c'/%3E%3Crect x='4' y='4' width='8' height='2' fill='%23ffe38a'/%3E%3Crect x='6' y='7' width='4' height='2' fill='%23e08a1e'/%3E%3C/svg%3E">
+</head>
+<body>
+
+<div id="frame">
+  <canvas id="screen" width="512" height="288"></canvas>
+
+  <div id="touch" aria-hidden="true">
+    <div class="pad-left">
+      <button class="tbtn" data-key="left">◀</button>
+      <button class="tbtn" data-key="right">▶</button>
+    </div>
+    <div class="pad-right">
+      <button class="tbtn" data-key="down">▼</button>
+      <button class="tbtn big" data-key="jump">A</button>
+    </div>
+    <button class="tbtn tiny" data-key="pause">≡</button>
+  </div>
+</div>
+
+<noscript>
+  <p style="color:#fff;font:16px monospace;padding:24px">
+    Dieses Spiel braucht JavaScript. Yusuf braucht Honig. Beide sind gerade enttäuscht.
+  </p>
+</noscript>
+
+<script src="src/font.js"></script>
+<script src="src/pixel.js"></script>
+<script src="src/sprites.js"></script>
+<script src="src/audio.js"></script>
+<script src="src/input.js"></script>
+<script src="src/levels.js"></script>
+<script src="src/entities.js"></script>
+<script src="src/game.js"></script>
+</body>
+</html>

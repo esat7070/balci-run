@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="de">
+<head><meta charset="utf-8"><title>Balci Run Smoke Test</title>
+<style>body{background:#111;color:#0f0;font:13px monospace}pre{white-space:pre-wrap}</style>
+</head>
+<body>
+<canvas id="screen" width="512" height="288"></canvas>
+<div id="touch"></div>
+<pre id="R">RUNNING...</pre>
+
+<script>
+window.__err = [];
+window.onerror = function (m, s, l, c, e) {
+  window.__err.push('JS-FEHLER: ' + m + ' @ ' + s + ':' + l + (e && e.stack ? '\n' + e.stack : ''));
+  return false;
+};
+window.addEventListener('unhandledrejection', function (e) {
+  window.__err.push('PROMISE: ' + e.reason);
+});
+</script>
+
+<script src="src/font.js"></script>
+<script src="src/pixel.js"></script>
+<script src="src/sprites.js"></script>
+<script src="src/audio.js"></script>
+<script src="src/input.js"></script>
+<script src="src/levels.js"></script>
+<script src="src/entities.js"></script>
+<script src="src/game.js"></script>
+
+<script>
+var out = [], fails = 0;
+function ok(cond, label, extra) {
+  out.push((cond ? '  OK   ' : '  FAIL ') + label + (extra ? '  [' + extra + ']' : ''));
+  if (!cond) fails++;
+}
+
+function run() {
+  if (window.__err.length) {
+    out.push('=== LADEFEHLER ===');
+    window.__err.forEach(function (e) { out.push(e); });
+    fails += window.__err.length;
+  }
+
+  // ---- 1. Sprites ----
+  var sprCount = Object.keys(Pixel._sprites).length;
+  ok(sprCount > 40, 'Sprites gebacken', sprCount);
+  var zero = [];
+  for (var n in Pixel._sprites) {
+    var s = Pixel._sprites[n];
+    if (!s.w || !s.h) zero.push(n);
+  }
+  ok(zero.length === 0, 'Alle Sprites haben Groesse', zero.join(','));
+
+  // ---- 2. Font-Abdeckung aller Spieltexte ----
+  var texts = [], missing = {};
+  Levels.list.forEach(function (L) {
+    texts.push(L.name, L.sub);
+    L.intro.forEach(function (d) { texts.push(d[1]); });
+    L.outro.forEach(function (d) { texts.push(d[1]); });
+    L.signs.forEach(function (s) { texts.push(s.text); });
+  });
+  ['start', 'phase2', 'phase3', 'end'].forEach(function (k) {
+    Levels.boss[k].forEach(function (d) { texts.push(d[1]); });
+  });
+  Levels.sleepLines.concat(Levels.hurtLines, Levels.eatLines, Levels.deathLines)
+    .forEach(function (t) { texts.push(t); });
+  texts.forEach(function (t) {
+    for (var i = 0; i < t.length; i++) {
+      if (!Font.has(t.charAt(i))) missing[t.charAt(i)] = true;
+    }
+  });
+  ok(Object.keys(missing).length === 0, 'Font deckt alle Texte ab',
+     Object.keys(missing).join(' '));
+
+  // ---- 3. Leveldaten ----
+  Levels.list.forEach(function (L, i) {
+    var w = new Ent.World();
+    w.load(L);
+    var sx = L.spawn[0], sy = L.spawn[1];
+    ok(w.solid(sx, sy), 'L' + (i + 1) + ' Startpunkt steht auf Boden');
+    ok(!w.solid(sx, sy - 1), 'L' + (i + 1) + ' Startpunkt ist frei');
+    if (!L.boss) {
+      ok(w.solid(L.goal[0], L.goal[1]), 'L' + (i + 1) + ' Ziel steht auf Boden',
+         L.goal.join(','));
+    }
+    // Gegner duerfen nicht in Wänden stecken
+    var stuck = 0;
+    L.enemies.forEach(function (e) {
+      var d = Ent.ENEMY[e.t];
+      if (!d) { stuck++; return; }
+      if (!d.fly && !w.solid(e.x, e.y)) stuck++;   // muss Boden unter sich haben
+    });
+    ok(stuck === 0, 'L' + (i + 1) + ' Gegner stehen auf Boden', stuck + ' falsch');
+    // Checkpoints erreichbar
+    var badCp = 0;
+    L.checkpoints.forEach(function (c) { if (!w.solid(c[0], c[1])) badCp++; });
+    ok(badCp === 0, 'L' + (i + 1) + ' Checkpoints auf Boden', badCp);
+    // Schilder
+    var badSign = 0;
+    L.signs.forEach(function (s) { if (!w.solid(s.x, s.y)) badSign++; });
+    ok(badSign === 0, 'L' + (i + 1) + ' Schilder auf Boden', badSign);
+  });
+
+  // ---- 4. Bot spielt jedes Level ----
+  // Der Bot laeuft nach rechts und springt, wenn eine Wand oder eine
+  // Luecke vor ihm ist. Doppelsprung, wenn er im Fallen keinen Boden sieht.
+  var jumpHold = 0, jumpCool = 0, pressJump = false;
+
+  function botThink(p, w) {
+    var T = 16;
+    var fx = Math.floor((p.x + p.w + 5) / T);
+    var fy = Math.floor((p.y + p.h - 3) / T);
+
+    var wallAhead = w.solid(fx, fy) || w.solid(fx, fy - 1);
+    var groundAhead = w.solid(fx, fy + 1) || w.solid(fx + 1, fy + 1);
+    var gapAhead = !groundAhead;
+
+    // Gegner direkt voraus? Draufspringen.
+    var foe = false;
+    for (var i = 0; i < G.enemies.length; i++) {
+      var e = G.enemies[i];
+      if (e.dead) continue;
+      var d = e.x - (p.x + p.w);
+      if (d > -10 && d < 44 && Math.abs((e.y + e.h) - (p.y + p.h)) < 30) { foe = true; break; }
+    }
+
+    var want = false;
+    if (p.grounded) {
+      want = (wallAhead || gapAhead || foe);
+    } else if (p.vy > 2.2 && p.jumpsLeft > 0) {
+      // im Fallen: ist unter uns ueberhaupt Boden?
+      var bx = Math.floor((p.x + p.w / 2) / T);
+      var by = Math.floor((p.y + p.h) / T);
+      var floorSoon = false;
+      for (var k = 0; k < 5; k++) if (w.solid(bx, by + k)) { floorSoon = true; break; }
+      want = !floorSoon;
+    }
+
+    // Wichtig: Sprung muss sich WIEDERHOLEN koennen, nicht nur einmal
+    // bei der steigenden Flanke — sonst bleibt der Bot vor Wänden kleben.
+    pressJump = false;
+    if (want && jumpCool <= 0) { pressJump = true; jumpHold = 18; jumpCool = 22; }
+    if (jumpCool > 0) jumpCool--;
+    if (jumpHold > 0) jumpHold--;
+  }
+
+  var results = [];
+  Levels.list.forEach(function (L, idx) {
+    G._loadLevel(idx, false);
+    G.state = 'play';
+    G.frozen = false;
+    G.banner = 0;
+    var p = G.player;
+    p.lives = 999;
+    var startX = p.x;
+
+    jumpHold = 0; jumpCool = 0; pressJump = false;
+    Input.axis = function () { return 1; };
+    Input.down = function (a) {
+      return a === 'right' || a === 'run' || (a === 'jump' && jumpHold > 0);
+    };
+    Input.hit = function (a) { return a === 'jump' && pressJump; };
+    Input.anyHit = function () { return false; };
+    Input.up = function () { return false; };
+    Input.poll = function () {};
+    Input.endFrame = function () {};
+
+    var deaths = 0, maxX = p.x, err = null, stuckAt = 0, lastImprove = 0, tick;
+    try {
+      for (tick = 0; tick < 7200; tick++) {
+        botThink(G.player, G.world);
+        var before = G.player.lives;
+        G._update();
+        if (G.player.lives < before) deaths++;
+        if (G.player.x > maxX) { maxX = G.player.x; lastImprove = tick; }
+        if (G.state === 'clear' || G.state === 'ending' || G.state === 'dialog') break;
+      }
+      stuckAt = Math.round(maxX / 16);
+      G._render();
+    } catch (e) {
+      err = e.message + '\n' + (e.stack || '');
+    }
+    var pct = Math.round((maxX - startX) / (L.w * 16 - startX) * 100);
+    results.push('L' + (idx + 1) + ': ' + pct + '% (bis Tile ' + stuckAt + ' von ' + L.w +
+                 '), ' + deaths + ' Tode, Status=' + G.state);
+
+    if (pct < 45) {
+      var q = G.player, w2 = G.world;
+      results.push('   FEST: x=' + q.x.toFixed(1) + ' y=' + q.y.toFixed(1) +
+                   ' vx=' + q.vx.toFixed(2) + ' vy=' + q.vy.toFixed(2) +
+                   ' grounded=' + q.grounded + ' jumpsLeft=' + q.jumpsLeft +
+                   ' hp=' + q.hp + ' dead=' + q.dead + ' pound=' + q.pound);
+      var ptx = Math.floor((q.x + q.w / 2) / 16), pty = Math.floor((q.y + q.h) / 16);
+      for (var ry = pty - 7; ry <= pty + 2; ry++) {
+        var line = '   ' + ('  ' + ry).slice(-3) + ' ';
+        for (var rx = ptx - 5; rx <= ptx + 9; rx++) {
+          if (rx === ptx && ry === pty) line += 'P';
+          else if (w2.blockAt(rx, ry)) line += 'B';
+          else line += (w2.solid(rx, ry) ? '#' : '.');
+        }
+        results.push(line);
+      }
+      var mv = w2.movers.map(function (m) {
+        return '(' + Math.round(m.x / 16) + ',' + Math.round(m.y / 16) + ')';
+      }).join(' ');
+      results.push('   Tabletts: ' + mv);
+    }
+    ok(!err, 'L' + (idx + 1) + ' laeuft ohne Absturz', err || '');
+    ok(pct > 45, 'L' + (idx + 1) + ' Bot kommt weit genug', pct + '%');
+    ok(deaths < 25, 'L' + (idx + 1) + ' nicht toedlich ueberladen', deaths + ' Tode');
+  });
+
+  out.push('--- Bot-Durchlaeufe (simple KI, kein Mensch) ---');
+  results.forEach(function (r) { out.push('  ' + r); });
+
+  if (window.__err.length) {
+    out.push('=== LAUFZEITFEHLER ===');
+    window.__err.forEach(function (e) { out.push(e); });
+  }
+
+  document.getElementById('R').textContent =
+    (fails === 0 ? '### ALLES GRUEN ###' : '### ' + fails + ' FEHLER ###') +
+    '\n' + out.join('\n');
+}
+
+setTimeout(function () {
+  try { run(); }
+  catch (e) {
+    document.getElementById('R').textContent =
+      '### HARNESS-ABSTURZ ###\n' + e.message + '\n' + (e.stack || '') +
+      '\n' + out.join('\n');
+  }
+}, 400);
+</script>
+</body>
+</html>
