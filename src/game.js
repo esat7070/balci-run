@@ -14,15 +14,36 @@
 
   /* ================= Speicherstand ================= */
 
-  var save = { unlocked: 1, best: [], seen: false };
-  try {
-    var raw = localStorage.getItem('balci_save');
-    if (raw) {
-      var s = JSON.parse(raw);
-      if (s && typeof s.unlocked === 'number') save = s;
+  /* Spielstand ebenfalls streng pruefen: kaputte oder von Hand
+     veraenderte Daten duerfen das Spiel nicht aus dem Tritt bringen. */
+  var save = { unlocked: 1, best: [] };
+  (function () {
+    var raw = null;
+    try { raw = localStorage.getItem('balci_save'); } catch (e) { return; }
+    if (!raw || typeof raw !== 'string' || raw.length > 8000) return;
+    var s;
+    try { s = JSON.parse(raw); } catch (e) { return; }
+    if (!s || typeof s !== 'object') return;
+
+    var n = Math.floor(Number(s.unlocked));
+    save.unlocked = isFinite(n) ? Math.max(1, Math.min(7, n)) : 1;
+
+    if (Array.isArray(s.best)) {
+      for (var i = 0; i < s.best.length && i < 8; i++) {
+        var b = s.best[i];
+        if (!b || typeof b !== 'object') { save.best[i] = null; continue; }
+        var num = function (v, max) {
+          var x = Math.floor(Number(v));
+          return isFinite(x) ? Math.max(0, Math.min(max, x)) : 0;
+        };
+        save.best[i] = {
+          honey: num(b.honey, 99999),
+          score: num(b.score, 9999999),
+          time: num(b.time, 359999)
+        };
+      }
     }
-  } catch (e) {}
-  if (!Array.isArray(save.best)) save.best = [];
+  })();
 
   function persist() {
     try { localStorage.setItem('balci_save', JSON.stringify(save)); } catch (e) {}
@@ -63,8 +84,10 @@
   };
   G.cameraTopY = function () { return G.cam.y - 20; };
   G.addItem = function (t, x, y, popped) { G.items.push(new E.Item(t, x, y, popped)); };
-  G.addProjectile = function (t, x, y, vx, vy) {
-    G.projectiles.push(new E.Projectile(t, x, y, vx, vy));
+  G.addProjectile = function (t, x, y, vx, vy, friendly) {
+    var pr = new E.Projectile(t, x, y, vx, vy, friendly);
+    G.projectiles.push(pr);
+    return pr;
   };
 
   /* ================= Level laden ================= */
@@ -79,7 +102,10 @@
     G.enemies = []; G.items = []; G.projectiles = [];
     G.particles.list.length = 0; G.floats.list.length = 0;
     G.boss = null; G.bossStarted = false;
-    G.arena = lvl.boss ? { x: (lvl.boss.x - 34) * T, w: 45 * T } : null;
+    G.arena = lvl.arena ? { x: lvl.arena.x * T, w: lvl.arena.w * T }
+            : (lvl.boss ? { x: (lvl.boss.x - 34) * T, w: 45 * T } : null);
+    G.mirkanTriggers = (lvl.mirkan || []).slice();
+    G.mirkan = null;
 
     var i;
     for (i = 0; i < lvl.enemies.length; i++) {
@@ -95,9 +121,14 @@
     var sp = (fromCheckpoint && G.checkpoint) ? G.checkpoint : lvl.spawn;
     if (!G.player) G.player = new E.Player(sp[0] * T, sp[1] * T - 26);
     else {
-      var lives = G.player.lives, honey = G.player.honey, score = G.player.score;
+      var keep = {
+        lives: G.player.lives, honey: G.player.honey, score: G.player.score,
+        deaths: G.player.deaths || 0, eatCount: G.player.eatCount || 0
+      };
       G.player.reset(sp[0] * T, sp[1] * T - 26);
-      G.player.lives = lives; G.player.honey = honey; G.player.score = score;
+      G.player.lives = keep.lives; G.player.honey = keep.honey;
+      G.player.score = keep.score; G.player.deaths = keep.deaths;
+      G.player.eatCount = keep.eatCount;
     }
     if (!fromCheckpoint) { G.checkpoint = null; G.bossIntroSeen = false; }
 
@@ -171,6 +202,7 @@
   /* ================= Callbacks aus entities.js ================= */
 
   G.onPlayerDead = function () {
+    G.player.deaths = (G.player.deaths || 0) + 1;
     G.player.lives--;
     if (G.player.lives < 0) {
       fadeTo(function () {
@@ -187,6 +219,26 @@
         G.state = 'play';
       });
     }
+  };
+
+  G.onEsatPhase = function (phase) {
+    G.projectiles.length = 0;
+    G.player.invuln = Math.max(G.player.invuln, 80);
+    var d = phase === 2 ? LV.esat.phase2 : LV.esat.phase3;
+    startDialog(d, function () { G.state = 'play'; });
+  };
+
+  G.onEsatDead = function () {
+    G.frozen = true;
+    G.projectiles.length = 0;
+    G.enemies.length = 0;
+    G.after(85, function () {
+      startDialog(LV.esat.end, function () {
+        save.unlocked = LV.list.length;
+        persist();
+        fadeTo(function () { startNameEntry(); });
+      });
+    });
   };
 
   G.onBossPhase = function (phase) {
@@ -286,10 +338,11 @@
 
   function startGame(idx) {
     fadeTo(function () {
-      if (G.player) { G.player.lives = 4; G.player.honey = 0; G.player.score = 0; }
       G.checkpoint = null;
       loadLevel(idx, false);
       G.player.lives = 4; G.player.honey = 0; G.player.score = 0;
+      G.player.deaths = 0; G.player.eatCount = 0;
+      G.lastName = null; G.lastScore = null;
       S.music(LV.list[idx].music);
       startDialog(LV.list[idx].intro, function () { G.state = 'play'; });
     });
@@ -379,18 +432,44 @@
     // Boss auslösen
     if (G.arena && !G.bossStarted && p.cx() > G.arena.x + 56) {
       G.bossStarted = true;
-      G.boss = new E.Boss(G.lvl.boss.x, G.lvl.boss.y);
+      var isEsat = (G.lvl.bossType === 'esat');
+      G.boss = isEsat ? new E.BossEsat(G.lvl.boss.x, G.lvl.boss.y)
+                      : new E.Boss(G.lvl.boss.x, G.lvl.boss.y);
       G.boss.intro = false;
-      // Tür zu. Ab hier gibt es nur noch einen Weg raus.
-      G.world.fill(Math.floor(G.arena.x / T) - 1, 2, 1, 13, 1);
-      // Wiedereinstieg IN der Arena: sonst laeuft man nach jedem Tod
-      // den halben Weg zurueck und hoert das Intro nochmal.
-      G.checkpoint = [Math.floor(G.arena.x / T) + 4, 15];
+      if (isEsat) {
+        G.checkpoint = [G.lvl.spawn[0], G.lvl.spawn[1]];
+      } else {
+        // Tür zu. Ab hier gibt es nur noch einen Weg raus.
+        G.world.fill(Math.floor(G.arena.x / T) - 1, 2, 1, 13, 1);
+        // Wiedereinstieg IN der Arena: sonst laeuft man nach jedem Tod
+        // den halben Weg zurueck und hoert das Intro nochmal.
+        G.checkpoint = [Math.floor(G.arena.x / T) + 4, 15];
+        if (!G.bossIntroSeen) {
+          G.bossIntroSeen = true;
+          startDialog(LV.boss.start, function () { G.state = 'play'; });
+        }
+      }
       S.music('boss');
       G.shake(5, 20);
-      if (!G.bossIntroSeen) {
-        G.bossIntroSeen = true;
-        startDialog(LV.boss.start, function () { G.state = 'play'; });
+    }
+
+    // Mirkan faehrt neben Yusuf her und stellt Fragen. Sehr viele.
+    if (G.mirkanTriggers.length && p.cx() > G.mirkanTriggers[0] * T) {
+      G.mirkanTriggers.shift();
+      G.mirkan = { t: 0, qi: (Math.random() * LV.mirkanLines.length) | 0, dur: 520 };
+      S.play('select');
+    }
+    if (G.mirkan) {
+      G.mirkan.t++;
+      if (G.mirkan.t % 105 === 25) {
+        var ml = LV.mirkanLines;
+        G.floats.add(p.cx() - 76, p.y - 26, ml[G.mirkan.qi % ml.length], '#b8c0d4', 105);
+        G.mirkan.qi++;
+        S.play('move');
+      }
+      if (G.mirkan.t > G.mirkan.dur) {
+        G.floats.add(p.cx() - 70, p.y - 30, 'OKAY. BIS SPÄTER DANN.', '#8f86a8', 90);
+        G.mirkan = null;
       }
     }
     // Der Boss bewegt sich im Dialog nicht — nur seine Todesanimation läuft weiter.
@@ -434,11 +513,16 @@
     if (save.unlocked < idx + 2 && idx < LV.list.length - 1) save.unlocked = idx + 2;
     persist();
 
-    // Letztes Level: Siegerehrung im Stilbruch, danach Bestenliste.
-    if (G.lvlIndex === LV.list.length - 1) {
+    // Level 6 endet mit der Siegerehrung — und die eskaliert.
+    if (G.lvl.id === 6) {
       G.after(50, function () {
         startDialog(LV.stilbruch, function () {
-          fadeTo(function () { startNameEntry(); });
+          fadeTo(function () {
+            G.checkpoint = null;
+            loadLevel(6, false);
+            S.music('boss');
+            startDialog(LV.list[6].intro, function () { G.state = 'play'; });
+          });
         });
       });
       return;
@@ -455,22 +539,109 @@
   /* ================= Bestenliste ================= */
 
   var NAME_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-. ';
+  var SCORE_KEY = 'balci_scores_v2';
+  var SCORE_SALT = 'balci-run-honig-v2';
+  var MAX_SCORES = 10;
+
+  /* Die Bestenliste liegt im Browser des Spielers. Ohne Server kann
+     niemand sie wirklich absichern — wer will, editiert seinen eigenen
+     Speicher. Was hier passiert, ist trotzdem wichtig:
+       1. jeder Eintrag wird beim Laden streng geprueft und begrenzt,
+          damit kaputte Daten das Spiel nicht abstuerzen lassen,
+       2. eine Pruefsumme wirft von Hand veraenderte Eintraege raus. */
+  function hashStr(s) {
+    var h = 0x811c9dc5;              // FNV-1a
+    for (var i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0;
+    }
+    return h.toString(36);
+  }
+
+  function sigFor(e) {
+    return hashStr([e.n, e.s, e.h, e.t, e.d].join('|') + SCORE_SALT);
+  }
+
+  function cleanName(raw) {
+    var s = String(raw === null || raw === undefined ? '' : raw).toUpperCase();
+    var out = '';
+    for (var i = 0; i < s.length && out.length < 6; i++) {
+      var c = s.charAt(i);
+      if (NAME_CHARS.indexOf(c) >= 0) out += c;
+    }
+    out = out.replace(/\s+$/, '');
+    return out || 'ANONYM';
+  }
+
+  function clampInt(v, min, max) {
+    var n = Math.floor(Number(v));
+    if (!isFinite(n)) return min;
+    return Math.max(min, Math.min(max, n));
+  }
 
   function loadScores() {
-    try {
-      var l = JSON.parse(localStorage.getItem('balci_scores') || '[]');
-      return Array.isArray(l) ? l : [];
-    } catch (e) { return []; }
+    var raw = null;
+    try { raw = localStorage.getItem(SCORE_KEY); } catch (e) { return []; }
+    if (!raw || typeof raw !== 'string' || raw.length > 20000) return [];
+    var list;
+    try { list = JSON.parse(raw); } catch (e) { return []; }
+    if (!Array.isArray(list)) return [];
+
+    var out = [];
+    for (var i = 0; i < list.length && out.length < MAX_SCORES; i++) {
+      var e = list[i];
+      if (!e || typeof e !== 'object') continue;
+      var c = {
+        n: cleanName(e.n),
+        s: clampInt(e.s, 0, 9999999),
+        h: clampInt(e.h, 0, 99999),
+        t: clampInt(e.t, 0, 359999),
+        d: clampInt(e.d, 0, 9999)
+      };
+      if (typeof e.g !== 'string' || e.g !== sigFor(c)) continue;  // verändert
+      out.push(c);
+    }
+    return out;
   }
 
-  function storeScore(name, score, honey, timeSec) {
+  function storeScore(name, score, honey, timeSec, deaths) {
+    var c = {
+      n: cleanName(name),
+      s: clampInt(score, 0, 9999999),
+      h: clampInt(honey, 0, 99999),
+      t: clampInt(timeSec, 0, 359999),
+      d: clampInt(deaths, 0, 9999)
+    };
+    c.g = sigFor(c);
     var l = loadScores();
-    l.push({ n: name, s: score, h: honey, t: timeSec, d: Date.now() });
+    l.push(c);
     l.sort(function (a, b) { return b.s - a.s; });
-    l = l.slice(0, 10);
-    try { localStorage.setItem('balci_scores', JSON.stringify(l)); } catch (e) {}
+    l = l.slice(0, MAX_SCORES);
+    var withSig = l.map(function (e) {
+      var o = { n: e.n, s: e.s, h: e.h, t: e.t, d: e.d };
+      o.g = sigFor(o);
+      return o;
+    });
+    try { localStorage.setItem(SCORE_KEY, JSON.stringify(withSig)); } catch (e) {}
     return l;
   }
+
+  function fmtTime(sec) {
+    sec = clampInt(sec, 0, 359999);
+    return Math.floor(sec / 60) + ':' + ('0' + (sec % 60)).slice(-2);
+  }
+
+  /* Die Liste laesst sich nach vier Werten sortieren. */
+  var SCORE_CATS = [
+    { k: 'PUNKTE', cmp: function (a, b) { return b.s - a.s; },
+      val: function (e) { return '' + e.s; } },
+    { k: 'HONIG', cmp: function (a, b) { return b.h - a.h; },
+      val: function (e) { return 'x' + e.h; } },
+    { k: 'ZEIT', cmp: function (a, b) { return a.t - b.t; },
+      val: function (e) { return fmtTime(e.t); } },
+    { k: 'TODE', cmp: function (a, b) { return a.d - b.d; },
+      val: function (e) { return '' + e.d; } }
+  ];
 
   function startNameEntry() {
     G.nameIdx = [24, 20, 18, 38, 38, 38];   // "YUS" + Leerzeichen als Vorschlag
@@ -499,16 +670,24 @@
     }
     if (In.hit('jump') || In.hit('confirm')) {
       var sec = Math.floor(G.time / 60);
-      G.scoreList = storeScore(currentName(), G.player.score, G.player.honey, sec);
       G.lastName = currentName();
+      G.lastScore = G.player.score;
+      G.scoreList = storeScore(G.lastName, G.player.score, G.player.honey,
+                               sec, G.player.deaths || 0);
+      G.scoreCat = 0;
       S.play('oneUp');
       fadeTo(function () { G.state = 'teaser'; G.endScroll = 0; });
     }
   }
 
   function updateScores() {
-    if (global.Input.hit('back') || global.Input.hit('pause') ||
-        global.Input.hit('jump') || global.Input.hit('confirm')) {
+    var In = global.Input;
+    if (In.hit('right')) { G.scoreCat = (G.scoreCat + 1) % SCORE_CATS.length; S.play('move'); }
+    if (In.hit('left')) {
+      G.scoreCat = (G.scoreCat + SCORE_CATS.length - 1) % SCORE_CATS.length;
+      S.play('move');
+    }
+    if (In.hit('back') || In.hit('pause') || In.hit('jump') || In.hit('confirm')) {
       G.state = 'title'; S.play('select');
     }
   }
@@ -1020,7 +1199,41 @@
 
     for (i = 0; i < G.projectiles.length; i++) {
       var pr = G.projectiles[i];
+      if (pr.t === 'rauch') {
+        // Shisha-Wolke: weiche Schwaden, werden zum Ende hin blasser
+        var a2 = Math.min(0.72, pr.life / 90) * 0.9;
+        ctx.globalAlpha = a2;
+        ctx.fillStyle = '#c8c2d8';
+        var wx = pr.x - camX + 13, wy = pr.y - camY + 10;
+        var pf = Math.sin(pr.t0 * 0.06) * 1.5;
+        ctx.beginPath(); ctx.arc(wx - 6, wy + 1, 7 + pf, 0, 6.3); ctx.fill();
+        ctx.beginPath(); ctx.arc(wx + 5, wy - 1, 8 - pf, 0, 6.3); ctx.fill();
+        ctx.beginPath(); ctx.arc(wx, wy + 4, 7, 0, 6.3); ctx.fill();
+        ctx.fillStyle = '#e8e4f0';
+        ctx.beginPath(); ctx.arc(wx - 2, wy - 3, 5, 0, 6.3); ctx.fill();
+        ctx.globalAlpha = 1;
+        continue;
+      }
+      if (!pr.spr) continue;
       P.draw(ctx, pr.spr, pr.x - camX, pr.y - camY, pr.vx < 0);
+    }
+
+    // Mirkan faehrt nebenher und fragt
+    if (G.mirkan) {
+      var mp = G.player;
+      var mw = P.get('mercedes').w;
+      var sway = Math.sin(G.mirkan.t * 0.07) * 4;
+      var mx = mp.cx() - camX - 88 + sway - mw / 2;
+      var my = mp.feet() - camY - P.get('mercedes').h + 1;
+      P.draw(ctx, 'mercedes', mx, my, mp.facing < 0);
+      F.draw(ctx, 'MIRKAN', mx + mw / 2, my - 12,
+             { color: '#b8c0d4', align: 'center', shadow: true });
+      if (G.tick % 5 === 0) {
+        G.particles.spawn({
+          x: mp.cx() - 108 + sway, y: mp.feet() - 5,
+          vx: -0.7, vy: -0.2, life: 22, col: '#8e8880', size: 2, grav: -0.01
+        });
+      }
     }
 
     if (G.boss) drawBoss(camX, camY);
@@ -1121,6 +1334,48 @@
   function drawBoss(camX, camY) {
     var b = G.boss;
     var px = b.cx() - camX, py = b.y + b.h - camY;
+
+    // Esat hat eigene Zustaende
+    if (G.lvl.bossType === 'esat') {
+      var ep = 'idle', ef = 'normal';
+      if (b.dead) { ep = 'hurt'; ef = 'hurt'; }
+      else if (b.state === 'snooze') { ep = 'sleep'; ef = 'sleep'; }
+      else if (b.state === 'dash') { ep = 'run'; ef = 'rage'; }
+      else if (b.state === 'walk') ep = 'run';
+      else if (!b.grounded) ep = b.vy < 0 ? 'jump' : 'fall';
+      else if (b.state === 'shisha' || b.state === 'agents' || b.state === 'jets') {
+        ep = 'cheer'; ef = 'laugh';
+      }
+      if (b.flash > 0) ef = 'hurt';
+      else if (b.snoozed && !b.dead && ef === 'normal') ef = 'rage';
+
+      var eo = { pose: ep, face: ef, frame: b.anim, flip: b.facing < 0, scale: 2 };
+      if (b.dead) eo.alpha = Math.max(0.2, 1 - b.deadTimer / 160);
+      if (b.flash > 0 && (G.tick >> 1) % 2 === 0) {
+        eo.flash = '#ffffff'; eo.flashAlpha = 0.8;
+      }
+      if (b.invuln > 0 && (G.tick >> 1) % 2 === 0 && !b.dead) eo.alpha = 0.55;
+      if (b.snoozed && !b.dead) {
+        eo.flash = '#2fd39e';
+        eo.flashAlpha = 0.14 + Math.sin(G.tick * 0.16) * 0.08;
+      }
+      P.drawChar(ctx, 'esat', px, py, eo);
+
+      if (b.state === 'snooze' && !b.dead) {
+        for (var z = 0; z < 3; z++) {
+          var zt = (G.tick * 0.02 + z * 0.33) % 1;
+          F.draw(ctx, 'Z', px + 12 + zt * 14, py - b.h - 4 - zt * 20, {
+            color: 'rgba(200,255,220,' + (1 - zt).toFixed(2) + ')',
+            scale: 1 + Math.floor(zt * 2)
+          });
+        }
+      }
+      if (b.state === 'dashprep' && (G.tick >> 2) % 2 === 0) {
+        F.draw(ctx, '!', px, py - b.h - 10, { color: '#ff6a6a', align: 'center', scale: 2 });
+      }
+      return;
+    }
+
     var pose = 'idle', face = 'normal', frame = b.anim;
 
     if (b.dead) pose = 'hurt';
@@ -1210,13 +1465,23 @@
 
     // Bosslebensbalken
     if (G.boss && !G.boss.dead && G.bossStarted) {
+      var isE = (G.lvl.bossType === 'esat');
       var w2 = 260, x2 = (W - w2) / 2;
       rect(x2 - 2, 250, w2 + 4, 14, 'rgba(10,6,16,0.8)');
       rect(x2, 252, w2, 10, '#2a1a2a');
       var hw = Math.round(w2 * Math.max(0, G.boss.hp) / G.boss.maxHp);
-      rect(x2, 252, hw, 10, G.boss.phase >= 3 ? '#9dff6a' : (G.boss.phase === 2 ? '#c8e85a' : '#5ec24a'));
-      F.draw(ctx, 'HUSEYIN BALCI', W / 2, 238, { color: '#9dff6a', align: 'center', shadow: true });
-      F.draw(ctx, 'PHASE ' + G.boss.phase, x2 + w2 + 6, 253, { color: '#9dff6a' });
+      var barCol = isE
+        ? (G.boss.snoozed ? '#2fd39e' : '#6fc8e8')
+        : (G.boss.phase >= 3 ? '#9dff6a' : (G.boss.phase === 2 ? '#c8e85a' : '#5ec24a'));
+      rect(x2, 252, hw, 10, barCol);
+      F.draw(ctx, isE ? 'ESAT' : 'HUSEYIN BALCI', W / 2, 238,
+             { color: barCol, align: 'center', shadow: true });
+      var lbl = isE && G.boss.snoozed ? 'SNOOZE AKTIV' : 'PHASE ' + G.boss.phase;
+      F.draw(ctx, lbl, x2 + w2 + 6, 253, { color: barCol });
+      // Offenes Fenster sichtbar machen — der Kampf soll lesbar sein
+      if (G.boss.open && !G.boss.dead && (G.tick >> 3) % 2 === 0) {
+        F.draw(ctx, 'OFFEN', x2 - 8, 253, { color: '#ffd257', align: 'right' });
+      }
     }
   }
 
@@ -1448,7 +1713,7 @@
 
     var sec = Math.floor(G.time / 60);
     F.draw(ctx, 'PUNKTE ' + G.player.score + '   HONIG ' + G.player.honey +
-                '   ZEIT ' + Math.floor(sec / 60) + ':' + ('0' + (sec % 60)).slice(-2),
+                '   ZEIT ' + fmtTime(sec) + '   TODE ' + (G.player.deaths || 0),
            W / 2, 72, { color: '#ffe9a8', align: 'center' });
 
     // Namensfelder
@@ -1492,36 +1757,51 @@
       color: '#ffd257', align: 'center', scale: 3, shadow: true
     });
 
-    var list = G.scoreList || loadScores();
+    var list = (G.scoreList || loadScores()).slice();
+    var cat = SCORE_CATS[G.scoreCat || 0];
+
+    // Kategorie-Leiste
+    var cx0 = 60;
+    for (var c = 0; c < SCORE_CATS.length; c++) {
+      var on = (c === (G.scoreCat || 0));
+      var label = SCORE_CATS[c].k;
+      var lw = F.measure(label, 1, 1);
+      if (on) rect(cx0 - 5, 42, lw + 10, 13, 'rgba(255,210,87,0.22)');
+      F.draw(ctx, label, cx0, 45, { color: on ? '#ffd257' : '#8f86a8' });
+      cx0 += lw + 26;
+    }
+    F.draw(ctx, '~ SORTIEREN |', W - 40, 45, { color: '#6a6280', align: 'right' });
+
     if (!list.length) {
-      F.draw(ctx, 'NOCH NIEMAND HAT DURCHGESPIELT.', W / 2, 120,
+      F.draw(ctx, 'NOCH NIEMAND HAT DURCHGESPIELT.', W / 2, 124,
              { color: '#c8b8e0', align: 'center' });
-      F.draw(ctx, 'YUSUF FINDET DAS PEINLICH.', W / 2, 136,
+      F.draw(ctx, 'YUSUF FINDET DAS PEINLICH.', W / 2, 140,
              { color: '#8f86a8', align: 'center' });
     } else {
-      F.draw(ctx, 'PLATZ', 40, 54, { color: '#8f86a8' });
-      F.draw(ctx, 'NAME', 92, 54, { color: '#8f86a8' });
-      F.draw(ctx, 'HONIG', 240, 54, { color: '#8f86a8' });
-      F.draw(ctx, 'ZEIT', 320, 54, { color: '#8f86a8' });
-      F.draw(ctx, 'PUNKTE', W - 40, 54, { color: '#8f86a8', align: 'right' });
-      rect(36, 64, W - 72, 1, '#4a4258');
+      list.sort(cat.cmp);
+      F.draw(ctx, 'PLATZ', 40, 66, { color: '#8f86a8' });
+      F.draw(ctx, 'NAME', 92, 66, { color: '#8f86a8' });
+      F.draw(ctx, 'HONIG', 196, 66, { color: '#8f86a8' });
+      F.draw(ctx, 'ZEIT', 258, 66, { color: '#8f86a8' });
+      F.draw(ctx, 'TODE', 316, 66, { color: '#8f86a8' });
+      F.draw(ctx, cat.k, W - 40, 66, { color: '#ffd257', align: 'right' });
+      rect(36, 76, W - 72, 1, '#4a4258');
 
-      for (var i = 0; i < list.length && i < 10; i++) {
-        var e = list[i], y = 72 + i * 17;
-        var mine = (G.lastName && e.n === G.lastName &&
-                    G.player && e.s === G.player.score);
+      for (var i = 0; i < list.length && i < MAX_SCORES; i++) {
+        var e = list[i], y = 84 + i * 17;
+        var mine = (G.lastName && e.n === G.lastName && e.s === G.lastScore);
         var col = mine ? '#ffd257' : (i === 0 ? '#ffe9a8' : '#ffffff');
         if (mine) rect(34, y - 3, W - 68, 15, 'rgba(255,210,87,0.14)');
         F.draw(ctx, (i + 1) + '.', 40, y, { color: col });
         F.draw(ctx, e.n, 92, y, { color: col });
-        F.draw(ctx, 'x' + (e.h || 0), 240, y, { color: col });
-        var t = e.t || 0;
-        F.draw(ctx, Math.floor(t / 60) + ':' + ('0' + (t % 60)).slice(-2), 320, y, { color: col });
-        F.draw(ctx, '' + e.s, W - 40, y, { color: col, align: 'right' });
+        F.draw(ctx, 'x' + e.h, 196, y, { color: col });
+        F.draw(ctx, fmtTime(e.t), 258, y, { color: col });
+        F.draw(ctx, '' + e.d, 316, y, { color: col });
+        F.draw(ctx, cat.val(e), W - 40, y, { color: col, align: 'right' });
       }
     }
 
-    F.draw(ctx, 'BELIEBIGE TASTE = ZURÜCK', W / 2, H - 14,
+    F.draw(ctx, 'LINKS / RECHTS = SORTIEREN     SPRUNG = ZURÜCK', W / 2, H - 14,
            { color: '#ffd257', align: 'center' });
   }
 
@@ -1739,6 +2019,8 @@
   G._update = update;
   G._render = render;
   G._loadLevel = loadLevel;
+  G._loadScores = loadScores;
+  G._storeScore = storeScore;
 
   global.G = G;
 

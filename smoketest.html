@@ -102,6 +102,61 @@ function run() {
     ok(badSign === 0, 'L' + (i + 1) + ' Schilder auf Boden', badSign);
   });
 
+  // ---- 3b. Bestenliste: Robustheit und Manipulationsschutz ----
+  (function () {
+    var KEY = 'balci_scores_v2';
+    function put(v) { try { localStorage.setItem(KEY, v); } catch (e) {} }
+    function read() { return G._loadScores(); }
+
+    var backup = null;
+    try { backup = localStorage.getItem(KEY); } catch (e) {}
+
+    // Muell darf nicht abstuerzen und nichts durchlassen
+    var junk = ['', 'null', '{}', '[', 'nicht mal JSON', '[1,2,3]',
+                '[{"n":null}]', '[{"__proto__":{"x":1}}]',
+                '[{"n":"A","s":"viel","h":{},"t":[],"d":-5}]'];
+    var crashed = null, leaked = 0;
+    for (var i = 0; i < junk.length; i++) {
+      put(junk[i]);
+      try {
+        var r = read();
+        if (!Array.isArray(r)) { crashed = 'kein Array bei ' + junk[i]; break; }
+        leaked += r.length;
+      } catch (e) { crashed = junk[i] + ' -> ' + e.message; break; }
+    }
+    ok(!crashed, 'Bestenliste ueberlebt kaputte Daten', crashed || '');
+    ok(leaked === 0, 'Kaputte Eintraege werden verworfen', leaked + ' durchgerutscht');
+
+    // Echter Eintrag muss gespeichert und wieder gelesen werden
+    put('[]');
+    G._storeScore('YUSUF', 12345, 99, 200, 3);
+    var l1 = read();
+    ok(l1.length === 1 && l1[0].s === 12345 && l1[0].d === 3,
+       'Echter Eintrag wird gespeichert', JSON.stringify(l1));
+
+    // Von Hand hochgeschraubte Punkte muessen rausfliegen
+    var raw = JSON.parse(localStorage.getItem(KEY));
+    raw[0].s = 999999;
+    put(JSON.stringify(raw));
+    var l2 = read();
+    ok(l2.length === 0, 'Manipulierte Punkte werden erkannt', JSON.stringify(l2));
+
+    // Namen duerfen nur Zeichen enthalten, die der Font kennt
+    put('[]');
+    G._storeScore('<script>x', 10, 1, 1, 0);
+    var l3 = read();
+    var nameOk = l3.length === 1 && /^[A-Z0-9\-. ]{1,6}$/.test(l3[0].n);
+    ok(nameOk, 'Namen werden gesaeubert und begrenzt',
+       l3.length ? '"' + l3[0].n + '"' : 'leer');
+
+    // Liste bleibt bei 10 gedeckelt
+    put('[]');
+    for (var s = 0; s < 25; s++) G._storeScore('P' + s, s * 10, s, s, s);
+    ok(read().length <= 10, 'Liste bleibt auf 10 begrenzt', read().length);
+
+    try { if (backup === null) localStorage.removeItem(KEY); else put(backup); } catch (e) {}
+  })();
+
   // ---- 4. Bot spielt jedes Level ----
   // Der Bot laeuft nach rechts und springt, wenn eine Wand oder eine
   // Luecke vor ihm ist. Doppelsprung, wenn er im Fallen keinen Boden sieht.

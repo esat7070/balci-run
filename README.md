@@ -37,7 +37,7 @@ Gamepad wird ebenfalls erkannt.
 
 Steh mal zu lange still. Yusuf schläft dann einfach ein. Und knurren tut er sowieso.
 
-## Die sechs Level
+## Die sieben Level
 
 | # | Level | Wo |
 |---|---|---|
@@ -47,18 +47,37 @@ Steh mal zu lange still. Yusuf schläft dann einfach ein. Und knurren tut er sow
 | 4 | Die Küche der Versuchung | Iranisch. Mit Geiselnahme. |
 | 5 | Huseyins Salat-Festung | Gebaut aus Disziplin. Und Salat. |
 | 6 | Mustang nach Stilbruch | Siegerfahrt, 2 Uhr nachts |
+| 7 | Der letzte Kampf | Esat hat es zu weit getrieben |
 
 Die Level ziehen von Stufe zu Stufe an — Gegner werden schneller und
-angriffslustiger.
+angriffslustiger. **Level 7 ist bewusst brutal.** Esat hat 15 Leben, drei
+Phasen, wirft Shisha-Wolken, lässt KI-Agenten spawnen, ruft Jets mit Bomben —
+und drückt bei der Hälfte Snooze, um stärker zurückzukommen.
 
 **Besetzung:** Wecker, Bienen, wütender Brokkoli, hüpfende Salatköpfe,
 Diät-Drohnen und **Lennart**, der dich jedes Mal fragt, ob du auch ins Gym gehst.
-**Erfan** macht das Kubide. **Esat** wartet im Stilbruch und hat schon bestellt.
+**Erfan** macht das Kubide. **Mirkan** fährt Mercedes und hat Fragen — sehr viele.
+**Esat** wartet im Stilbruch und hat schon bestellt.
+
+### Bosskämpfe lesen
+
+Beide Endgegner folgen derselben Regel: **nur der angekündigte Sturmlauf tut
+bei Berührung weh.** Die Gefahr sind ihre Angriffe, nicht ihr Körper — sonst
+würde das Spiel genau die Bewegung bestrafen, die es verlangt. Am Lebensbalken
+steht **OFFEN**, wenn du gefahrlos ranspringen kannst.
 
 ## Bestenliste
 
-Wer durchspielt, trägt sich mit Namen ein. Die zehn besten Läufe stehen im
-Hauptmenü unter **BESTENLISTE**.
+Wer den letzten Kampf schafft, trägt sich mit Namen ein. Die Liste lässt sich
+nach **Punkten, Honig, Zeit oder Toden** sortieren und steht im Hauptmenü unter
+**BESTENLISTE**.
+
+Die Liste liegt im Browser des Spielers. Jeder Eintrag wird beim Laden streng
+geprüft und bekommt eine Prüfsumme — von Hand veränderte Einträge fliegen raus,
+kaputte Daten bringen das Spiel nicht zum Absturz. Ohne Server lässt sich das
+nicht vollständig verhindern: Wer unbedingt will, kann seinen eigenen
+Browserspeicher manipulieren. Für eine gemeinsame, echte Rangliste bräuchte es
+ein Backend.
 
 ---
 

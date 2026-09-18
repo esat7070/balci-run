@@ -5,6 +5,7 @@
   'use strict';
 
   var T = 16;
+  var W_VIEW = 512;   // Bildbreite; nur fuer "ist das noch sichtbar"-Tests
 
   /* ================= Konstanten ================= */
 
@@ -267,6 +268,7 @@
     this.score = 0;
     this.maxHp = 3;
     this.eatCount = 0;   // fuer den Laufgag: er hat NIE Hunger
+    this.deaths = 0;     // fuer die Bestenliste
   }
 
   Player.prototype.reset = function (x, y) {
@@ -707,7 +709,8 @@
     broki:   { w: 14, h: 14, spr: ['broki', 'broki2'], score: 120, hp: 1 },
     salat:   { w: 14, h: 12, spr: ['salat', 'salat2'], score: 140, hp: 1 },
     lennart: { w: 20, h: 22, spr: ['lennart', 'lennart2'], score: 320, hp: 2 },
-    drohne:  { w: 16, h: 12, spr: ['drohne', 'drohne2'], score: 200, hp: 1, fly: true }
+    drohne:  { w: 16, h: 12, spr: ['drohne', 'drohne2'], score: 200, hp: 1, fly: true },
+    agent:   { w: 14, h: 12, spr: ['agent', 'agent2'], score: 180, hp: 1, fly: true }
   };
 
   function Enemy(type, tx, ty) {
@@ -758,6 +761,7 @@
       case 'salat': this.upSalat(g); break;
       case 'lennart': this.upLennart(g, dx, dist); break;
       case 'drohne': this.upDrohne(g, p, dx); break;
+      case 'agent': this.upAgent(g, p); break;
     }
 
     this.animT += 1;
@@ -858,6 +862,18 @@
       g.addProjectile('sellerie', this.cx() - 3, this.y + this.h, 0, 1.2);
       global.Sound.play('shoot');
     }
+  };
+
+  /** KI-Agent: verfolgt hartnaeckig, aber traege. Stampfbar. */
+  Enemy.prototype.upAgent = function (g, p) {
+    var tx = p.cx() - this.w / 2;
+    var ty = p.y + p.h / 2 - this.h / 2 - 14;
+    var sp = 0.055;
+    this.x += Math.max(-1.5, Math.min(1.5, (tx - this.x) * sp));
+    this.y += Math.max(-1.2, Math.min(1.2, (ty - this.y) * sp));
+    this.y += Math.sin(this.t0 * 0.09) * 0.4;
+    this.facing = (p.cx() > this.cx()) ? 1 : -1;
+    if (this.t0 > 540) this.dead = true;   // loesen sich irgendwann auf
   };
 
   /** Von oben plattgemacht. */
@@ -1022,6 +1038,16 @@
     if (type === 'sellerie') { this.w = 6; this.h = 12; this.spr = 'sellerie'; this.grav = 0.1; }
     else if (type === 'blatt') { this.w = 10; this.h = 8; this.spr = 'blatt'; this.grav = 0.14; }
     else if (type === 'kippe') { this.w = 10; this.h = 5; this.spr = 'kippe'; this.grav = 0.26; }
+    else if (type === 'rauch') {
+      // Shisha-Wolke: langsam, gross, bleibt lange stehen.
+      this.w = 26; this.h = 20; this.spr = null; this.grav = -0.004;
+      this.life = 140; this.ghost = true;
+    }
+    else if (type === 'bombe') { this.w = 8; this.h = 12; this.spr = 'bombe'; this.grav = 0.22; }
+    else if (type === 'jet') {
+      this.w = 32; this.h = 9; this.spr = 'jet'; this.grav = 0;
+      this.ghost = true; this.harmless = true; this.dropAt = 20; this.bombs = 3;
+    }
     else { this.w = 10; this.h = 14; this.spr = 'shaker'; this.grav = 0; }
   }
 
@@ -1039,6 +1065,44 @@
 
     var cxT = Math.floor((this.x + this.w / 2) / T);
     var cyT = Math.floor((this.y + this.h / 2) / T);
+
+    if (this.t === 'jet') {
+      // Fliegt durch, wirft im Vorbeiflug Bomben ab.
+      if (this.t0 > this.dropAt && this.t0 % 26 === 0 && this.bombs > 0) {
+        this.bombs--;
+        g.addProjectile('bombe', this.x + 14, this.y + 8, this.vx * 0.3, 0.6);
+      }
+      if (this.x < g.cam.x - 200 || this.x > g.cam.x + W_VIEW + 200) this.dead = true;
+      return;
+    }
+
+    if (this.t === 'rauch') {
+      this.x += Math.sin(this.t0 * 0.03) * 0.25;
+      if (--this.life <= 0) this.pop(g, '#b8b0c8');
+      if (!g.player.dead && overlap(this, g.player) &&
+          g.player.power <= 0 && g.player.pound !== -1) {
+        g.player.hurt(g, 1, this.x + this.w / 2);
+      }
+      return;
+    }
+
+    if (this.t === 'bombe') {
+      var bty = Math.floor((this.y + this.h) / T);
+      if (this.vy > 0 && g.world.solid(cxT, bty)) {
+        this.dead = true;
+        g.shake(4, 10);
+        global.Sound.play('pound');
+        g.particles.burst(this.x + 4, bty * T, 20,
+          { col: '#ffb43c', spread: 3.4, up: 1.2, life: 26 });
+        // Druckwelle am Boden
+        var px2 = this.x + 4;
+        if (!g.player.dead && Math.abs(g.player.cx() - px2) < 40 &&
+            Math.abs(g.player.feet() - bty * T) < 30) {
+          g.player.hurt(g, 1, px2);
+        }
+        return;
+      }
+    }
 
     if (this.t === 'kippe') {
       // Kippen hüpfen über den Boden wie Marios Feuerbälle.
@@ -1301,6 +1365,246 @@
     }
   };
 
+  /* ================= ESAT — der allerletzte Kampf =================
+     Deutlich haerter als Huseyin: mehr Leben, kuerzere Fenster,
+     vier Angriffsarten, und ab der Haelfte drueckt er Snooze.
+     ============================================================== */
+
+  function BossEsat(tx, ty) {
+    this.w = 22; this.h = 58;
+    this.x = tx * T; this.y = ty * T - this.h;
+    this.vx = 0; this.vy = 0;
+    this.facing = -1;
+    this.hp = 15; this.maxHp = 15;
+    this.phase = 1;
+    this.t0 = 0;
+    this.anim = 0; this.animT = 0;
+    this.state = 'idle';
+    this.timer = 90;
+    this.invuln = 0;
+    this.flash = 0;
+    this.dead = false;
+    this.deadTimer = 0;
+    this.grounded = false;
+    this.open = true;
+    this.snoozed = false;
+    this.agentCount = 0;
+  }
+
+  BossEsat.prototype.cx = function () { return this.x + this.w / 2; };
+
+  BossEsat.prototype.update = function (g) {
+    this.t0++;
+    if (this.flash > 0) this.flash--;
+    if (this.invuln > 0) this.invuln--;
+
+    if (this.dead) {
+      this.deadTimer++;
+      this.vy += GRAV * 0.5;
+      this.y += this.vy;
+      if (this.deadTimer % 8 === 0) {
+        g.particles.burst(this.cx() + (Math.random() - 0.5) * 24,
+                          this.y + Math.random() * this.h, 6,
+          { col: '#2fd39e', spread: 2.4, up: 0.6, life: 28 });
+      }
+      return;
+    }
+
+    var p = g.player;
+    var dx = p.cx() - this.cx();
+    this.timer--;
+
+    switch (this.state) {
+      case 'idle':
+        this.vx *= 0.85;
+        this.facing = dx > 0 ? 1 : -1;
+        if (this.timer <= 0) this.pickAttack(g, dx);
+        break;
+
+      case 'walk':
+        this.vx = this.facing * (this.snoozed ? 2.0 : 1.4);
+        if (this.timer <= 0) { this.state = 'idle'; this.timer = 24; }
+        break;
+
+      // Shisha-Wolke: bleibt stehen und versperrt den Weg
+      case 'shisha':
+        this.vx *= 0.8;
+        if (this.timer === 18) {
+          var n = this.phase >= 3 ? 3 : (this.phase === 2 ? 2 : 1);
+          for (var i = 0; i < n; i++) {
+            g.addProjectile('rauch', this.cx() - 13 + this.facing * (20 + i * 26),
+                            this.y + 14 + i * 4, this.facing * (0.5 + i * 0.15), -0.12);
+          }
+          global.Sound.play('shoot');
+          g.floats.add(this.cx(), this.y - 10, 'ZIEH MAL DURCH', '#b8b0c8', 50);
+        }
+        if (this.timer <= 0) { this.state = 'idle'; this.timer = this.snoozed ? 26 : 38; }
+        break;
+
+      // KI-Agents spawnen
+      case 'agents':
+        this.vx *= 0.8;
+        if (this.timer === 20) {
+          // Hoechstens vier gleichzeitig. Sonst ist die Arena dicht
+          // und der Kampf nicht mehr schwer, sondern unmoeglich.
+          var live = 0;
+          for (var li = 0; li < g.enemies.length; li++) {
+            if (g.enemies[li].t === 'agent' && !g.enemies[li].dead) live++;
+          }
+          var count = Math.min(this.phase >= 3 ? 3 : 2, 4 - live);
+          for (var a = 0; a < count; a++) {
+            var e = new Enemy('agent', 0, 0);
+            e.x = this.cx() - 7 + (a - 1) * 22;
+            e.y = this.y + 6;
+            e.homeX = e.x; e.homeY = e.y;
+            g.enemies.push(e);
+          }
+          global.Sound.play('power');
+          g.floats.add(this.cx(), this.y - 10, 'ICH LASS DAS KURZ MACHEN', '#2fd39e', 60);
+        }
+        if (this.timer <= 0) { this.state = 'idle'; this.timer = this.snoozed ? 30 : 44; }
+        break;
+
+      // Tuerkische Jets im Anflug
+      case 'jets':
+        this.vx *= 0.8;
+        if (this.timer === 30) {
+          var fromLeft = p.cx() > g.cam.x + 256;
+          var jx = fromLeft ? g.cam.x - 60 : g.cam.x + 560;
+          var jv = fromLeft ? 3.4 : -3.4;
+          var j = g.addProjectile('jet', jx, g.cam.y + 34, jv, 0);
+          global.Sound.play('bossRoar');
+          g.floats.add(this.cx(), this.y - 10, 'DECKUNG.', '#e03a30', 60);
+          g.shake(3, 10);
+        }
+        if (this.timer <= 0) { this.state = 'idle'; this.timer = this.snoozed ? 34 : 50; }
+        break;
+
+      case 'dashprep':
+        this.vx *= 0.7;
+        if (this.timer <= 0) {
+          this.state = 'dash';
+          this.timer = this.snoozed ? 30 : 26;
+          global.Sound.play('bossRoar');
+          g.shake(3, 8);
+        }
+        break;
+
+      case 'dash':
+        this.vx = this.facing * (this.snoozed ? 5.0 : 4.0);
+        if (this.timer <= 0) { this.state = 'idle'; this.timer = 40; }
+        break;
+
+      case 'jump':
+        if (this.grounded && this.timer < 44) { this.state = 'idle'; this.timer = 34; }
+        break;
+
+      // Der Gag: er drueckt Snooze und wird dadurch staerker.
+      case 'snooze':
+        this.vx = 0;
+        if (this.timer === 70) {
+          global.Sound.play('snore');
+          g.floats.add(this.cx(), this.y - 14, 'MOMENT. SNOOZE.', '#ffd257', 80);
+        }
+        if (this.timer === 26) {
+          this.snoozed = true;
+          global.Sound.play('power');
+          g.shake(8, 26);
+          g.floats.add(this.cx(), this.y - 18, 'SO. JETZT BIN ICH WACH.', '#2fd39e', 110);
+          g.particles.burst(this.cx(), this.y + 28, 40,
+            { col: '#2fd39e', spread: 4, up: 1.4, life: 50 });
+        }
+        if (this.timer <= 0) { this.state = 'idle'; this.timer = 20; }
+        break;
+    }
+
+    this.vy += GRAV;
+    if (this.vy > MAX_FALL) this.vy = MAX_FALL;
+    moveX(this, g.world, this.vx);
+    this.grounded = (moveY(this, g.world, this.vy) === 1);
+
+    if (g.arena) {
+      if (this.x < g.arena.x + 6) { this.x = g.arena.x + 6; this.facing = 1; }
+      if (this.x + this.w > g.arena.x + g.arena.w - 6) {
+        this.x = g.arena.x + g.arena.w - 6 - this.w; this.facing = -1;
+      }
+    }
+
+    this.animT++;
+    if (this.animT > (this.state === 'dash' ? 3 : 7)) { this.animT = 0; this.anim++; }
+
+    // Nur der angekuendigte Sturmlauf verletzt bei Beruehrung.
+    this.open = (this.state !== 'dash');
+    if (!p.dead && this.invuln <= 0 && overlap(this, p)) {
+      var stomp = p.vy > 0.5 && (p.feet() - this.y) < 32;
+      if (stomp || p.power > 0) this.hit(g, 1, p);
+      else if (p.pound === -1) this.hit(g, 1, p);
+      else if (!this.open) p.hurt(g, 1, this.cx());
+    }
+  };
+
+  BossEsat.prototype.pickAttack = function (g, dx) {
+    var r = Math.random();
+    this.facing = dx > 0 ? 1 : -1;
+
+    if (this.phase === 1) {
+      if (r < 0.40) { this.state = 'shisha'; this.timer = 44; }
+      else if (r < 0.64) { this.state = 'agents'; this.timer = 50; }
+      else if (r < 0.84) { this.state = 'walk'; this.timer = 48; }
+      else { this.state = 'jump'; this.timer = 60; this.vy = -8.6; this.vx = this.facing * 1.8; }
+    } else if (this.phase === 2) {
+      if (r < 0.28) { this.state = 'shisha'; this.timer = 40; }
+      else if (r < 0.50) { this.state = 'agents'; this.timer = 46; }
+      else if (r < 0.70) { this.state = 'jets'; this.timer = 64; }
+      else if (r < 0.88) { this.state = 'dashprep'; this.timer = 22; }
+      else { this.state = 'jump'; this.timer = 60; this.vy = -9.2; this.vx = this.facing * 2.2; }
+    } else {
+      if (r < 0.24) { this.state = 'jets'; this.timer = 60; }
+      else if (r < 0.46) { this.state = 'agents'; this.timer = 44; }
+      else if (r < 0.66) { this.state = 'shisha'; this.timer = 38; }
+      else if (r < 0.86) { this.state = 'dashprep'; this.timer = 20; }
+      else { this.state = 'jump'; this.timer = 58; this.vy = -9.4; this.vx = this.facing * 2.4; }
+    }
+  };
+
+  BossEsat.prototype.hit = function (g, dmg, p) {
+    if (this.invuln > 0 || this.dead || this.state === 'snooze') return;
+    this.hp -= dmg;
+    this.invuln = 48;
+    this.flash = 16;
+    this.state = 'idle';
+    this.timer = 26;
+    this.vx = (p && p.cx() > this.cx()) ? -2.4 : 2.4;
+    if (p) { p.vy = -8.2; p.jumpsLeft = 1; p.laughTimer = 40; }
+    global.Sound.play('bossHit');
+    g.shake(6, 14);
+    g.particles.burst(this.cx(), this.y + 24, 16,
+      { col: '#2fd39e', spread: 3, up: 1, life: 30 });
+
+    // Bei der Haelfte: Snooze.
+    if (!this.snoozed && this.hp <= 8) {
+      this.state = 'snooze';
+      this.timer = 90;
+      this.invuln = 96;
+      this.phase = 2;
+      g.onEsatPhase(2);
+      return;
+    }
+    var np = this.hp > 10 ? 1 : (this.hp > 5 ? 2 : 3);
+    if (np !== this.phase && this.hp > 0) {
+      this.phase = np;
+      g.onEsatPhase(np);
+    }
+    if (this.hp <= 0) {
+      this.dead = true;
+      this.deadTimer = 0;
+      this.vy = -7;
+      g.shake(10, 44);
+      global.Sound.play('bossRoar');
+      g.onEsatDead();
+    }
+  };
+
   /* ================= Export ================= */
 
   global.Ent = {
@@ -1311,6 +1615,7 @@
     Item: Item,
     Projectile: Projectile,
     Boss: Boss,
+    BossEsat: BossEsat,
     Particles: Particles,
     Floats: Floats,
     ENEMY: ENEMY,

@@ -585,6 +585,41 @@
       .sign(106, 15, 'NOCH 8 MINUTEN BIS STILBRUCH. SAGT ESAT.')
       .sign(208, 15, 'ESAT HAT SCHON BESTELLT. FÜR ALLE.');
 
+  // Mirkan taucht dreimal auf und faehrt neben Yusuf her.
+  lvl6.d.mirkan = [40, 120, 210];
+
+  /* ---------------------------------------------------------------
+     LEVEL 7 — Der letzte Kampf gegen Esat
+     --------------------------------------------------------------- */
+
+  var lvl7 = L({
+    id: 7, name: 'DER LETZTE KAMPF', sub: 'ESAT HAT ES ZU WEIT GETRIEBEN',
+    theme: 'strasse', music: 'boss', w: 56, h: 18, spawn: [4, 15], par: 200,
+    goal: [52, 15], diff: 1.5,
+    intro: [
+      ['esat', 'YUSUF. JETZT BERUHIG DICH MAL.'],
+      ['yusuf', 'ICH BIN RUHIG.'],
+      ['esat', 'DU KNURRST SEIT ZWEI MINUTEN.'],
+      ['yusuf', 'DAS IST MEINE RUHIGE STIMME.'],
+      ['esat', 'OKAY. DANN MACHEN WIR DAS JETZT.'],
+      ['huseyin', 'ICH HALT DIE SHISHA.']
+    ],
+    outro: []
+  });
+
+  lvl7.g(0, 55, 15);
+  lvl7.wall(0, 2, 14, 1).wall(55, 2, 14, 1);
+  lvl7.p(8, 11, 6).p(22, 8, 7).p(38, 11, 6).p(16, 5, 5).p(32, 4, 6);
+  lvl7.p(46, 8, 6);
+
+  lvl7.q(12, 7, 'doener', 4).q(42, 7, 'doener', 4).q(28, 11, 'kippen');
+  lvl7.it('herz', 10, 9).it('herz', 44, 9).it('kubide', 28, 3);
+  lvl7.trail(6, 13, 5, 2, 2).trail(44, 13, 5, 2, 2);
+
+  lvl7.bossAt(46, 14);
+  lvl7.d.bossType = 'esat';
+  lvl7.d.arena = { x: 0, w: 56 };
+
   /* ---------------------------------------------------------------
      Dialoge für den Bosskampf & das Ende
      --------------------------------------------------------------- */
@@ -622,7 +657,7 @@
     ]
   };
 
-  /* Siegerehrung im Stilbruch. */
+  /* Siegerehrung im Stilbruch — und wie sie eskaliert. */
   var STILBRUCH_DIALOG = [
     ['', 'SHISHA-BAR STILBRUCH. 2:14 UHR.'],
     ['esat', 'DA SEID IHR JA ENDLICH.'],
@@ -631,18 +666,104 @@
     ['esat', 'WIEDER?'],
     ['huseyin', 'ES WAR KNAPP.'],
     ['yusuf', 'ES WAR NICHT KNAPP.'],
-    ['esat', 'ICH HAB SCHON BESTELLT. TEXAS BARBECUE BRISKET.'],
-    ['yusuf', 'ESAT. DU BIST DER BESTE MENSCH, DEN ICH KENNE.'],
-    ['esat', 'UND DIE SHISHA LÄUFT SEIT EINER STUNDE.'],
+    ['esat', 'OKAY YUSUF. DU HAST ES GESCHAFFT.'],
+    ['esat', 'ISS JETZT DEIN TEXAS BARBECUE BRISKET.'],
+    ['esat', 'NUR 200 KALORIEN AUF 100 GRAMM.'],
+    ['esat', 'UND GANZE 40 GRAMM EIWEISS.'],
+    ['yusuf', 'DU HAST DAS NACHGESCHAUT.'],
+    ['esat', 'ICH SCHAU IMMER NACH. ISS AUF.'],
     ['yusuf', 'ICH HAB EIGENTLICH GAR KEINEN HUNGER.'],
     ['huseyin', '...'],
     ['esat', '...'],
     ['yusuf', 'ABER ICH ESS DAS JETZT KOMPLETT.'],
-    ['yusuf', 'HÖ HÖ HÖÖÖ.'],
-    ['', 'YUSUF BALCI BEKOMMT: 1x BRISKET, 1x SHISHA,'],
-    ['', 'UND DEN TITEL "HAT NIE HUNGER".'],
-    ['', 'HUSEYIN BESTELLT SALAT. AUS PRINZIP.'],
-    ['', 'ER ISST DANN DOCH VOM BRISKET.']
+    ['', 'YUSUF ISST DAS BRISKET. KOMPLETT.'],
+    ['', 'ES DAUERT VIER MINUTEN. NIEMAND SPRICHT.'],
+    ['esat', 'UND JETZT RAUCH AN DER PFEIFE.'],
+    ['', 'YUSUF RAUCHT AN DER PFEIFE.'],
+    ['yusuf', 'HÖ HÖ HÖÖÖ. DAS WAR EIN GUTER TAG.'],
+    ['huseyin', 'MUSS ICH ZUGEBEN. WAR EIN GUTER TAG.'],
+    ['esat', 'JA GUT, DU FETTSACK.'],
+    ['esat', 'GEH JETZT ABER TROTZDEM INS GYM.'],
+    ['', '...'],
+    ['huseyin', 'ESAT.'],
+    ['huseyin', 'ESAT, NEIN.'],
+    ['yusuf', 'WAS HAST DU GESAGT.'],
+    ['esat', 'WAS? ICH MEIN ES NUR GUT.'],
+    ['yusuf', 'ICH HAB HEUTE MEINEN BRUDER BESIEGT.'],
+    ['yusuf', 'ICH HAB EINEN KOCH AUS EINEM KÄFIG BEFREIT.'],
+    ['yusuf', 'ICH BIN MIT EINEM MUSTANG HIERHER GEFAHREN.'],
+    ['yusuf', 'ZUM ERSTEN MAL SEIT DREI JAHREN.'],
+    ['yusuf', 'UND DU SAGST FETTSACK.'],
+    ['esat', 'ICH... OKAY. VIELLEICHT WAR DAS ZU VIEL.'],
+    ['yusuf', 'KRRRRRRR.'],
+    ['huseyin', 'ER KNURRT. ESAT, LAUF.'],
+    ['esat', 'ICH BIN DOCH DEIN BESTER KOLLEGE!'],
+    ['yusuf', 'DANN WEISST DU JA, WIE SCHNELL ICH BIN.'],
+    ['esat', 'DU BIST GAR NICHT SCHNELL!'],
+    ['yusuf', 'BERGAB SCHON.'],
+    ['', 'YUSUF BALCI IST WACH. WIRKLICH WACH.'],
+    ['', 'DAS PASSIERT ZWEIMAL IM JAHR.'],
+    ['', 'LETZTER KAMPF.']
+  ];
+
+  /* Nach dem Sieg über Esat. */
+  var ESAT_DIALOG = {
+    phase2: [
+      ['esat', 'MOMENT. MOMENT!'],
+      ['esat', 'ICH BRAUCH KURZ WAS.'],
+      ['yusuf', 'ER DRÜCKT SNOOZE. MITTEN IM KAMPF.'],
+      ['esat', 'NEUN MINUTEN. DANN BIN ICH EIN ANDERER MENSCH.'],
+      ['huseyin', 'DAS FUNKTIONIERT SO NICHT!'],
+      ['esat', 'BEI MIR SCHON.']
+    ],
+    phase3: [
+      ['esat', 'OKAY, JETZT WIRD ES UNGEMÜTLICH.'],
+      ['yusuf', 'DU HAST JETS GERUFEN.'],
+      ['esat', 'ICH KENN DA JEMANDEN.'],
+      ['yusuf', 'DU KENNST NIEMANDEN, DER JETS HAT.'],
+      ['esat', 'ICH KENNE JEMANDEN, DER JEMANDEN KENNT.']
+    ],
+    end: [
+      ['esat', 'OKAY! OKAY! TUT MIR LEID!'],
+      ['esat', 'DU MUSST NICHT INS GYM.'],
+      ['yusuf', 'DANKE.'],
+      ['esat', 'ABER VIELLEICHT EINMAL DIE WOCHE—'],
+      ['yusuf', 'KRRRR.'],
+      ['esat', 'NICHTS. ICH HAB NICHTS GESAGT.'],
+      ['huseyin', 'ICH GEH ÜBRIGENS MORGEN UM SECHS LAUFEN.'],
+      ['yusuf', '...'],
+      ['esat', '...'],
+      ['huseyin', 'WAS DENN.'],
+      ['', 'SIE BLIEBEN BIS VIER UHR MORGENS.'],
+      ['', 'ESAT ZAHLTE. FREIWILLIG.'],
+      ['', 'YUSUF ZOCKTE DANACH NOCH BIS SIEBEN.'],
+      ['', 'ER SCHLIEF MIT DEM CONTROLLER IN DER HAND EIN.'],
+      ['', 'ENDE.']
+    ]
+  };
+
+  /* Mirkan faehrt Mercedes und hat Fragen. Sehr viele Fragen. */
+  var MIRKAN_LINES = [
+    'YUSUF! WAS MACHST DU?',
+    'WO FÄHRST DU HIN?',
+    'IST DAS DEIN AUTO?',
+    'WAS HAT DER GEKOSTET?',
+    'WARUM FÄHRST DU SO SCHNELL?',
+    'HAST DU SCHON GEGESSEN?',
+    'WAR DAS EIN MUSTANG?',
+    'WIEVIEL PS HAT DER?',
+    'KANN ICH MAL FAHREN?',
+    'WARUM ANTWORTEST DU NICHT?',
+    'BIST DU SAUER?',
+    'ICH FRAG DOCH NUR.',
+    'WO IST HUSEYIN?',
+    'FAHRT IHR ZU ESAT?',
+    'KANN ICH MITKOMMEN?',
+    'YUSUF. YUSUF. YUSUF.',
+    'HAST DU MEINE NACHRICHT GESEHEN?',
+    'WARUM SCHREIBST DU NICHT ZURÜCK?',
+    'ZOCKST DU HEUTE NOCH?',
+    'WANN GEHST DU SCHLAFEN?'
   ];
 
   /* ---------------------------------------------------------------
@@ -655,12 +776,16 @@
     'ICH RUHE MICH TAKTISCH AUS.',
     'IM TRAUM BIN ICH SCHON IM ZIEL.',
     'DAS IST REGENERATION, HUSEYIN.',
-    'ZZZ... DÖNER... ZZZ...'
+    'ZZZ... DÖNER... ZZZ...',
+    'NUR NOCH EINE RUNDE... ZZZ...',
+    'ICH WAR BIS VIER WACH. ZOCKEN.',
+    'ZZZ... RESPAWN... ZZZ...'
   ];
 
   var HURT_LINES = [
     'AUA!', 'DAS WAR UNFAIR!', 'MEIN HONIG!', 'OKAY. AUTSCH.',
-    'ICH BIN VERLETZT. SEELISCH.', 'DAS ZAHLT MEINE VERSICHERUNG NICHT.'
+    'ICH BIN VERLETZT. SEELISCH.', 'DAS ZAHLT MEINE VERSICHERUNG NICHT.',
+    'DAS WAR EIN HITBOX-FEHLER.', 'DER HAT GECAMPT!'
   ];
 
   /* Der Laufgag: Yusuf hat NIE Hunger. Er isst trotzdem. Immer. */
@@ -728,16 +853,22 @@
     'ICH WAR NUR KURZ ABGELENKT.',
     'DAS WAR EIN TEST. FÜR DICH.',
     'HUSEYIN HAT DAS NICHT GESEHEN.',
-    'ICH BRAUCHE EINEN DÖNER UND EINE MINUTE.'
+    'ICH BRAUCHE EINEN DÖNER UND EINE MINUTE.',
+    'LAG. EINDEUTIG LAG.',
+    'MEIN CONTROLLER DRIFTET.',
+    'DAS WAR DER SERVER, NICHT ICH.',
+    'ICH HAB NUR KURZ AUFS HANDY GESCHAUT.'
   ];
 
   var LEVELS = [lvl1.out(), lvl2.out(), lvl3.out(), lvl4.out(),
-                lvl5.out(), lvl6.out()];
+                lvl5.out(), lvl6.out(), lvl7.out()];
 
   global.Levels = {
     list: LEVELS,
     boss: BOSS_DIALOG,
+    esat: ESAT_DIALOG,
     stilbruch: STILBRUCH_DIALOG,
+    mirkanLines: MIRKAN_LINES,
     sleepLines: SLEEP_LINES,
     hurtLines: HURT_LINES,
     eatLines: EAT_LINES,

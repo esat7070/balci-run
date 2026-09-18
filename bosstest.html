@@ -45,10 +45,17 @@ setTimeout(function () {
   Input.up = function () { return false; };
   Input.poll = function () {}; Input.endFrame = function () {};
 
-  G._loadLevel(4, false);
+  // ?lvl=6 testet direkt den Esat-Kampf, ohne den ganzen Vorlauf
+  var qm = /[?&]lvl=(\d+)/.exec(location.search);
+  var startLvl = qm ? parseInt(qm[1], 10) : 4;
+  G._loadLevel(startLvl, false);
   G.state = 'play'; G.frozen = false; G.banner = 0;
   var p = G.player;
-  p.lives = 99; p.x = G.arena.x + 70; p.y = 15 * 16 - 26; p.vy = 0;
+  p.lives = 99; p.y = 15 * 16 - 26; p.vy = 0;
+  p.x = (startLvl === 4) ? G.arena.x + 70 : G.lvl.spawn[0] * 16;
+  // ?easy=1 setzt die Boss-Energie runter, um die Siegeskette zu pruefen
+  var easy = /[?&]easy=1/.test(location.search);
+  log('>> Test startet in Level ' + (startLvl + 1) + (easy ? ' (Boss geschwaecht)' : ''));
 
   // Schadensquellen mitschreiben
   var dmg = {};
@@ -111,7 +118,32 @@ setTimeout(function () {
         if (G.frozen) frozenTicks++;
         var b = G.boss;
         if (b && !b.dead) {
+          if (easy && b.maxHp > 2) { b.hp = 2; b.maxHp = 2; }
           seen[b.state] = (seen[b.state] || 0) + 1;
+
+          // Erst die Agents wegraeumen, die sind die eigentliche Gefahr
+          var foe = null, fd = 1e9;
+          for (var ei = 0; ei < G.enemies.length; ei++) {
+            var en = G.enemies[ei];
+            if (en.dead) continue;
+            var d3 = Math.abs(en.x + en.w / 2 - p.cx());
+            if (d3 < fd) { fd = d3; foe = en; }
+          }
+          if (foe && fd < 80) {
+            var fdx = (foe.x + foe.w / 2) - p.cx();
+            dir = Math.abs(fdx) > 10 ? (fdx > 0 ? 1 : -1) : 0;
+            if (p.grounded && Math.abs(fdx) < 46 && jumpCool <= 0) {
+              pressJump = true; jumpHold = 20; jumpCool = 22;
+            }
+            if (jumpCool > 0) jumpCool--;
+            if (jumpHold > 0) jumpHold--;
+            var bl = p.lives;
+            G._update();
+            if (G.player.lives < bl) deaths++;
+            p = G.player;
+            continue;
+          }
+
           var dx = (b.x + b.w / 2) - p.cx();
           var adx = Math.abs(dx);
           // So wuerde ein Mensch spielen: nur angreifen, wenn er offen ist.
@@ -168,7 +200,7 @@ setTimeout(function () {
   log('Stillstand ab Tick: ' + (stalled < 0 ? 'nein' : stalled));
   log('Boss-Zustände    : ' + JSON.stringify(seen));
   log('SCHADENSQUELLEN  : ' + JSON.stringify(dmg, null, 1));
-  log('Bestenliste      : ' + (localStorage.getItem('balci_scores') || 'leer'));
+  log('Bestenliste      : ' + (localStorage.getItem('balci_scores_v2') || 'leer'));
   log('');
   log('=== TREFFERVERLAUF ===');
   phases.forEach(function (s) { log('  ' + s); });

@@ -25,8 +25,10 @@ body{
 
 #screen{
   display:block;
-  image-rendering:pixelated;
+  image-rendering:-webkit-optimize-contrast; /* aeltere Safari/Android */
   image-rendering:crisp-edges;
+  image-rendering:pixelated;
+  -webkit-touch-callout:none;                /* kein Halte-Menue am Handy */
   background:#0e0a14;
   box-shadow:
     0 0 0 2px #241a33,

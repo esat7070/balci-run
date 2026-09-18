@@ -188,62 +188,65 @@
     w: '#ffffff', b: '#1b1220', m: '#7d2724'
   });
 
-  /* LENNART. Bulky, nicht lean. Sonnenbrille in der Halle. Natürlich. */
+  /* LENNART. Bulky. Dunkelblond, kurze Seiten, braunes Polo mit
+     weissem Kragenstreifen. Fragt dich trotzdem, ob du ins Gym gehst. */
+  var LENNART_PAL = {
+    k: '#1b1220', h: '#8a6a3a', H: '#a8874a',
+    s: '#e8b894', d: '#c99a72',
+    w: '#6b4a34', W: '#f2eee6',     // Polo + Kragenstreifen
+    b: '#2f3344', g: '#4a3524', e: '#ffffff',
+    m: '#8e2f2c', n: '#d8d4cc'
+  };
+
   P.def('lennart', `
     .......kkkkkk.......
     .....kkhhhhhhkk.....
     ....khhhhhhhhhhk....
+    ....khHhhhhhhHhk....
     ....khsssssssshk....
-    ....kbbbbbbbbbbk....
-    ....kssssssssssk....
+    ....ksegssssgesk....
+    ....kssssdssssk.....
     ....ksskmmmmkssk....
     .....kssssssssk.....
     .kksssssssssssssskk.
+    kssssWWWWWWWWWWssssk
     kssssswwwwwwwwsssssk
-    kssssswwWWWWwwsssssk
-    kssssswwwwwwwwsssssk
-    kdsssswwwwwwwwssssdk
+    kdssssWwwwwwwWssssdk
     kdsssswwwwwwwwssssdk
     .kdsswwwwwwwwwwssdk.
-    .kssssssssssssssssk.
-    ..kssssssssssssssk..
+    .kwwwwwwwwwwwwwwwwk.
+    ..kwwwwwwwwwwwwwwk..
     ..kbbbbbbbbbbbbbbk..
     ..kbbbbbbkkbbbbbbk..
     ..kbbbk......kbbbk..
     ..ksssk......ksssk..
-    .kWWWWk......kWWWWk.
-  `, {
-    k: '#1b1220', h: '#e8c86a', s: '#e0a068', d: '#b87c4a',
-    b: '#2a2030', w: '#f2f4f8', W: '#c0c6d2', m: '#8e2f2c'
-  });
+    .knnnnk......knnnnk.
+  `, LENNART_PAL);
 
   P.def('lennart2', `
     .......kkkkkk.......
     .....kkhhhhhhkk.....
     ....khhhhhhhhhhk....
+    ....khHhhhhhhHhk....
     ....khsssssssshk....
-    ....kbbbbbbbbbbk....
-    ....kssssssssssk....
+    ....ksegssssgesk....
+    ....kssssdssssk.....
     ....kskkmmmmkksk....
     .....kssssssssk.....
     .kksssssssssssssskk.
+    kssssWWWWWWWWWWssssk
     kssssswwwwwwwwsssssk
-    kssssswwWWWWwwsssssk
-    kssssswwwwwwwwsssssk
-    kdsssswwwwwwwwssssdk
+    kdssssWwwwwwwWssssdk
     kdsssswwwwwwwwssssdk
     .kdsswwwwwwwwwwssdk.
-    .kssssssssssssssssk.
-    ..kssssssssssssssk..
+    .kwwwwwwwwwwwwwwwwk.
+    ..kwwwwwwwwwwwwwwk..
     ..kbbbbbbbbbbbbbbk..
     ..kbbbbbbkkbbbbbbk..
     ..kbbkk......kkbbk..
     .ksssk........ksssk.
-    kWWWWk........kWWWWk
-  `, {
-    k: '#1b1220', h: '#e8c86a', s: '#e0a068', d: '#b87c4a',
-    b: '#2a2030', w: '#f2f4f8', W: '#c0c6d2', m: '#8e2f2c'
-  });
+    knnnnk........knnnnk
+  `, LENNART_PAL);
 
   /* Kubide vom Spiess. Yusufs Lieblingskueche ist iranisch. */
   P.def('kubide', `
@@ -263,77 +266,81 @@
     k: '#3a2410', m: '#a8542a', M: '#7a3818', s: '#c8cede', r: '#f4f0e4'
   });
 
-  /* ERFAN — der Koch. Vollbart an den Seiten, Kinnmitte frei. */
+  /* ERFAN — der Koch. Glatze, Vollbart mit freier Kinnmitte,
+     schwarzes Hemd, Goldkette. Und eine Schuerze, weil er arbeitet. */
+  var ERFAN_PAL = {
+    k: '#140f18', s: '#e0a478', d: '#bc8256', S: '#f0b890',
+    j: '#2a1c14', J: '#42301f',       // Bart
+    w: '#ffffff', g: '#3a2a1a',       // Augen
+    m: '#7d2724', H: '#2a1c14',
+    r: '#26262c', R: '#16161a',       // schwarzes Hemd
+    y: '#e8c24a', Y: '#fff0a8',       // Goldkette
+    a: '#eceae2', A: '#c2c0b8',       // Schuerze
+    b: '#2a2a34', n: '#d8d4cc'
+  };
+
   P.def('erfan', `
-    ...kkkkkkkkkk...
-    ..kwwwwwwwwwwk..
-    ..kwwwwwwwwwwk..
-    ..kwwwwwwwwwwk..
-    ...kkwwwwwwkk...
-    ....kWWWWWWk....
-    ...khhhhhhhhk...
-    ..khssssssshk...
+    ....kkkkkkkk....
+    ..kkSSSSSSSSkk..
+    .kSSSSSSSSSSSSk.
+    .kSssssssssssSk.
+    ..ksssssssssssk.
     ..kjssssssssjk..
     ..kjsgwsswgsjk..
     ..kjsssdssssjk..
     ..kjssHHHHssjk..
-    ..kjskmmmmksjk..
-    ..kjjssssssjjk..
+    ..kjjskmmksjjk..
     ...kjjssssjjk...
-    ....kjssssjk....
+    ....kJssssJk....
     .....kssssk.....
-    ..kkwwwwwwwwkk..
-    .kwwwwwwwwwwwwk.
-    kwwwwWwwwwWwwwwk
-    kwwwwWwwwwWwwwwk
-    kwwwwWwwwwWwwwwk
-    kwwwwwwwwwwwwwwk
-    kWWWWWWWWWWWWWWk
-    .kWWWWWWWWWWWWk.
+    ..kkrrrrrrrrkk..
+    .krryyyyyyyyrrk.
+    krrrryyYYyyrrrrk
+    krrrrryyyyrrrrrk
+    krrrrrrrrrrrrrrk
+    krrrrrrrrrrrrrrk
+    kaaaaaaaaaaaaaak
+    kaaaaaaaaaaaaaak
+    kaaaaaaaaaaaaaak
+    .kaaaaaaaaaaaak.
+    .kAAAAAAAAAAAAk.
     .kbbbbkkkkbbbbk.
     .kbbbk....kbbbk.
+    .knnnk....knnnk.
     .kkkkk....kkkkk.
-  `, {
-    k: '#1b1220', w: '#f2f2ec', W: '#c8c6be', h: '#2a1a10',
-    j: '#3d2718', s: '#e8ac7e', d: '#c2865c', g: '#3a2a1a',
-    m: '#7d2724', H: '#4a301c', b: '#3a4560'
-  });
+  `, ERFAN_PAL);
 
   /* Erfan frei und gluecklich — Arme hoch. */
   P.def('erfan_frei', `
-    ...kkkkkkkkkk...
-    ..kwwwwwwwwwwk..
-    ..kwwwwwwwwwwk..
-    ..kwwwwwwwwwwk..
-    ...kkwwwwwwkk...
-    ....kWWWWWWk....
-    ...khhhhhhhhk...
-    ..khssssssshk...
+    ....kkkkkkkk....
+    ..kkSSSSSSSSkk..
+    .kSSSSSSSSSSSSk.
+    .kSssssssssssSk.
+    ..ksssssssssssk.
     ..kjssssssssjk..
     ..kjskwsswksjk..
     ..kjsssdssssjk..
     ..kjssHHHHssjk..
-    ..kjkmmmmmmkjk..
-    ..kjjmmmmmmjjk..
-    ...kjjssssjjk...
-    ....kjssssjk....
-    kk...kssssk...kk
-    kwkkwwwwwwwwkkwk
-    kwkwwwwwwwwwwkwk
-    kwwwwWwwwwWwwwwk
-    .kwwwWwwwwWwwwk.
-    .kwwwWwwwwWwwwk.
-    .kwwwwwwwwwwwwk.
-    .kWWWWWWWWWWWWk.
-    ..kWWWWWWWWWWk..
+    ..kjjkmmmmkjjk..
+    ...kjjmmmmjjk...
+    ....kJssssJk....
+    .....kssssk.....
+    kk.kkrrrrrrrrkk.
+    krkrryyyyyyyyrrk
+    krkrryyYYyyrrrrk
+    krrrrryyyyrrrrrk
+    .krrrrrrrrrrrrk.
+    .krrrrrrrrrrrrk.
+    kaaaaaaaaaaaaaak
+    kaaaaaaaaaaaaaak
+    kaaaaaaaaaaaaaak
+    .kaaaaaaaaaaaak.
+    .kAAAAAAAAAAAAk.
     .kbbbbkkkkbbbbk.
     .kbbbk....kbbbk.
+    .knnnk....knnnk.
     .kkkkk....kkkkk.
-  `, {
-    k: '#1b1220', w: '#f2f2ec', W: '#c8c6be', h: '#2a1a10',
-    j: '#3d2718', s: '#e8ac7e', d: '#c2865c',
-    m: '#7d2724', H: '#4a301c', b: '#3a4560'
-  });
+  `, ERFAN_PAL);
 
   /* Der Kaefig, in dem Huseyin ihn eingesperrt hat. */
   P.def('kaefig', `
@@ -994,6 +1001,94 @@
     kyyyykkkkyyyykkk
     kkkkkkkkkkkkkkkk
   `, { k: '#3a3a44', y: '#ffb43c' });
+
+  /* ---------------------------------------------------------------
+     LETZTER KAMPF — Esats Arsenal
+     --------------------------------------------------------------- */
+
+  /* Ein KI-Agent. Esat laesst sie scharenweise spawnen. */
+  P.def('agent', `
+    ...kkkkkkkk...
+    .kkwwwwwwwwkk.
+    kwwwwwwwwwwwwk
+    kwwkkwwwwkkwwk
+    kwwkkwwwwkkwwk
+    kwwwwwwwwwwwwk
+    kwwwkkkkkkwwwk
+    kwwwwwwwwwwwwk
+    .kkwwwwwwwwkk.
+    ..kkkkkkkkkk..
+    ....k....k....
+    ...kk....kk...
+  `, { k: '#0c2b22', w: '#2fd39e' });
+
+  P.def('agent2', `
+    ...kkkkkkkk...
+    .kkwwwwwwwwkk.
+    kwwwwwwwwwwwwk
+    kwwwwwwwwwwwwk
+    kwwkkkwwkkkwwk
+    kwwwwwwwwwwwwk
+    kwwwwkkkkwwwwk
+    kwwwwwwwwwwwwk
+    .kkwwwwwwwwkk.
+    ..kkkkkkkkkk..
+    ...kk....kk...
+    ....k....k....
+  `, { k: '#0c2b22', w: '#2fd39e' });
+
+  /* Jet. Fliegt ueber die Arena und laesst etwas fallen. */
+  P.def('jet', `
+    .................kkkkkk.........
+    ...............kkwwwwwwkk.......
+    .kkkkk........kkwwwwwwwwwkk.....
+    kccwwwkkkkkkkkwwwwrrrwwwwwwkkk..
+    kccwwwwwwwwwwwwwwwrrrwwwwwwwwwk.
+    kccwwwkkkkkkkkwwwwrrrwwwwwwkkk..
+    .kkkkk........kkwwwwwwwwwkk.....
+    ...............kkwwwwwwkk.......
+    .................kkkkkk.........
+  `, {
+    k: '#1b1220', w: '#c8cede', W: '#8189a0', r: '#e03a30', c: '#8ec8e8'
+  });
+
+  /* Was der Jet fallen laesst. */
+  P.def('bombe', `
+    ...kk...
+    ..kwwk..
+    .kwwwwk.
+    kwwwwwwk
+    kwWwwwWk
+    kwwwwwwk
+    kwwwwwwk
+    kwwwwwwk
+    .kwwwwk.
+    ..kkkk..
+    .k.kk.k.
+    k..kk..k
+  `, { k: '#1b1220', w: '#6f7791', W: '#454b5e' });
+
+  /* MIRKAN faehrt Mercedes. Und fragt dabei sehr viel. */
+  P.def('mercedes', `
+    .........kkkkkkkkkkkkkkk........
+    ........kkwwwwwwwwwwwwwkk.......
+    .......kkwwwwwwwwwwwwwwwkk......
+    ......kkwwwwwwwwwwwwwwwwwkk.....
+    kkkkkkkkssssssssssssssssssskkkkk
+    kssssssssssssssssssssssssssssllk
+    kssssssssssssssssssssssssssssllk
+    kSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSk
+    kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+    ....kkkkkk.............kkkkkk...
+    ...kttttttk...........kttttttk..
+    ..kttTTTTttk.........kttTTTTttk.
+    ..kttTTTTttk.........kttTTTTttk.
+    ...kttttttk...........kttttttk..
+    ....kkkkkk.............kkkkkk...
+  `, {
+    k: '#12141c', s: '#9aa2b4', S: '#5f6678', w: '#7fb4d8',
+    l: '#fff0a8', t: '#241f28', T: '#c8cede'
+  });
 
   /* ---------------------------------------------------------------
      TILES — zwei Masken, sechs Welten

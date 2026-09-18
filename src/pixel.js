@@ -370,6 +370,130 @@
   `;
 
   /* ---------------------------------------------------------------
+     ESAT — bester Kollege, letzter Endgegner.
+     --------------------------------------------------------------- */
+
+  // Esat: dunkles Haar nach hinten, kurzer Vollbart, schwarzer Zip-Pulli.
+  palette('esat', {
+    k: '#120e18',
+    h: '#1c1418', H: '#332427',
+    j: '#241a16', J: '#3a2a22',      // Bart
+    s: '#eab48c', d: '#c8906a',
+    w: '#ffffff', g: '#3a2a1a', G: '#22180f',
+    m: '#7d2724', t: '#ff8e96',
+    r: '#2b2b33', R: '#17171d',      // Zip-Pulli
+    y: '#4a4a56', Y: '#6a6a78',      // Reissverschluss
+    b: '#242630', B: '#15161c',
+    n: '#d8d4cc', N: '#9a968e',
+    c: '#f4f2ec', o: '#ff8a2a'
+  });
+
+  var E_HEAD = `
+    ....kkkkkk....
+    ..kkhhhhhhkk..
+    .khhhhhhhhhhk.
+    khhhhhhhhhhhhk
+    khhssssssssHhk
+    khssssssssssdk
+    khsgwsssswgsdk
+    khssssdsssssdk
+    khsjjjjjjjjsdk
+    khsjkmmmmkjsdk
+    kdjjjjjjjjjjdk
+    .kdjjjjjjjjdk.
+    ..kddddddddk..
+  `;
+
+  // Grinst, wenn er jemanden aufzieht.
+  var E_HEAD_GRIN = `
+    ....kkkkkk....
+    ..kkhhhhhhkk..
+    .khhhhhhhhhhk.
+    khhhhhhhhhhhhk
+    khhssssssssHhk
+    khssssssssssdk
+    khskksssskksdk
+    khssssdsssssdk
+    khsjjjjjjjjsdk
+    khsjkmmmmkjsdk
+    kdjjkwwwwkjjdk
+    .kdjjkmmkjjdk.
+    ..kddddddddk..
+  `;
+
+  var E_HEAD_HURT = `
+    ....kkkkkk....
+    ..kkhhhhhhkk..
+    .khhhhhhhhhhk.
+    khhhhhhhhhhhhk
+    khhssssssssHhk
+    khssssssssssdk
+    khskskssksksdk
+    khssssdsssssdk
+    khsjjjjjjjjsdk
+    khsjskmmksjsdk
+    kdjjjkmmkjjjdk
+    .kdjjjjjjjjdk.
+    ..kddddddddk..
+  `;
+
+  // Nach der Snooze-Taste. Wach, aber falsch wach.
+  var E_HEAD_RAGE = `
+    ....kkkkkk....
+    ..kkhhhhhhkk..
+    .khhhhhhhhhhk.
+    khhhhhhhhhhhhk
+    khhssssssssHhk
+    khkkssssssdkdk
+    khgwsssssswgdk
+    khssssdsssssdk
+    khsjjjjjjjjsdk
+    khjkmmmmmmkjdk
+    kdjkwwwwwwkjdk
+    .kdjkmmmmkjdk.
+    ..kddddddddk..
+  `;
+
+  var E_TORSO = `
+    ..kkkkkkkk..
+    .krrrrrrrrk.
+    krrrrrrrrrrk
+    krrrYyYrrrrk
+    krrrryYrrrrk
+    krrrryYrrrrk
+    krrrryYrrrrk
+    kRrrryYrrrRk
+    kRRRRyYRRRRk
+    .kRRRRRRRRk.
+    .kdssssssdk.
+    ..kkkkkkkk..
+  `;
+
+  var E_ARM = `
+    .kkk.
+    krrrk
+    krrrk
+    kRRRk
+    .kk..
+    .ksk.
+    kssdk
+    kssdk
+    .kkk.
+  `;
+
+  var E_LEG = `
+    .kkk.
+    kbbbk
+    kbbbk
+    kbBbk
+    kbbbk
+    .kbk.
+    .kbk.
+    knnnk
+    kNNNk
+  `;
+
+  /* ---------------------------------------------------------------
      RÜMPFE
      --------------------------------------------------------------- */
 
@@ -467,6 +591,14 @@
   def('y_arm', ARM_FAT, 'yusuf');
   def('y_leg', LEG_FAT, 'yusuf');
 
+  def('e_head', E_HEAD, 'esat');
+  def('e_head_grin', E_HEAD_GRIN, 'esat');
+  def('e_head_hurt', E_HEAD_HURT, 'esat');
+  def('e_head_rage', E_HEAD_RAGE, 'esat');
+  def('e_torso', E_TORSO, 'esat');
+  def('e_arm', E_ARM, 'esat');
+  def('e_leg', E_LEG, 'esat');
+
   def('h_head', H_HEAD, 'huseyin');
   def('h_head_angry', H_HEAD_ANGRY, 'huseyin');
   def('h_head_hurt', H_HEAD_HURT, 'huseyin');
@@ -499,6 +631,17 @@
       legLOX: 0, legROX: 4, legOY: 10,
       footY: 19,
       height: 30, width: 8
+    },
+    esat: {
+      heads: { normal: 'e_head', laugh: 'e_head_grin', hurt: 'e_head_hurt',
+               sleep: 'e_head', eat: 'e_head_grin', growl: 'e_head_rage',
+               rage: 'e_head_rage' },
+      torso: 'e_torso', arm: 'e_arm', leg: 'e_leg',
+      headOX: -1, headOY: -11,
+      armBackOX: -3, armFrontOX: 10, armOY: 2,
+      legLOX: 1, legROX: 6, legOY: 10,
+      footY: 19,
+      height: 30, width: 12
     }
   };
 
