@@ -127,10 +127,22 @@
         deaths: G.player.deaths || 0, eatCount: G.player.eatCount || 0
       };
       G.player.reset(sp[0] * T, sp[1] * T - 26);
-      G.player.lives = keep.lives; G.player.honey = keep.honey;
-      G.player.score = keep.score; G.player.deaths = keep.deaths;
-      G.player.eatCount = keep.eatCount;
+      G.player.lives = keep.lives;
+      G.player.deaths = keep.deaths;
+      // Beim Tod zaehlt der Stand vom letzten Checkpoint. Sonst koennte
+      // man den Honig einsammeln, absichtlich sterben und alles nochmal
+      // einsammeln — beliebig oft.
+      if (fromCheckpoint && G.checkpointStats) {
+        G.player.honey = G.checkpointStats.honey;
+        G.player.score = G.checkpointStats.score;
+        G.player.eatCount = G.checkpointStats.eatCount;
+      } else {
+        G.player.honey = keep.honey;
+        G.player.score = keep.score;
+        G.player.eatCount = keep.eatCount;
+      }
     }
+    if (!fromCheckpoint) G.checkpointStats = snapshotStats();
     if (!fromCheckpoint) { G.checkpoint = null; G.bossIntroSeen = false; }
 
     G.cam.x = Math.max(0, Math.min(lvl.w * T - W, G.player.cx() - W / 2));
@@ -409,6 +421,19 @@
     updateWorld();
   }
 
+  /** Stand, auf den beim Tod zurueckgesetzt wird. */
+  function snapshotStats() {
+    var p = G.player;
+    return { honey: p.honey, score: p.score, eatCount: p.eatCount || 0 };
+  }
+
+  /** Entfernt Einträge aus einer Liste — nur ausserhalb eines Durchlaufs. */
+  function sweep(list, isGone) {
+    for (var i = list.length - 1; i >= 0; i--) {
+      if (!list[i] || isGone(list[i])) list.splice(i, 1);
+    }
+  }
+
   function updateWorld() {
     var p = G.player, i;
     // Während eines Dialogs steht die ganze Welt still. Vorher lief
@@ -423,22 +448,31 @@
     if (p.grounded) G.comboTimer = Math.min(G.comboTimer, 20);
 
     if (!frozen) {
-      // Gegner nur in der Nähe der Kamera bewegen
+      // WICHTIG: erst alles bewegen, dann aufräumen.
+      // Ein Treffer kann mitten im Durchlauf einen Boss töten oder eine
+      // Phase starten — und dabei wurden diese Listen geleert. Der
+      // nächste Schleifenschritt griff dann ins Leere und das Spiel
+      // stürzte ab. Darum wird hier nie während des Durchlaufs entfernt.
       for (i = G.enemies.length - 1; i >= 0; i--) {
         var e = G.enemies[i];
+        if (!e) continue;
         var near = (e.x > G.cam.x - 160 && e.x < G.cam.x + W + 160);
         if (near || e.dead) e.update(G);
-        if (e.dead && e.deadTimer > 70) G.enemies.splice(i, 1);
       }
       for (i = G.items.length - 1; i >= 0; i--) {
         var it = G.items[i];
+        if (!it) continue;
         if (it.x > G.cam.x - 120 && it.x < G.cam.x + W + 120) it.update(G);
-        if (it.dead) G.items.splice(i, 1);
       }
       for (i = G.projectiles.length - 1; i >= 0; i--) {
-        G.projectiles[i].update(G);
-        if (G.projectiles[i].dead) G.projectiles.splice(i, 1);
+        var pr = G.projectiles[i];
+        if (!pr) continue;
+        pr.update(G);
       }
+
+      sweep(G.enemies, function (x) { return x.dead && x.deadTimer > 70; });
+      sweep(G.items, function (x) { return x.dead; });
+      sweep(G.projectiles, function (x) { return x.dead; });
     }
 
     // Blöcke "wackeln"
@@ -455,6 +489,7 @@
           Math.abs(p.cx() - (cx + 12)) < 26 && Math.abs(p.feet() - cy) < 40) {
         G.checkpointsHit[i] = true;
         G.checkpoint = cps[i];
+        G.checkpointStats = snapshotStats();
         S.play('checkpoint');
         G.floats.add(cx + 12, cy - 22, 'KURZES NICKERCHEN GESPEICHERT', '#ffd257', 100);
         G.particles.burst(cx + 12, cy - 6, 14, { col: '#ffd257', spread: 2.4, up: 1, life: 30 });
@@ -476,10 +511,12 @@
         // Zurueck geht nicht mehr, und der Wiedereinstieg liegt drinnen.
         G.world.fill(aTile - 1, 2, 1, groundY - 1, 1);
         G.checkpoint = [aTile + 3, groundY];
+        G.checkpointStats = snapshotStats();
       } else {
         G.boss = new E.Boss(G.lvl.boss.x, G.lvl.boss.y);
         G.world.fill(aTile - 1, 2, 1, 13, 1);
         G.checkpoint = [aTile + 4, 15];
+        G.checkpointStats = snapshotStats();
       }
       G.boss.intro = false;
       // Jeder Kampf klingt anders
@@ -1212,19 +1249,26 @@
 
     for (i = 0; i < G.projectiles.length; i++) {
       var pr = G.projectiles[i];
-      if (pr.t === 'rauch') {
-        // Shisha-Wolke: weiche Schwaden, werden zum Ende hin blasser
+      if (pr.t === 'rauch' || pr.t === 'safran') {
+        // Shisha-Schwaden grau, Safranstaub golden
+        var gold = (pr.t === 'safran');
         var a2 = Math.min(0.72, pr.life / 90) * 0.9;
         ctx.globalAlpha = a2;
-        ctx.fillStyle = '#c8c2d8';
-        var wx = pr.x - camX + 13, wy = pr.y - camY + 10;
+        ctx.fillStyle = gold ? '#d8a42a' : '#c8c2d8';
+        var wx = pr.x - camX + (gold ? 12 : 13), wy = pr.y - camY + 9;
         var pf = Math.sin(pr.t0 * 0.06) * 1.5;
         ctx.beginPath(); ctx.arc(wx - 6, wy + 1, 7 + pf, 0, 6.3); ctx.fill();
         ctx.beginPath(); ctx.arc(wx + 5, wy - 1, 8 - pf, 0, 6.3); ctx.fill();
         ctx.beginPath(); ctx.arc(wx, wy + 4, 7, 0, 6.3); ctx.fill();
-        ctx.fillStyle = '#e8e4f0';
+        ctx.fillStyle = gold ? '#ffd869' : '#e8e4f0';
         ctx.beginPath(); ctx.arc(wx - 2, wy - 3, 5, 0, 6.3); ctx.fill();
         ctx.globalAlpha = 1;
+        if (gold && G.tick % 4 === 0) {
+          G.particles.spawn({
+            x: pr.x + 12 + (Math.random() - 0.5) * 20, y: pr.y + 9,
+            vx: 0, vy: -0.3, life: 30, col: '#ffcf4a', size: 2, grav: 0.01
+          });
+        }
         continue;
       }
       if (!pr.spr) continue;
@@ -1355,7 +1399,7 @@
       var d = b.def;
       var sn = d.spr[b.anim % d.spr.length];
       var sp = P.get(sn);
-      var sc = d.scale;
+      var sc = b.scale || d.scale;   // Lennart waechst mitten im Kampf
       var dw = sp.w * sc, dh = sp.h * sc;
       var dx0 = Math.round(b.cx() - camX - dw / 2);
       var dy0 = Math.round(b.y + b.h - camY - dh);
@@ -1374,7 +1418,9 @@
       }
       ctx.restore();
 
-      if (!b.dead && b.state === 'chargeprep' && (G.tick >> 2) % 2 === 0) {
+      var warn = (b.state === 'chargeprep' || b.state === 'carjump' ||
+                  b.state === 'slam');
+      if (!b.dead && warn && (G.tick >> 2) % 2 === 0) {
         F.draw(ctx, '!', px, dy0 - 14, { color: '#ff6a6a', align: 'center', scale: 2 });
       }
       if (!b.dead && b.state === 'pushups') {

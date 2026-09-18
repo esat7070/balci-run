@@ -1056,6 +1056,12 @@
       this.w = 26; this.h = 20; this.spr = null; this.grav = -0.004;
       this.life = 140; this.ghost = true;
     }
+    else if (type === 'safran') {
+      // Safranwolke: goldener Staub, treibt langsam durch die Kueche.
+      this.w = 24; this.h = 18; this.spr = null; this.grav = -0.008;
+      this.life = 85; this.ghost = true; this.gold = true;
+    }
+    else if (type === 'reis') { this.w = 6; this.h = 5; this.spr = 'reis'; this.grav = 0.16; }
     else if (type === 'bombe') { this.w = 8; this.h = 12; this.spr = 'bombe'; this.grav = 0.22; }
     else if (type === 'frage') { this.w = 10; this.h = 12; this.spr = 'frage'; this.grav = 0.12; }
     else if (type === 'hantel') { this.w = 22; this.h = 10; this.spr = 'hantel'; this.grav = 0.2; }
@@ -1092,9 +1098,9 @@
       return;
     }
 
-    if (this.t === 'rauch') {
+    if (this.t === 'rauch' || this.t === 'safran') {
       this.x += Math.sin(this.t0 * 0.03) * 0.25;
-      if (--this.life <= 0) this.pop(g, '#b8b0c8');
+      if (--this.life <= 0) this.pop(g, this.gold ? '#ffcf4a' : '#b8b0c8');
       if (!g.player.dead && overlap(this, g.player) &&
           g.player.power <= 0 && g.player.pound !== -1) {
         g.player.hurt(g, 1, this.x + this.w / 2);
@@ -1248,6 +1254,20 @@
         if (this.grounded && this.timer < 44) { this.state = 'idle'; this.timer = 42; }
         break;
 
+      // Sein Markenzeichen: kurze schnelle Hopser. Er bleibt nie stehen.
+      case 'hop':
+        this.facing = dx > 0 ? 1 : -1;
+        if (this.grounded) {
+          this.vy = -6.2 - this.phase * 0.5;
+          this.vx = this.facing * (1.6 + this.phase * 0.5);
+          global.Sound.play('jump');
+          if (this.phase >= 2 && Math.random() < 0.5) {
+            g.addProjectile('blatt', this.cx(), this.y + 20, this.facing * 2.0, -1.6);
+          }
+        }
+        if (this.timer <= 0) { this.state = 'idle'; this.timer = 34; }
+        break;
+
       // Sichtbares Ausholen, damit der Sturmlauf fair ist
       case 'dashprep':
         this.vx *= 0.7;
@@ -1330,20 +1350,25 @@
     var dist = Math.abs(dx);
     this.facing = dx > 0 ? 1 : -1;
 
+    // Huseyin ist der bewegliche Bruder: er springt viel, wechselt die
+    // Seite und laesst Yusuf selten in Ruhe stehen.
     if (this.phase === 1) {
-      if (r < 0.42) { this.state = 'throw'; this.timer = 40; }
-      else if (r < 0.72) { this.state = 'walk'; this.timer = 56; }
-      else { this.state = 'jump'; this.timer = 60; this.vy = -8.4; this.vx = this.facing * 1.6; }
+      if (r < 0.30) { this.state = 'throw'; this.timer = 40; }
+      else if (r < 0.48) { this.state = 'walk'; this.timer = 50; }
+      else if (r < 0.74) { this.state = 'hop'; this.timer = 74; }
+      else { this.state = 'jump'; this.timer = 60; this.vy = -9.0; this.vx = this.facing * 2.0; }
     } else if (this.phase === 2) {
-      if (r < 0.30) { this.state = 'throw'; this.timer = 36; }
-      else if (r < 0.52) { this.state = 'shake'; this.timer = 34; }
-      else if (r < 0.74) { this.state = 'dashprep'; this.timer = 26; }
-      else { this.state = 'jump'; this.timer = 60; this.vy = -9.2; this.vx = this.facing * 2.1; }
+      if (r < 0.24) { this.state = 'throw'; this.timer = 36; }
+      else if (r < 0.42) { this.state = 'shake'; this.timer = 34; }
+      else if (r < 0.60) { this.state = 'dashprep'; this.timer = 26; }
+      else if (r < 0.82) { this.state = 'hop'; this.timer = 80; }
+      else { this.state = 'jump'; this.timer = 60; this.vy = -9.6; this.vx = this.facing * 2.4; }
     } else {
-      if (r < 0.22) { this.state = 'rain'; this.timer = 86; }
-      else if (r < 0.42) { this.state = 'dashprep'; this.timer = 22; }
-      else if (r < 0.60) { this.state = 'shake'; this.timer = 30; }
-      else if (r < 0.80) { this.state = 'throw'; this.timer = 32; }
+      if (r < 0.18) { this.state = 'rain'; this.timer = 86; }
+      else if (r < 0.36) { this.state = 'dashprep'; this.timer = 22; }
+      else if (r < 0.50) { this.state = 'shake'; this.timer = 30; }
+      else if (r < 0.66) { this.state = 'throw'; this.timer = 32; }
+      else if (r < 0.86) { this.state = 'hop'; this.timer = 86; }
       else { this.state = 'pushups'; this.timer = 82; this.pushups = 0; }
     }
     if (dist > 150 && this.state === 'throw') { this.state = 'walk'; this.timer = 52; }
@@ -1389,11 +1414,11 @@
 
   var MINIBOSS = {
     mirkan: {
-      w: 32, h: 15, hp: 5, name: 'MIRKAN', col: '#b8c0d4',
+      w: 32, h: 15, hp: 7, name: 'MIRKAN', col: '#b8c0d4',
       spr: ['mercedes', 'mercedes'], scale: 1, stompY: 12, score: 1200
     },
     lennart: {
-      w: 30, h: 44, hp: 6, name: 'LENNART', col: '#e8b894',
+      w: 30, h: 44, hp: 8, name: 'LENNART', col: '#e8b894',
       spr: ['lennart', 'lennart2'], scale: 2, stompY: 22, score: 1600
     },
     erfan: {
@@ -1424,9 +1449,26 @@
     this.open = true;
     this.pumped = false;
     this.spin = 0;
+    this.scale = d.scale;      // Lennart waechst mitten im Kampf
+    this.stompY = d.stompY;
   }
 
   MiniBoss.prototype.cx = function () { return this.x + this.w / 2; };
+
+  /** Lennart wird in Phase 2 einfach groesser. */
+  MiniBoss.prototype.growBig = function (g) {
+    if (this.scale >= 3) return;
+    var footY = this.y + this.h;
+    this.scale = 3;
+    this.w = 44; this.h = 66; this.stompY = 32;
+    this.y = footY - this.h;
+    this.x -= 7;
+    g.shake(9, 30);
+    global.Sound.play('bossRoar');
+    g.floats.add(this.cx(), this.y - 14, 'JETZT IST MASSEPHASE!', '#e8b894', 110);
+    g.particles.burst(this.cx(), footY, 34,
+      { col: '#e8b894', spread: 3.6, up: 1.2, life: 44 });
+  };
 
   MiniBoss.prototype.update = function (g) {
     this.t0++;
@@ -1457,7 +1499,7 @@
         break;
 
       case 'walk':
-        this.vx = this.facing * (this.pumped ? 1.9 : 1.25);
+        this.vx = this.facing * (this.t === 'mirkan' ? 2.2 : (this.pumped ? 1.9 : 1.35));
         if (this.timer <= 0) { this.state = 'idle'; this.timer = 30; }
         break;
 
@@ -1465,14 +1507,18 @@
         this.vx *= 0.7;
         if (this.timer <= 0) {
           this.state = 'charge';
-          this.timer = this.t === 'mirkan' ? 40 : 30;
+          this.timer = this.t === 'mirkan' ? 44 : 30;
           global.Sound.play('bossRoar');
           g.shake(3, 8);
         }
         break;
 
       case 'charge':
-        this.vx = this.facing * (this.t === 'mirkan' ? 4.4 : (this.pumped ? 4.2 : 3.4));
+        // Mirkan gibt richtig Gas — und laesst Fragen hinter sich liegen.
+        this.vx = this.facing * (this.t === 'mirkan' ? 6.0 : (this.pumped ? 4.4 : 3.4));
+        if (this.t === 'mirkan' && this.timer % 12 === 0) {
+          g.addProjectile('frage', this.cx() - 5, this.y + 2, -this.facing * 0.6, -2.2);
+        }
         if (this.timer <= 0) { this.state = 'idle'; this.timer = 48; }
         break;
 
@@ -1480,14 +1526,96 @@
         if (this.grounded && this.timer < 44) { this.state = 'idle'; this.timer = 36; }
         break;
 
+      // Mirkan setzt mit dem Wagen ueber und knallt auf den Boden
+      case 'carjump':
+        if (this.timer === 34) {
+          this.vy = -10.5;
+          this.vx = this.facing * 3.2;
+          global.Sound.play('bossRoar');
+        }
+        if (this.timer < 28 && this.grounded) {
+          g.shake(8, 20);
+          global.Sound.play('pound');
+          for (var cj = 0; cj < 18; cj++) {
+            g.particles.spawn({
+              x: this.cx(), y: this.y + this.h,
+              vx: (cj / 17 - 0.5) * 9, vy: -Math.random() * 2,
+              life: 26, col: '#dfe4f0', size: 2, grav: 0.3
+            });
+          }
+          if (Math.abs(p.cx() - this.cx()) < 70 && p.grounded) {
+            p.vy = -6; p.grounded = false;
+          }
+          this.state = 'idle'; this.timer = 46;
+        }
+        if (this.timer <= 0) { this.state = 'idle'; this.timer = 40; }
+        break;
+
+      // Lennart springt hoch und kommt mit vollem Gewicht runter
+      case 'slam':
+        if (this.timer === 40) { this.vy = -10; this.vx = this.facing * 1.4; }
+        if (this.timer < 34 && this.grounded) {
+          g.shake(10, 24);
+          global.Sound.play('pound');
+          for (var sl = 0; sl < 20; sl++) {
+            g.particles.spawn({
+              x: this.cx(), y: this.y + this.h,
+              vx: (sl / 19 - 0.5) * 10, vy: -Math.random() * 2.4,
+              life: 28, col: '#e8b894', size: 2, grav: 0.3
+            });
+          }
+          // Beim Aufschlag fliegen Hanteln nach beiden Seiten weg
+          var big = this.scale >= 3;
+          g.addProjectile('hantel', this.cx() - 11, this.y + this.h - 12, -3.4, -1.2);
+          g.addProjectile('hantel', this.cx() - 11, this.y + this.h - 12, 3.4, -1.2);
+          if (big) {
+            g.addProjectile('hantel', this.cx() - 11, this.y + this.h - 12, -1.9, -3.2);
+            g.addProjectile('hantel', this.cx() - 11, this.y + this.h - 12, 1.9, -3.2);
+          }
+          this.state = 'idle'; this.timer = big ? 44 : 52;
+        }
+        if (this.timer <= 0) { this.state = 'idle'; this.timer = 44; }
+        break;
+
+      // Erfan: Safranwolke
+      case 'safran':
+        this.vx *= 0.8;
+        if (this.timer === 16) {
+          var sc2 = this.phase >= 2 ? 2 : 1;
+          for (var sf = 0; sf < sc2; sf++) {
+            g.addProjectile('safran', this.cx() - 12 + this.facing * (18 + sf * 24),
+                            this.y + 12 + sf * 5, this.facing * (0.6 + sf * 0.2), -0.15);
+          }
+          global.Sound.play('shoot');
+          g.floats.add(this.cx(), this.y - 14, 'SAFRAN! ECHTER SAFRAN!', '#ffcf4a', 70);
+        }
+        if (this.timer <= 0) { this.state = 'idle'; this.timer = 44; }
+        break;
+
+      // Erfan: Reis ueber die ganze Breite
+      case 'reis':
+        this.vx *= 0.85;
+        if (this.timer === 20) {
+          for (var ri = 0; ri < 5; ri++) {
+            g.addProjectile('reis', this.cx() - 3, this.y + 10,
+                            this.facing * (1.3 + ri * 0.6), -4.0 + ri * 0.45);
+          }
+          global.Sound.play('shoot');
+          g.floats.add(this.cx(), this.y - 14, 'UND REIS DAZU!', '#f8f6ee', 60);
+        }
+        if (this.timer <= 0) { this.state = 'idle'; this.timer = 42; }
+        break;
+
       // --- MIRKAN: Fragen und Hupe ---
       case 'fragen':
         this.vx *= 0.8;
-        if (this.timer === 16) {
-          var n = this.phase >= 2 ? 3 : 2;
+        if (this.timer === 16 || this.timer === 4) {
+          var n = this.phase >= 2 ? 4 : 3;
           for (var i = 0; i < n; i++) {
+            // faechert nach beiden Seiten — man kann nicht einfach stehen
+            var sp2 = (i - (n - 1) / 2) * 1.15;
             g.addProjectile('frage', this.cx() - 5, this.y - 4,
-                            this.facing * (1.9 + i * 0.5), -3.0 - i * 0.4);
+                            this.facing * 1.6 + sp2, -3.4 - Math.abs(sp2) * 0.2);
           }
           global.Sound.play('shoot');
           var ql = global.Levels.mirkanLines;
@@ -1523,10 +1651,10 @@
       case 'hantel':
         this.vx *= 0.8;
         if (this.timer === 18) {
-          var hn = this.phase >= 2 ? 2 : 1;
+          var hn = this.phase >= 2 ? 3 : 2;
           for (var h2 = 0; h2 < hn; h2++) {
             g.addProjectile('hantel', this.cx() - 11, this.y + 8,
-                            this.facing * (2.4 + h2 * 0.6), -3.2 - h2 * 0.5);
+                            this.facing * (2.2 + h2 * 0.7), -3.6 - h2 * 0.4);
           }
           global.Sound.play('shoot');
           var ll = global.Levels.lennartLines;
@@ -1602,9 +1730,10 @@
     this.animT++;
     if (this.animT > (this.state === 'charge' ? 3 : 8)) { this.animT = 0; this.anim++; }
 
-    this.open = (this.state !== 'charge');
+    this.open = (this.state !== 'charge' && this.state !== 'carjump' &&
+                 this.state !== 'slam');
     if (!p.dead && this.invuln <= 0 && overlap(this, p)) {
-      var stomp = p.vy > 0.5 && (p.feet() - this.y) < this.def.stompY;
+      var stomp = p.vy > 0.5 && (p.feet() - this.y) < this.stompY;
       if (stomp || p.power > 0 || p.pound === -1) this.hit(g, 1, p);
       else if (!this.open) p.hurt(g, 1, this.cx());
     }
@@ -1616,21 +1745,28 @@
     var far = Math.abs(dx) > 120;
 
     if (this.t === 'mirkan') {
-      if (r < 0.40) { this.state = 'fragen'; this.timer = 40; }
-      else if (r < 0.62) { this.state = 'hupe'; this.timer = 44; }
-      else if (r < 0.86) { this.state = 'chargeprep'; this.timer = 26; }
-      else { this.state = 'walk'; this.timer = 50; }
-    } else if (this.t === 'lennart') {
-      if (r < 0.38) { this.state = 'hantel'; this.timer = 42; }
-      else if (r < 0.58) { this.state = 'chargeprep'; this.timer = 24; }
-      else if (r < 0.74 && !this.pumped) { this.state = 'pushups'; this.timer = 80; this.spin = 0; }
-      else if (r < 0.90) { this.state = 'walk'; this.timer = 46; }
-      else { this.state = 'jump'; this.timer = 58; this.vy = -8.4; this.vx = this.facing * 1.8; }
-    } else {
-      if (r < 0.40) { this.state = 'spiesse'; this.timer = 40; }
-      else if (r < 0.66) { this.state = 'pfanne'; this.timer = 56; }
-      else if (r < 0.84) { this.state = 'chargeprep'; this.timer = 24; }
+      // Schnell, laut, immer in Bewegung. Springt mit dem Wagen.
+      if (r < 0.26) { this.state = 'fragen'; this.timer = 38; }
+      else if (r < 0.44) { this.state = 'hupe'; this.timer = 42; }
+      else if (r < 0.70) { this.state = 'chargeprep'; this.timer = 22; }
+      else if (r < 0.88) { this.state = 'carjump'; this.timer = 40; }
       else { this.state = 'walk'; this.timer = 44; }
+    } else if (this.t === 'lennart') {
+      // Schwer und langsam, dafuer mit Wucht. Wird in Phase 2 groesser.
+      if (r < 0.30) { this.state = 'hantel'; this.timer = 42; }
+      else if (r < 0.50) { this.state = 'slam'; this.timer = 46; }
+      else if (r < 0.66) { this.state = 'chargeprep'; this.timer = 24; }
+      else if (r < 0.80 && !this.pumped) { this.state = 'pushups'; this.timer = 80; this.spin = 0; }
+      else if (r < 0.92) { this.state = 'walk'; this.timer = 46; }
+      else { this.state = 'jump'; this.timer = 58; this.vy = -9.0; this.vx = this.facing * 1.8; }
+    } else {
+      // Erfan kocht: Spiesse, Safran, Reis, und die Pfanne.
+      if (r < 0.26) { this.state = 'spiesse'; this.timer = 40; }
+      else if (r < 0.46) { this.state = 'safran'; this.timer = 42; }
+      else if (r < 0.64) { this.state = 'reis'; this.timer = 44; }
+      else if (r < 0.82) { this.state = 'pfanne'; this.timer = 56; }
+      else if (r < 0.92) { this.state = 'jump'; this.timer = 56; this.vy = -8.8; this.vx = this.facing * 2.0; }
+      else { this.state = 'walk'; this.timer = 42; }
     }
     if (far && this.state === 'fragen') { this.state = 'walk'; this.timer = 46; }
   };
@@ -1652,6 +1788,7 @@
     var np = this.hp > this.maxHp / 2 ? 1 : 2;
     if (np !== this.phase && this.hp > 0) {
       this.phase = np;
+      if (this.t === 'lennart') this.growBig(g);
       g.onMiniPhase(this.t);
     }
     if (this.hp <= 0) {

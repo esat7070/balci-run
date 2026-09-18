@@ -1068,6 +1068,15 @@
     k..kk..k
   `, { k: '#1b1220', w: '#6f7791', W: '#454b5e' });
 
+  /* Erfans Reiskorn. Kommt selten allein. */
+  P.def('reis', `
+    .kkkk.
+    kwwwwk
+    kwWWwk
+    kwwwwk
+    .kkkk.
+  `, { k: '#8a8478', w: '#f8f6ee', W: '#d8d4c6' });
+
   /* Mirkans Fragen. Sie kommen als Geschoss. */
   P.def('frage', `
     ..kkkkkk..

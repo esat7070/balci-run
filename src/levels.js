@@ -370,15 +370,18 @@
       ['yusuf', 'DAS IST EIN VERBRECHEN.'],
       ['huseyin', 'DAS IST ERNÄHRUNG.'],
       ['yusuf', 'UND WO IST ERFAN?'],
-      ['huseyin', 'DER KOCH? EINGESPERRT. GANZ HINTEN.'],
+      ['huseyin', 'DER KOCH? GANZ HINTEN. SEHR SCHLECHT GELAUNT.'],
+      ['huseyin', 'ICH HAB SEIN KUBIDE-FLEISCH WEGGESPERRT.'],
       ['huseyin', 'SOLANGE ER KUBIDE MACHT, HÖRST DU NIE AUF.'],
-      ['yusuf', 'DU HAST EINEN IRANISCHEN KOCH EINGESPERRT.'],
+      ['yusuf', 'HAST DU SEINEN SAFRAN ANGEFASST?'],
+      ['huseyin', '...NUR KURZ.'],
+      ['yusuf', 'HUSEYIN.'],
       ['yusuf', 'DAS IST DAS SCHLIMMSTE, WAS DU JE GEMACHT HAST.']
     ],
     outro: [
-      ['erfan', 'ICH MACH DIR KUBIDE. SO VIELE DU WILLST.'],
-      ['yusuf', 'UND DEN SALAT?'],
-      ['erfan', 'DER SALAT BLEIBT, WO ER IST.']
+      ['erfan', 'SAG DEINEM BRUDER, ER SOLL NICHTS MEHR ANFASSEN.'],
+      ['yusuf', 'SAG ICH IHM.'],
+      ['erfan', 'UND WENN DOCH, RUF MICH AN.']
     ]
   });
 
@@ -821,25 +824,32 @@
       start: [
         ['erfan', 'RAUS! RAUS AUS MEINER KÜCHE!'],
         ['yusuf', 'ERFAN? ICH BINS, YUSUF!'],
-        ['erfan', 'ICH KOCHE SEIT VIERZEHN TAGEN NUR SALAT!'],
-        ['erfan', 'VIERZEHN TAGE. SALAT.'],
-        ['yusuf', 'DAS IST FOLTER. DAS WEISS ICH.'],
-        ['erfan', 'DEIN BRUDER HAT MEIN FLEISCH WEGGESPERRT!'],
-        ['yusuf', 'ICH HOL ES ZURÜCK. ABER KOMM ERST RUNTER.'],
+        ['erfan', 'SIE HABEN MEINEN SAFRAN ANGEFASST.'],
+        ['yusuf', '...WAS?'],
+        ['erfan', 'ECHTER SAFRAN. AUS MASCHHAD.'],
+        ['erfan', 'ZWEI GRAMM. DREISSIG EURO. ANGEFASST!'],
+        ['yusuf', 'OKAY. DAS IST TATSÄCHLICH SCHLIMM.'],
+        ['erfan', 'UND MEIN KUBIDE-FLEISCH IST WEG!'],
+        ['erfan', 'VIERZEHN TAGE KEIN KUBIDE, YUSUF.'],
+        ['yusuf', 'ICH HOL ALLES ZURÜCK. KOMM ERST RUNTER.'],
         ['erfan', 'ICH KOMME NICHT RUNTER!']
       ],
       phase2: [
-        ['erfan', 'WEISST DU, WIE MAN SALAT WÜRZT?'],
+        ['erfan', 'WEISST DU, WIE LANGE REIS BRAUCHT?'],
         ['yusuf', 'NEIN.'],
-        ['erfan', 'GAR NICHT! MAN KANN ES NICHT!']
+        ['erfan', 'GENAU SO LANGE WIE ER BRAUCHT!'],
+        ['yusuf', 'DAS IST KEINE ANTWORT, ERFAN.'],
+        ['erfan', 'DOCH! IN DER KÜCHE SCHON!']
       ],
       end: [
         ['erfan', 'OKAY... OKAY. ICH BIN RUHIG.'],
         ['yusuf', 'GEHT ES WIEDER?'],
-        ['erfan', 'VIERZEHN TAGE, YUSUF.'],
+        ['erfan', 'VIERZEHN TAGE, YUSUF. VIERZEHN.'],
         ['yusuf', 'ICH WEISS.'],
-        ['erfan', 'DANKE, DASS DU GEKOMMEN BIST.'],
-        ['erfan', 'HAST DU HUNGER?'],
+        ['erfan', 'DER SAFRAN IST ÜBRIGENS NOCH DA.'],
+        ['erfan', 'ICH HAB IHN VERSTECKT. IM REIS.'],
+        ['yusuf', 'NATÜRLICH HAST DU DAS.'],
+        ['erfan', 'ICH MACH DIR KUBIDE. MIT SAFRANREIS.'],
         ['yusuf', 'ICH HAB EIGENTLICH GAR KEINEN HUNGER.'],
         ['erfan', '...'],
         ['yusuf', 'MACH VIERZEHN.']

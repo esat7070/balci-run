@@ -277,6 +277,32 @@ function run() {
     });
   })();
 
+  // ---- 3d. Honig darf beim Tod nicht behalten werden ----
+  // Sonst sammelt man alles ein, stirbt absichtlich und sammelt nochmal.
+  (function () {
+    var err = null, honeyAfter = null, scoreAfter = null, honeyAtCp = 40;
+    try {
+      G._loadLevel(0, false);
+      G.state = 'play'; G.frozen = false; G.banner = 0;
+      var p = G.player;
+      p.lives = 9; p.honey = honeyAtCp; p.score = 2000;
+      // Checkpoint erreichen (Stand wird festgehalten)
+      G.checkpoint = [70, 15];
+      G.checkpointStats = { honey: honeyAtCp, score: 2000, eatCount: 0 };
+      // danach fleissig weiter sammeln
+      p.honey = 95; p.score = 7000;
+      p.kill(G);
+      for (var i = 0; i < 400 && G.state === 'play'; i++) G._update();
+      honeyAfter = G.player.honey;
+      scoreAfter = G.player.score;
+    } catch (e) { err = e.message; }
+    ok(!err, 'Tod-Rueckstellung laeuft ohne Fehler', err || '');
+    ok(honeyAfter === honeyAtCp, 'Honig faellt beim Tod auf den Checkpoint zurueck',
+       '95 -> ' + honeyAfter + ' (erwartet ' + honeyAtCp + ')');
+    ok(scoreAfter === 2000, 'Punkte fallen beim Tod ebenfalls zurueck',
+       '7000 -> ' + scoreAfter);
+  })();
+
   // ---- 4. Bot spielt jedes Level ----
   // Der Bot laeuft nach rechts und springt, wenn eine Wand oder eine
   // Luecke vor ihm ist. Doppelsprung, wenn er im Fallen keinen Boden sieht.
