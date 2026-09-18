@@ -1044,6 +1044,9 @@
       this.life = 140; this.ghost = true;
     }
     else if (type === 'bombe') { this.w = 8; this.h = 12; this.spr = 'bombe'; this.grav = 0.22; }
+    else if (type === 'frage') { this.w = 10; this.h = 12; this.spr = 'frage'; this.grav = 0.12; }
+    else if (type === 'hantel') { this.w = 22; this.h = 10; this.spr = 'hantel'; this.grav = 0.2; }
+    else if (type === 'spiess') { this.w = 16; this.h = 12; this.spr = 'kubide'; this.grav = 0.04; }
     else if (type === 'jet') {
       this.w = 32; this.h = 9; this.spr = 'jet'; this.grav = 0;
       this.ghost = true; this.harmless = true; this.dropAt = 20; this.bombs = 3;
@@ -1365,6 +1368,290 @@
     }
   };
 
+  /* ================= LEVEL-BOSSE =================
+     Mirkan, Lennart und Erfan teilen sich eine Klasse, haben aber
+     eigene Angriffe. Gemeinsame Regel wie bei den grossen Bossen:
+     Beruehrung tut nur waehrend eines angekuendigten Angriffs weh.
+     ============================================================== */
+
+  var MINIBOSS = {
+    mirkan: {
+      w: 40, h: 15, hp: 5, name: 'MIRKAN', col: '#b8c0d4',
+      spr: ['mercedes', 'mercedes'], scale: 1, stompY: 12, score: 1200
+    },
+    lennart: {
+      w: 30, h: 44, hp: 6, name: 'LENNART', col: '#e8b894',
+      spr: ['lennart', 'lennart2'], scale: 2, stompY: 22, score: 1600
+    },
+    erfan: {
+      w: 26, h: 56, hp: 7, name: 'ERFAN', col: '#e8c24a',
+      spr: ['erfan', 'erfan'], scale: 2, stompY: 26, score: 2000
+    }
+  };
+
+  function MiniBoss(type, tx, ty) {
+    var d = MINIBOSS[type];
+    this.t = type;
+    this.def = d;
+    this.w = d.w; this.h = d.h;
+    this.x = tx * T; this.y = ty * T - this.h;
+    this.vx = 0; this.vy = 0;
+    this.facing = -1;
+    this.hp = d.hp; this.maxHp = d.hp;
+    this.phase = 1;
+    this.t0 = 0;
+    this.anim = 0; this.animT = 0;
+    this.state = 'idle';
+    this.timer = 70;
+    this.invuln = 0;
+    this.flash = 0;
+    this.dead = false;
+    this.deadTimer = 0;
+    this.grounded = false;
+    this.open = true;
+    this.pumped = false;
+    this.spin = 0;
+  }
+
+  MiniBoss.prototype.cx = function () { return this.x + this.w / 2; };
+
+  MiniBoss.prototype.update = function (g) {
+    this.t0++;
+    if (this.flash > 0) this.flash--;
+    if (this.invuln > 0) this.invuln--;
+
+    if (this.dead) {
+      this.deadTimer++;
+      this.vy += GRAV * 0.5;
+      this.y += this.vy;
+      if (this.deadTimer % 9 === 0) {
+        g.particles.burst(this.cx() + (Math.random() - 0.5) * 18,
+                          this.y + Math.random() * this.h, 5,
+          { col: this.def.col, spread: 2.2, up: 0.6, life: 26 });
+      }
+      return;
+    }
+
+    var p = g.player;
+    var dx = p.cx() - this.cx();
+    this.timer--;
+
+    switch (this.state) {
+      case 'idle':
+        this.vx *= 0.84;
+        this.facing = dx > 0 ? 1 : -1;
+        if (this.timer <= 0) this.pick(g, dx);
+        break;
+
+      case 'walk':
+        this.vx = this.facing * (this.pumped ? 1.9 : 1.25);
+        if (this.timer <= 0) { this.state = 'idle'; this.timer = 30; }
+        break;
+
+      case 'chargeprep':
+        this.vx *= 0.7;
+        if (this.timer <= 0) {
+          this.state = 'charge';
+          this.timer = this.t === 'mirkan' ? 40 : 30;
+          global.Sound.play('bossRoar');
+          g.shake(3, 8);
+        }
+        break;
+
+      case 'charge':
+        this.vx = this.facing * (this.t === 'mirkan' ? 4.4 : (this.pumped ? 4.2 : 3.4));
+        if (this.timer <= 0) { this.state = 'idle'; this.timer = 48; }
+        break;
+
+      case 'jump':
+        if (this.grounded && this.timer < 44) { this.state = 'idle'; this.timer = 36; }
+        break;
+
+      // --- MIRKAN: Fragen und Hupe ---
+      case 'fragen':
+        this.vx *= 0.8;
+        if (this.timer === 16) {
+          var n = this.phase >= 2 ? 3 : 2;
+          for (var i = 0; i < n; i++) {
+            g.addProjectile('frage', this.cx() - 5, this.y - 4,
+                            this.facing * (1.9 + i * 0.5), -3.0 - i * 0.4);
+          }
+          global.Sound.play('shoot');
+          var ql = global.Levels.mirkanLines;
+          g.floats.add(this.cx(), this.y - 16,
+                       ql[(Math.random() * ql.length) | 0], '#b8c0d4', 60);
+        }
+        if (this.timer <= 0) { this.state = 'idle'; this.timer = 44; }
+        break;
+
+      case 'hupe':
+        this.vx *= 0.9;
+        if (this.timer === 20) {
+          global.Sound.play('bossRoar');
+          g.shake(5, 14);
+          g.floats.add(this.cx(), this.y - 18, 'TUUUUT!', '#ffd257', 60);
+          for (var hh = 0; hh < 18; hh++) {
+            g.particles.spawn({
+              x: this.cx(), y: this.y + 6,
+              vx: (hh / 17 - 0.5) * 7, vy: -Math.random() * 1.4,
+              life: 26, col: '#dfe4f0', size: 2, grav: 0.1
+            });
+          }
+          // Schiebt Yusuf weg, tut aber nicht weh
+          if (Math.abs(dx) < 120) {
+            p.vx += (dx > 0 ? 1 : -1) * 4.5;
+            p.vy = Math.min(p.vy, -3);
+          }
+        }
+        if (this.timer <= 0) { this.state = 'idle'; this.timer = 46; }
+        break;
+
+      // --- LENNART: Hanteln und Liegestuetze ---
+      case 'hantel':
+        this.vx *= 0.8;
+        if (this.timer === 18) {
+          var hn = this.phase >= 2 ? 2 : 1;
+          for (var h2 = 0; h2 < hn; h2++) {
+            g.addProjectile('hantel', this.cx() - 11, this.y + 8,
+                            this.facing * (2.4 + h2 * 0.6), -3.2 - h2 * 0.5);
+          }
+          global.Sound.play('shoot');
+          var ll = global.Levels.lennartLines;
+          g.floats.add(this.cx(), this.y - 14,
+                       ll[(Math.random() * ll.length) | 0], '#ffd257', 60);
+        }
+        if (this.timer <= 0) { this.state = 'idle'; this.timer = 46; }
+        break;
+
+      case 'pushups':
+        this.vx = 0;
+        this.spin++;
+        if (this.spin % 14 === 0) {
+          global.Sound.play('select');
+          g.floats.add(this.cx(), this.y - 10,
+                       '' + Math.floor(this.spin / 14), '#ffd257', 26);
+        }
+        if (this.timer <= 0) {
+          this.state = 'idle'; this.timer = 26;
+          this.pumped = true;
+          g.floats.add(this.cx(), this.y - 16, 'JETZT BIN ICH WARM!', '#ffd257', 70);
+        }
+        break;
+
+      // --- ERFAN: Spiesse und Pfannenschlag ---
+      case 'spiesse':
+        this.vx *= 0.8;
+        if (this.timer === 18) {
+          var sn = this.phase >= 2 ? 3 : 2;
+          for (var s2 = 0; s2 < sn; s2++) {
+            g.addProjectile('spiess', this.cx() - 8, this.y + 16 + s2 * 9,
+                            this.facing * (3.0 + s2 * 0.4), -0.5);
+          }
+          global.Sound.play('shoot');
+          g.floats.add(this.cx(), this.y - 14, 'RAUS AUS MEINER KÜCHE!', '#e8c24a', 70);
+        }
+        if (this.timer <= 0) { this.state = 'idle'; this.timer = 44; }
+        break;
+
+      case 'pfanne':
+        if (this.timer === 26) { this.vy = -7.5; }
+        if (this.timer < 22 && this.grounded) {
+          g.shake(6, 16);
+          global.Sound.play('pound');
+          for (var f2 = 0; f2 < 16; f2++) {
+            g.particles.spawn({
+              x: this.cx(), y: this.y + this.h,
+              vx: (f2 / 15 - 0.5) * 8, vy: -Math.random() * 2,
+              life: 26, col: '#e8c24a', size: 2, grav: 0.28
+            });
+          }
+          // Druckwelle laeuft am Boden entlang
+          g.addProjectile('spiess', this.cx() - 8, this.y + this.h - 12, -3.6, 0);
+          g.addProjectile('spiess', this.cx() - 8, this.y + this.h - 12, 3.6, 0);
+          this.state = 'idle'; this.timer = 50;
+        }
+        if (this.timer <= 0) { this.state = 'idle'; this.timer = 44; }
+        break;
+    }
+
+    this.vy += GRAV;
+    if (this.vy > MAX_FALL) this.vy = MAX_FALL;
+    moveX(this, g.world, this.vx);
+    this.grounded = (moveY(this, g.world, this.vy) === 1);
+
+    if (g.arena) {
+      if (this.x < g.arena.x + 6) { this.x = g.arena.x + 6; this.facing = 1; }
+      if (this.x + this.w > g.arena.x + g.arena.w - 6) {
+        this.x = g.arena.x + g.arena.w - 6 - this.w; this.facing = -1;
+      }
+    }
+
+    this.animT++;
+    if (this.animT > (this.state === 'charge' ? 3 : 8)) { this.animT = 0; this.anim++; }
+
+    this.open = (this.state !== 'charge');
+    if (!p.dead && this.invuln <= 0 && overlap(this, p)) {
+      var stomp = p.vy > 0.5 && (p.feet() - this.y) < this.def.stompY;
+      if (stomp || p.power > 0 || p.pound === -1) this.hit(g, 1, p);
+      else if (!this.open) p.hurt(g, 1, this.cx());
+    }
+  };
+
+  MiniBoss.prototype.pick = function (g, dx) {
+    var r = Math.random();
+    this.facing = dx > 0 ? 1 : -1;
+    var far = Math.abs(dx) > 120;
+
+    if (this.t === 'mirkan') {
+      if (r < 0.40) { this.state = 'fragen'; this.timer = 40; }
+      else if (r < 0.62) { this.state = 'hupe'; this.timer = 44; }
+      else if (r < 0.86) { this.state = 'chargeprep'; this.timer = 26; }
+      else { this.state = 'walk'; this.timer = 50; }
+    } else if (this.t === 'lennart') {
+      if (r < 0.38) { this.state = 'hantel'; this.timer = 42; }
+      else if (r < 0.58) { this.state = 'chargeprep'; this.timer = 24; }
+      else if (r < 0.74 && !this.pumped) { this.state = 'pushups'; this.timer = 80; this.spin = 0; }
+      else if (r < 0.90) { this.state = 'walk'; this.timer = 46; }
+      else { this.state = 'jump'; this.timer = 58; this.vy = -8.4; this.vx = this.facing * 1.8; }
+    } else {
+      if (r < 0.40) { this.state = 'spiesse'; this.timer = 40; }
+      else if (r < 0.66) { this.state = 'pfanne'; this.timer = 56; }
+      else if (r < 0.84) { this.state = 'chargeprep'; this.timer = 24; }
+      else { this.state = 'walk'; this.timer = 44; }
+    }
+    if (far && this.state === 'fragen') { this.state = 'walk'; this.timer = 46; }
+  };
+
+  MiniBoss.prototype.hit = function (g, dmg, p) {
+    if (this.invuln > 0 || this.dead) return;
+    this.hp -= dmg;
+    this.invuln = 50;
+    this.flash = 16;
+    this.state = 'idle';
+    this.timer = 30;
+    this.vx = (p && p.cx() > this.cx()) ? -2.2 : 2.2;
+    if (p) { p.vy = -8.0; p.jumpsLeft = 1; p.laughTimer = 40; }
+    global.Sound.play('bossHit');
+    g.shake(5, 12);
+    g.particles.burst(this.cx(), this.y + this.h / 2, 14,
+      { col: this.def.col, spread: 3, up: 1, life: 28 });
+
+    var np = this.hp > this.maxHp / 2 ? 1 : 2;
+    if (np !== this.phase && this.hp > 0) {
+      this.phase = np;
+      g.onMiniPhase(this.t);
+    }
+    if (this.hp <= 0) {
+      this.dead = true;
+      this.deadTimer = 0;
+      this.vy = -6;
+      if (p) p.score += this.def.score;
+      g.shake(8, 30);
+      global.Sound.play('bossRoar');
+      g.onMiniDead(this.t);
+    }
+  };
+
   /* ================= ESAT — der allerletzte Kampf =================
      Deutlich haerter als Huseyin: mehr Leben, kuerzere Fenster,
      vier Angriffsarten, und ab der Haelfte drueckt er Snooze.
@@ -1616,6 +1903,8 @@
     Projectile: Projectile,
     Boss: Boss,
     BossEsat: BossEsat,
+    MiniBoss: MiniBoss,
+    MINIBOSS: MINIBOSS,
     Particles: Particles,
     Floats: Floats,
     ENEMY: ENEMY,

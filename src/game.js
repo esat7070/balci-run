@@ -137,6 +137,7 @@
     G.banner = 190;
     G.combo = 0;
     G.rescued = false;
+    G.bossCleared = false;
     if (!fromCheckpoint) G.time = 0;
     G.frozen = false;
   }
@@ -219,6 +220,27 @@
         G.state = 'play';
       });
     }
+  };
+
+  G.onMiniPhase = function (type) {
+    G.projectiles.length = 0;
+    G.player.invuln = Math.max(G.player.invuln, 70);
+    startDialog(LV.mini[type].phase2, function () { G.state = 'play'; });
+  };
+
+  G.onMiniDead = function (type) {
+    G.frozen = true;
+    G.projectiles.length = 0;
+    if (type === 'erfan') G.rescued = true;
+    G.after(70, function () {
+      startDialog(LV.mini[type].end, function () {
+        G.frozen = false;
+        G.bossCleared = true;
+        S.music(G.lvl.music);
+        G.floats.add(G.player.cx(), G.player.y - 16, 'WEG IST FREI!', '#ffd257', 120);
+        G.state = 'play';
+      });
+    });
   };
 
   G.onEsatPhase = function (phase) {
@@ -415,42 +437,36 @@
       }
     }
 
-    // Erfan aus dem Käfig holen
-    if (G.lvl.rescue && !G.rescued) {
-      var rx = G.lvl.rescue.x * T, ry = G.lvl.rescue.y * T;
-      if (Math.abs(p.cx() - (rx + 12)) < 34 && p.feet() > ry - 64 && p.feet() < ry + 30) {
-        G.rescued = true;
-        S.play('power');
-        p.score += 1000;
-        G.shake(5, 14);
-        G.floats.add(rx + 12, ry - 50, 'ERFAN IST FREI!  +1000', '#8ad8a0', 140);
-        G.particles.burst(rx + 12, ry - 22, 30,
-          { col: '#ffd257', spread: 3.2, up: 1.2, life: 50 });
-      }
-    }
-
     // Boss auslösen
     if (G.arena && !G.bossStarted && p.cx() > G.arena.x + 56) {
       G.bossStarted = true;
-      var isEsat = (G.lvl.bossType === 'esat');
-      G.boss = isEsat ? new E.BossEsat(G.lvl.boss.x, G.lvl.boss.y)
-                      : new E.Boss(G.lvl.boss.x, G.lvl.boss.y);
-      G.boss.intro = false;
-      if (isEsat) {
+      var bt = G.lvl.bossType;
+      var aTile = Math.floor(G.arena.x / T);
+      var groundY = G.lvl.boss.y;
+
+      if (bt === 'esat') {
+        G.boss = new E.BossEsat(G.lvl.boss.x, G.lvl.boss.y);
         G.checkpoint = [G.lvl.spawn[0], G.lvl.spawn[1]];
+      } else if (E.MINIBOSS[bt]) {
+        G.boss = new E.MiniBoss(bt, G.lvl.boss.x, G.lvl.boss.y);
+        // Zurueck geht nicht mehr, und der Wiedereinstieg liegt drinnen.
+        G.world.fill(aTile - 1, 2, 1, groundY - 1, 1);
+        G.checkpoint = [aTile + 3, groundY];
       } else {
-        // Tür zu. Ab hier gibt es nur noch einen Weg raus.
-        G.world.fill(Math.floor(G.arena.x / T) - 1, 2, 1, 13, 1);
-        // Wiedereinstieg IN der Arena: sonst laeuft man nach jedem Tod
-        // den halben Weg zurueck und hoert das Intro nochmal.
-        G.checkpoint = [Math.floor(G.arena.x / T) + 4, 15];
-        if (!G.bossIntroSeen) {
-          G.bossIntroSeen = true;
-          startDialog(LV.boss.start, function () { G.state = 'play'; });
-        }
+        G.boss = new E.Boss(G.lvl.boss.x, G.lvl.boss.y);
+        G.world.fill(aTile - 1, 2, 1, 13, 1);
+        G.checkpoint = [aTile + 4, 15];
       }
+      G.boss.intro = false;
       S.music('boss');
       G.shake(5, 20);
+
+      if (!G.bossIntroSeen) {
+        G.bossIntroSeen = true;
+        var d0 = (bt === 'esat') ? null
+               : (E.MINIBOSS[bt] ? LV.mini[bt].start : LV.boss.start);
+        if (d0) startDialog(d0, function () { G.state = 'play'; });
+      }
     }
 
     // Mirkan faehrt neben Yusuf her und stellt Fragen. Sehr viele.
@@ -478,14 +494,12 @@
     // Ziel
     if (!p.won && !p.dead) {
       var gx = G.lvl.goal[0] * T, gy = G.lvl.goal[1] * T;
-      var canFinish = !G.lvl.boss;
+      // Level-Bosse geben das Ziel frei; Huseyin und Esat enden anders.
+      var endsWithBoss = (G.lvl.bossType === 'huseyin' || G.lvl.bossType === 'esat');
+      var canFinish = !G.lvl.boss || (!endsWithBoss && G.bossCleared);
       if (canFinish && Math.abs(p.cx() - (gx + 12)) < 30 &&
           p.feet() > gy - 60 && p.feet() < gy + 40) {
-        if (G.lvl.rescue && !G.rescued) {
-          if (G.tick % 70 === 0) {
-            G.floats.add(p.cx(), p.y - 14, 'ERST ERFAN BEFREIEN!', '#ff8a8a', 70);
-          }
-        } else finishLevel();
+        finishLevel();
       }
     }
 
@@ -1088,34 +1102,9 @@
     }
   }
 
-  /** Der Käfig mit Erfan — und Erfan, sobald er frei ist. */
-  function drawRescue(camX, camY) {
-    if (!G.lvl.rescue) return;
-    var rx = G.lvl.rescue.x * T - camX, ry = G.lvl.rescue.y * T - camY;
-    if (rx < -80 || rx > W + 80) return;
-    if (G.rescued) {
-      P.draw(ctx, 'erfan_frei', rx + 4, ry - 28);
-      F.draw(ctx, 'FREI!', rx + 12, ry - 42,
-             { color: '#8ad8a0', align: 'center', shadow: true });
-      if (G.tick % 10 === 0) {
-        G.particles.spawn({
-          x: G.lvl.rescue.x * T + 12 + (Math.random() - 0.5) * 20,
-          y: G.lvl.rescue.y * T - 30, vx: 0, vy: -0.5,
-          life: 40, col: '#8ad8a0', size: 2, grav: -0.01
-        });
-      }
-    } else {
-      P.draw(ctx, 'erfan', rx + 4, ry - 28);
-      P.draw(ctx, 'kaefig', rx, ry - 32);
-      if ((G.tick >> 4) % 2 === 0) {
-        F.draw(ctx, 'ERFAN', rx + 12, ry - 44,
-               { color: '#ff8a8a', align: 'center', shadow: true });
-      }
-    }
-  }
-
   function drawGoal(camX, camY) {
-    if (G.lvl.boss) return;
+    if (G.lvl.bossType === 'huseyin' || G.lvl.bossType === 'esat') return;
+    if (G.lvl.boss && !G.bossCleared) return;
     var gx = G.lvl.goal[0] * T - camX, gy = G.lvl.goal[1] * T - camY;
     var bob = Math.sin(G.tick * 0.05) * 2;
 
@@ -1181,7 +1170,6 @@
     drawHazards(camX, camY);
     drawBlocks(camX, camY);
     drawMovers(camX, camY);
-    drawRescue(camX, camY);
 
     var i;
     for (i = 0; i < G.items.length; i++) {
@@ -1335,6 +1323,35 @@
     var b = G.boss;
     var px = b.cx() - camX, py = b.y + b.h - camY;
 
+    // Level-Bosse sind gezeichnete Sprites, keine zusammengesetzten Figuren
+    if (E.MINIBOSS[G.lvl.bossType]) {
+      var d = b.def;
+      var sn = d.spr[b.anim % d.spr.length];
+      var sp = P.get(sn);
+      var sc = d.scale;
+      var dw = sp.w * sc, dh = sp.h * sc;
+      var dx0 = Math.round(b.cx() - camX - dw / 2);
+      var dy0 = Math.round(b.y + b.h - camY - dh);
+
+      ctx.save();
+      if (b.dead) ctx.globalAlpha = Math.max(0.15, 1 - b.deadTimer / 140);
+      else if (b.invuln > 0 && (G.tick >> 1) % 2 === 0) ctx.globalAlpha = 0.55;
+      ctx.translate(dx0 + (b.facing < 0 ? dw : 0), dy0);
+      ctx.scale(b.facing < 0 ? -sc : sc, sc);
+      if (b.flash > 0 && (G.tick >> 1) % 2 === 0) P.drawWhite(ctx, sn, 0, 0, false);
+      else P.draw(ctx, sn, 0, 0, false);
+      ctx.restore();
+
+      if (!b.dead && b.state === 'chargeprep' && (G.tick >> 2) % 2 === 0) {
+        F.draw(ctx, '!', px, dy0 - 14, { color: '#ff6a6a', align: 'center', scale: 2 });
+      }
+      if (!b.dead && b.state === 'pushups') {
+        F.draw(ctx, 'LIEGESTÜTZE', px, dy0 - 14,
+               { color: '#ffd257', align: 'center', shadow: true });
+      }
+      return;
+    }
+
     // Esat hat eigene Zustaende
     if (G.lvl.bossType === 'esat') {
       var ep = 'idle', ef = 'normal';
@@ -1465,22 +1482,35 @@
 
     // Bosslebensbalken
     if (G.boss && !G.boss.dead && G.bossStarted) {
-      var isE = (G.lvl.bossType === 'esat');
-      var w2 = 260, x2 = (W - w2) / 2;
-      rect(x2 - 2, 250, w2 + 4, 14, 'rgba(10,6,16,0.8)');
-      rect(x2, 252, w2, 10, '#2a1a2a');
+      var bt2 = G.lvl.bossType;
+      var isE = (bt2 === 'esat');
+      var mini = E.MINIBOSS[bt2];
+      // Der Balken sitzt ganz unten und der Name steht DARIN — sonst
+      // liegt die Schrift mitten im Spielfeld und verdeckt den Gegner.
+      var w2 = 250, x2 = (W - w2) / 2;
+      var by2 = H - 20;
+      rect(0, by2 - 4, W, 24, 'rgba(8,5,12,0.72)');
+      rect(x2 - 2, by2 - 2, w2 + 4, 16, 'rgba(6,4,10,0.9)');
+      rect(x2, by2, w2, 12, '#241830');
       var hw = Math.round(w2 * Math.max(0, G.boss.hp) / G.boss.maxHp);
-      var barCol = isE
-        ? (G.boss.snoozed ? '#2fd39e' : '#6fc8e8')
-        : (G.boss.phase >= 3 ? '#9dff6a' : (G.boss.phase === 2 ? '#c8e85a' : '#5ec24a'));
-      rect(x2, 252, hw, 10, barCol);
-      F.draw(ctx, isE ? 'ESAT' : 'HUSEYIN BALCI', W / 2, 238,
-             { color: barCol, align: 'center', shadow: true });
-      var lbl = isE && G.boss.snoozed ? 'SNOOZE AKTIV' : 'PHASE ' + G.boss.phase;
-      F.draw(ctx, lbl, x2 + w2 + 6, 253, { color: barCol });
+      var barCol = mini ? mini.col
+        : (isE ? (G.boss.snoozed ? '#2fd39e' : '#6fc8e8')
+               : (G.boss.phase >= 3 ? '#9dff6a'
+                 : (G.boss.phase === 2 ? '#c8e85a' : '#5ec24a')));
+      rect(x2, by2, hw, 12, barCol);
+      rect(x2, by2, hw, 2, 'rgba(255,255,255,0.35)');
+
+      var bname = mini ? mini.name : (isE ? 'ESAT' : 'HUSEYIN BALCI');
+      F.draw(ctx, bname, W / 2, by2 + 3,
+             { color: '#ffffff', align: 'center', shadow: true });
+
+      var lbl = (isE && G.boss.snoozed) ? 'SNOOZE'
+              : (mini && G.boss.pumped) ? 'WARM'
+              : 'PH ' + G.boss.phase;
+      F.draw(ctx, lbl, x2 + w2 + 5, by2 + 3, { color: barCol });
       // Offenes Fenster sichtbar machen — der Kampf soll lesbar sein
       if (G.boss.open && !G.boss.dead && (G.tick >> 3) % 2 === 0) {
-        F.draw(ctx, 'OFFEN', x2 - 8, 253, { color: '#ffd257', align: 'right' });
+        F.draw(ctx, 'OFFEN', x2 - 5, by2 + 3, { color: '#ffd257', align: 'right' });
       }
     }
   }
@@ -1500,31 +1530,40 @@
 
   /* ---------- Dialog ---------- */
 
+  var SPEAKER = {
+    yusuf:   { name: 'YUSUF',   col: '#ffc23c' },
+    huseyin: { name: 'HUSEYIN', col: '#cfd4e0' },
+    erfan:   { name: 'ERFAN',   col: '#e8c24a' },
+    esat:    { name: 'ESAT',    col: '#6fc8e8' },
+    lennart: { name: 'LENNART', col: '#e8b894' },
+    mirkan:  { name: 'MIRKAN',  col: '#b8c0d4' }
+  };
+
   function drawPortrait(who, x, y, talking) {
     ctx.save();
     ctx.beginPath();
     ctx.rect(Math.round(x), Math.round(y), 30, 30);
     ctx.clip();
     ctx.translate(Math.round(x), Math.round(y));
-    ctx.scale(2, 2);
     if (who === 'huseyin') {
+      ctx.scale(2, 2);
       P.draw(ctx, talking ? 'h_head_angry' : 'h_head', 0, 0, true);
     } else if (who === 'erfan') {
-      P.draw(ctx, 'erfan', -1, 0);
+      ctx.scale(2, 2); P.draw(ctx, 'erfan', -1, 0);
     } else if (who === 'esat') {
-      P.draw(ctx, 'esat', -1, 0);
+      ctx.scale(2, 2); P.draw(ctx, talking ? 'e_head_grin' : 'e_head', -1, 0);
+    } else if (who === 'lennart') {
+      ctx.scale(2, 2); P.draw(ctx, talking ? 'lennart2' : 'lennart', -3, 0);
+    } else if (who === 'mirkan') {
+      // Mirkan hat kein Portraet. Er hat ein Fragezeichen.
+      ctx.scale(2, 2);
+      P.draw(ctx, 'frage', 3, 1 + (talking ? 1 : 0));
     } else {
+      ctx.scale(2, 2);
       P.draw(ctx, talking ? 'y_head_laugh' : 'y_head', 0, 0);
     }
     ctx.restore();
   }
-
-  var SPEAKER = {
-    yusuf:   { name: 'YUSUF',   col: '#ffc23c' },
-    huseyin: { name: 'HUSEYIN', col: '#cfd4e0' },
-    erfan:   { name: 'ERFAN',   col: '#8ad8a0' },
-    esat:    { name: 'ESAT',    col: '#6fc8e8' }
-  };
 
   function drawDialog() {
     if (!G.dialog) return;
@@ -1532,12 +1571,23 @@
     var who = line[0], full = line[1];
     var shown = full.substring(0, Math.floor(G.dialogChar));
 
+    // Hintergrund abdunkeln: der Text soll lesbar sein und man soll
+    // sofort sehen, dass das Spiel steht.
+    ctx.fillStyle = 'rgba(6,4,10,0.55)';
+    ctx.fillRect(0, 0, W, H);
+
     var bx = 16, by = H - 84, bw = W - 32, bh = 68;
-    ctx.fillStyle = 'rgba(10,6,16,0.92)';
+    ctx.fillStyle = 'rgba(8,5,13,0.97)';
     ctx.fillRect(bx, by, bw, bh);
     ctx.strokeStyle = SPEAKER[who] ? SPEAKER[who].col : '#8f86a8';
     ctx.lineWidth = 2;
     ctx.strokeRect(bx + 1, by + 1, bw - 2, bh - 2);
+    rect(bx + 3, by + 3, bw - 6, 1, 'rgba(255,255,255,0.10)');
+
+    if ((G.tick >> 5) % 2 === 0) {
+      F.draw(ctx, 'PAUSE', bx + bw - 8, by - 11,
+             { color: '#6a6280', align: 'right' });
+    }
 
     var tx = bx + 12;
     var sp = SPEAKER[who];

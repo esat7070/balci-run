@@ -49,6 +49,18 @@ Steh mal zu lange still. Yusuf schläft dann einfach ein. Und knurren tut er sow
 | 6 | Mustang nach Stilbruch | Siegerfahrt, 2 Uhr nachts |
 | 7 | Der letzte Kampf | Esat hat es zu weit getrieben |
 
+### Jedes Level hat seinen eigenen Boss
+
+| Level | Boss | Wie er nervt |
+|---|---|---|
+| 1 | — | Zum Aufwärmen gibt es keinen |
+| 2 | **Mirkan** | Versperrt den Weg mit dem Mercedes, wirft Fragen und hupt dich weg |
+| 3 | **Lennart** | Wirft Hanteln, stürmt los, macht mittendrin Liegestütze |
+| 4 | **Erfan** | Kocht seit vierzehn Tagen nur Salat und ist entsprechend gelaunt |
+| 5 | **Huseyin** | Drei Phasen, Salatblätter, Protein-Shaker, Liegestütze |
+| 6 | — | Nur Fahren |
+| 7 | **Esat** | Der Endgegner |
+
 Die Level ziehen von Stufe zu Stufe an — Gegner werden schneller und
 angriffslustiger. **Level 7 ist bewusst brutal.** Esat hat 15 Leben, drei
 Phasen, wirft Shisha-Wolken, lässt KI-Agenten spawnen, ruft Jets mit Bomben —
@@ -61,10 +73,14 @@ Diät-Drohnen und **Lennart**, der dich jedes Mal fragt, ob du auch ins Gym gehs
 
 ### Bosskämpfe lesen
 
-Beide Endgegner folgen derselben Regel: **nur der angekündigte Sturmlauf tut
+Alle Bosse folgen derselben Regel: **nur der angekündigte Sturmlauf tut
 bei Berührung weh.** Die Gefahr sind ihre Angriffe, nicht ihr Körper — sonst
 würde das Spiel genau die Bewegung bestrafen, die es verlangt. Am Lebensbalken
 steht **OFFEN**, wenn du gefahrlos ranspringen kannst.
+
+Während aller Gespräche steht die Welt still: Gegner, Würfe und Bosse
+bewegen sich nicht, der Hintergrund wird abgedunkelt und rechts oben im
+Textfeld steht **PAUSE**. Man kann also nicht sterben, während jemand redet.
 
 ## Bestenliste
 

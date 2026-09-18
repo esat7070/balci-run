@@ -183,8 +183,8 @@
 
   var lvl2 = L({
     id: 2, name: 'BIENEN VERGESSEN NICHTS', sub: 'DER GARTEN HINTERM HAUS',
-    theme: 'garten', music: 'l2', w: 228, h: 18, spawn: [3, 15], par: 110,
-    goal: [220, 15], diff: 1.0,
+    theme: 'garten', music: 'l2', w: 262, h: 18, spawn: [3, 15], par: 110,
+    goal: [256, 15], diff: 1.0,
     intro: [
       ['yusuf', 'DER GARTEN. HIER STEHEN DIE BIENENSTÖCKE.'],
       ['huseyin', 'VIEL SPASS. DIE BIENEN KENNEN DICH NOCH.'],
@@ -202,7 +202,15 @@
   lvl2.g(0, 18, 15).g(23, 36, 15).g(41, 52, 13).g(57, 70, 15)
       .g(75, 84, 12).g(89, 100, 14).g(105, 118, 15).g(123, 132, 11)
       .g(137, 150, 14).g(155, 168, 15).g(173, 182, 12).g(187, 200, 15)
-      .g(205, 227, 15);
+      .g(201, 229, 15);
+
+  // Boss-Arena: flach, genau eine Bildschirmbreite
+  lvl2.g(230, 261, 15);
+  lvl2.p(236, 11, 5).p(250, 11, 5);
+  lvl2.bossAt(246, 15);
+  lvl2.d.bossType = 'mirkan';
+  lvl2.d.arena = { x: 230, w: 32 };
+  lvl2.q(240, 10, 'doener', 2).it('herz', 243, 9);
 
   lvl2.p(19, 13, 4).p(37, 13, 4).p(53, 13, 4).p(71, 13, 4)
       .p(85, 12, 4).p(101, 13, 4).p(119, 13, 4).p(133, 12, 4)
@@ -255,8 +263,8 @@
 
   var lvl3 = L({
     id: 3, name: 'MUCKIBUDE DES GRAUENS', sub: 'HUSEYINS ZWEITES ZUHAUSE',
-    theme: 'gym', music: 'l3', w: 212, h: 26, spawn: [3, 23], par: 130,
-    goal: [204, 11], diff: 1.15,
+    theme: 'gym', music: 'l3', w: 248, h: 26, spawn: [3, 23], par: 130,
+    goal: [242, 11], diff: 1.15,
     intro: [
       ['huseyin', 'WILLKOMMEN IM FITNESSSTUDIO. KENNST DU NICHT, WA?'],
       ['yusuf', 'ICH WAR HIER. 2021. EINMAL. WAR VOLL.'],
@@ -278,7 +286,15 @@
 
   lvl3.g(0, 22, 23).g(27, 40, 23).g(45, 56, 21).g(61, 74, 23)
       .g(79, 90, 19).g(95, 108, 23).g(113, 124, 17).g(129, 142, 21)
-      .g(147, 158, 15).g(163, 176, 19).g(181, 192, 13).g(197, 211, 11);
+      .g(147, 158, 15).g(163, 176, 19).g(181, 192, 13).g(197, 215, 11);
+
+  // Boss-Arena
+  lvl3.g(216, 247, 11);
+  lvl3.p(222, 7, 5).p(236, 7, 5);
+  lvl3.bossAt(232, 11);
+  lvl3.d.bossType = 'lennart';
+  lvl3.d.arena = { x: 216, w: 32 };
+  lvl3.q(226, 6, 'doener', 2).it('herz', 229, 5);
 
   // Kletterrouten nach oben
   lvl3.p(18, 20, 4).p(24, 17, 4).p(30, 14, 4).p(36, 11, 4).p(42, 8, 5)
@@ -343,8 +359,8 @@
 
   var lvl4 = L({
     id: 4, name: 'DIE KÜCHE DER VERSUCHUNG', sub: 'GEFÄHRLICHSTER RAUM IM HAUS',
-    theme: 'kueche', music: 'l4', w: 236, h: 18, spawn: [3, 15], par: 140,
-    goal: [228, 15], diff: 1.22,
+    theme: 'kueche', music: 'l4', w: 270, h: 18, spawn: [3, 15], par: 140,
+    goal: [264, 15], diff: 1.22,
     intro: [
       ['yusuf', 'DIE KÜCHE. ENDLICH HEIMSPIEL.'],
       ['huseyin', 'ICH HABE DEN KÜHLSCHRANK UMGEBAUT.'],
@@ -358,19 +374,24 @@
       ['yusuf', 'DAS IST DAS SCHLIMMSTE, WAS DU JE GEMACHT HAST.']
     ],
     outro: [
-      ['erfan', 'DANKE, YUSUF. ICH DACHTE SCHON, DAS WARS.'],
-      ['yusuf', 'NIEMAND SPERRT DEN KUBIDE-MANN EIN.'],
-      ['erfan', 'ICH MACH DIR WELCHE. SO VIELE DU WILLST.'],
-      ['yusuf', 'ICH HAB EIGENTLICH GAR KEINEN HUNGER.'],
-      ['erfan', '...'],
-      ['yusuf', 'MACH VIERZEHN.']
+      ['erfan', 'ICH MACH DIR KUBIDE. SO VIELE DU WILLST.'],
+      ['yusuf', 'UND DEN SALAT?'],
+      ['erfan', 'DER SALAT BLEIBT, WO ER IST.']
     ]
   });
 
   lvl4.g(0, 16, 15).g(22, 32, 15).g(38, 46, 13).g(52, 62, 15)
       .g(68, 76, 12).g(82, 94, 15).g(100, 108, 13).g(114, 126, 15)
       .g(132, 140, 11).g(146, 158, 14).g(164, 172, 12).g(178, 190, 15)
-      .g(196, 206, 13).g(212, 235, 15);
+      .g(196, 206, 13).g(212, 237, 15);
+
+  // Erfans Küche: hier kämpft er, weil Huseyin ihn dazu zwingt
+  lvl4.g(238, 269, 15);
+  lvl4.p(244, 11, 5).p(258, 11, 5);
+  lvl4.bossAt(254, 15);
+  lvl4.d.bossType = 'erfan';
+  lvl4.d.arena = { x: 238, w: 32 };
+  lvl4.q(248, 10, 'doener', 2).it('herz', 251, 9);
 
   // Gabeln im Boden. Ganz normale Küche.
   lvl4.hz(26, 29, 14, 'gabel').hz(56, 59, 14, 'gabel')
@@ -426,15 +447,13 @@
 
   lvl4.cp(58, 15).cp(122, 15).cp(186, 15);
 
-  // Huseyin hat Erfan eingesperrt, damit niemand mehr Kubide macht.
-  lvl4.d.rescue = { x: 222, y: 15 };
   lvl4.it('kubide', 45, 7).it('kubide', 121, 8).it('kubide', 202, 8);
   lvl4.q(50, 11, 'kippen').q(176, 10, 'kippen');
 
   lvl4.sign(5, 15, 'GABELN IM BODEN. GANZ NORMALE KÜCHE.')
       .sign(54, 15, 'NUR EIN DÖNER, HAT ER GESAGT. VOR NEUN DÖNERN.')
       .sign(116, 15, 'ÖL IST HEISS. DAS IST DER GANZE TRICK.')
-      .sign(214, 15, 'LETZTES LEVEL. ER WARTET OBEN.');
+      .sign(214, 15, 'HINTEN KOCHT JEMAND. LAUT.');
 
   /* ---------------------------------------------------------------
      LEVEL 5 — Husseins Salat-Festung + Endgegner
@@ -527,6 +546,7 @@
       .sign(153, 14, 'AB HIER NUR NOCH HUSEYIN.');
 
   lvl5.bossAt(202, 14);
+  lvl5.d.bossType = 'huseyin';
 
   /* ---------------------------------------------------------------
      LEVEL 6 — Mustang nach Stilbruch (Fahr-Level + Siegerehrung)
@@ -742,6 +762,84 @@
     ]
   };
 
+  /* Die Level-Bosse. Jeder nervt auf seine eigene Art. */
+  var MINI_DIALOG = {
+    mirkan: {
+      start: [
+        ['mirkan', 'YUSUF! DA BIST DU JA!'],
+        ['yusuf', 'MIRKAN. NICHT JETZT.'],
+        ['mirkan', 'WO WARST DU? WAS MACHST DU? WARUM HIER?'],
+        ['yusuf', 'DAS SIND DREI FRAGEN IN VIER SEKUNDEN.'],
+        ['mirkan', 'IST DAS EINE ANTWORT ODER EINE KRITIK?'],
+        ['yusuf', '...'],
+        ['mirkan', 'ICH LASS DICH ERST DURCH, WENN DU ANTWORTEST.'],
+        ['yusuf', 'DANN EBEN SO.']
+      ],
+      phase2: [
+        ['mirkan', 'WARUM SPRINGST DU AUF MEIN AUTO?'],
+        ['yusuf', 'DAS IST AUCH WIEDER EINE FRAGE.']
+      ],
+      end: [
+        ['mirkan', 'OKAY! OKAY! ICH FRAG NICHTS MEHR!'],
+        ['yusuf', 'DANKE.'],
+        ['mirkan', 'NUR EINS NOCH: TUT DAS WEH?'],
+        ['yusuf', 'MIRKAN.'],
+        ['mirkan', 'ICH FAHR JA SCHON.']
+      ]
+    },
+    lennart: {
+      start: [
+        ['lennart', 'EY! GEHST DU AUCH INS GYM?'],
+        ['yusuf', 'ICH BIN GERADE IM GYM.'],
+        ['lennart', 'JA, ABER TRAINIERST DU AUCH?'],
+        ['yusuf', 'ICH BEWEGE MICH SEIT ZWEI STUNDEN.'],
+        ['lennart', 'DAS IST KEIN TRAINING, DAS IST KARDIO.'],
+        ['yusuf', 'KARDIO IST TRAINING.'],
+        ['lennart', 'NICHT WENN MAN DABEI ISST.'],
+        ['yusuf', 'OKAY. JETZT REICHT ES.']
+      ],
+      phase2: [
+        ['lennart', 'LETZTE WIEDERHOLUNG! IMMER DIE LETZTE!'],
+        ['yusuf', 'DAS SAGST DU SEIT ZEHN MINUTEN.']
+      ],
+      end: [
+        ['lennart', 'OKAY. RESPEKT. DU HAST KRAFT.'],
+        ['yusuf', 'ICH WEISS.'],
+        ['lennart', 'WILLST DU MEINEN TRAININGSPLAN?'],
+        ['yusuf', 'NEIN.'],
+        ['lennart', 'ICH SCHICK IHN DIR TROTZDEM.']
+      ]
+    },
+    erfan: {
+      start: [
+        ['erfan', 'RAUS! RAUS AUS MEINER KÜCHE!'],
+        ['yusuf', 'ERFAN? ICH BINS, YUSUF!'],
+        ['erfan', 'ICH KOCHE SEIT VIERZEHN TAGEN NUR SALAT!'],
+        ['erfan', 'VIERZEHN TAGE. SALAT.'],
+        ['yusuf', 'DAS IST FOLTER. DAS WEISS ICH.'],
+        ['erfan', 'DEIN BRUDER HAT MEIN FLEISCH WEGGESPERRT!'],
+        ['yusuf', 'ICH HOL ES ZURÜCK. ABER KOMM ERST RUNTER.'],
+        ['erfan', 'ICH KOMME NICHT RUNTER!']
+      ],
+      phase2: [
+        ['erfan', 'WEISST DU, WIE MAN SALAT WÜRZT?'],
+        ['yusuf', 'NEIN.'],
+        ['erfan', 'GAR NICHT! MAN KANN ES NICHT!']
+      ],
+      end: [
+        ['erfan', 'OKAY... OKAY. ICH BIN RUHIG.'],
+        ['yusuf', 'GEHT ES WIEDER?'],
+        ['erfan', 'VIERZEHN TAGE, YUSUF.'],
+        ['yusuf', 'ICH WEISS.'],
+        ['erfan', 'DANKE, DASS DU GEKOMMEN BIST.'],
+        ['erfan', 'HAST DU HUNGER?'],
+        ['yusuf', 'ICH HAB EIGENTLICH GAR KEINEN HUNGER.'],
+        ['erfan', '...'],
+        ['yusuf', 'MACH VIERZEHN.']
+      ]
+    }
+  };
+
   /* Mirkan faehrt Mercedes und hat Fragen. Sehr viele Fragen. */
   var MIRKAN_LINES = [
     'YUSUF! WAS MACHST DU?',
@@ -867,6 +965,7 @@
     list: LEVELS,
     boss: BOSS_DIALOG,
     esat: ESAT_DIALOG,
+    mini: MINI_DIALOG,
     stilbruch: STILBRUCH_DIALOG,
     mirkanLines: MIRKAN_LINES,
     sleepLines: SLEEP_LINES,

@@ -51,8 +51,15 @@ setTimeout(function () {
   G._loadLevel(startLvl, false);
   G.state = 'play'; G.frozen = false; G.banner = 0;
   var p = G.player;
-  p.lives = 99; p.y = 15 * 16 - 26; p.vy = 0;
-  p.x = (startLvl === 4) ? G.arena.x + 70 : G.lvl.spawn[0] * 16;
+  p.lives = 99; p.vy = 0;
+  // Direkt in die Arena setzen, sonst geht die halbe Testzeit fuers Laufen drauf
+  if (G.arena) {
+    p.x = G.arena.x + 70;
+    p.y = (G.lvl.boss.y) * 16 - 26;
+  } else {
+    p.x = G.lvl.spawn[0] * 16;
+    p.y = G.lvl.spawn[1] * 16 - 26;
+  }
   // ?easy=1 setzt die Boss-Energie runter, um die Siegeskette zu pruefen
   var easy = /[?&]easy=1/.test(location.search);
   log('>> Test startet in Level ' + (startLvl + 1) + (easy ? ' (Boss geschwaecht)' : ''));
@@ -88,7 +95,7 @@ setTimeout(function () {
     return origHurt.call(this, g, d, fromX);
   };
 
-  var seenStates = {};
+  var seenStates = {}, lastLvlId = -1;
   var hits = 0, deaths = 0, prevBossHp = null, seen = {}, phases = [];
   var dialogTicks = 0, playTicks = 0, frozenTicks = 0;
   var lastBossHpTick = 0, stalled = -1;
@@ -99,6 +106,11 @@ setTimeout(function () {
       pressJump = false; pressConfirm = false;
 
       if (!seenStates[G.state]) { seenStates[G.state] = tick; log('>> Status "' + G.state + '" ab Tick ' + tick); }
+      if (G.lvl && G.lvl.id !== lastLvlId) {
+        lastLvlId = G.lvl.id;
+        log('>> LEVEL ' + G.lvl.id + ' (' + G.lvl.name + ') ab Tick ' + tick);
+        prevBossHp = null;
+      }
 
       if (G.state === 'dialog') {
         dialogTicks++;
