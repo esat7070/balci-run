@@ -517,9 +517,9 @@
     if (theme === 'zimmer') {
       // Mond + Dächer bei Sonnenaufgang
       ctx.fillStyle = '#fff0c0';
-      ctx.beginPath(); ctx.arc(392 - f * 0.06, 52, 17, 0, 6.3); ctx.fill();
+      ctx.beginPath(); ctx.arc(446 - f * 0.06, 54, 17, 0, 6.3); ctx.fill();
       ctx.fillStyle = SP.THEMES.zimmer.sky[1];
-      ctx.beginPath(); ctx.arc(386 - f * 0.06, 47, 15, 0, 6.3); ctx.fill();
+      ctx.beginPath(); ctx.arc(440 - f * 0.06, 49, 15, 0, 6.3); ctx.fill();
       for (i = -1; i < 14; i++) {
         x = i * 112 - (f % 112);
         rect(x, 150, 74, 140, t.far);
@@ -1042,16 +1042,16 @@
 
     // schwebende Honiggläser
     for (var i = 0; i < 5; i++) {
-      var hx = 60 + i * 96, hy = 150 + Math.sin(G.tick * 0.04 + i) * 8;
+      var hx = 40 + i * 108, hy = 126 + Math.sin(G.tick * 0.04 + i) * 8;
       P.draw(ctx, 'honig', hx, hy);
     }
 
     // Logo
-    F.draw(ctx, 'BALCI RUN', W / 2, 44, {
-      color: '#ffd257', align: 'center', scale: 5, shadow: 2,
+    F.draw(ctx, 'BALCI RUN', W / 2, 40, {
+      color: '#ffd257', align: 'center', scale: 5, shadow: true,
       shadowColor: '#5e2a10', wave: G.tick * 0.055, waveAmp: 1
     });
-    F.draw(ctx, 'YUSUFS HONIG-JAGD', W / 2, 96, {
+    F.draw(ctx, 'YUSUFS HONIG-JAGD', W / 2, 92, {
       color: '#ffe9a8', align: 'center', scale: 2, shadow: true
     });
 
@@ -1059,7 +1059,7 @@
                  S.isMuted() ? 'TON: AUS' : 'TON: AN'];
     for (i = 0; i < items.length; i++) {
       var sel = (i === G.menuIdx);
-      var y = 186 + i * 16;
+      var y = 172 + i * 16;
       if (sel) {
         F.draw(ctx, '|', W / 2 - F.measure(items[i], 1, 1) / 2 - 14, y,
                { color: '#ffd257' });
@@ -1069,8 +1069,11 @@
       });
     }
 
+    // dunkler Streifen, damit die Zeile auf dem Boden lesbar bleibt
+    ctx.fillStyle = 'rgba(10,6,16,0.72)';
+    ctx.fillRect(0, H - 17, W, 17);
     F.draw(ctx, 'EIN SPIEL ÜBER HONIG, SCHLAF UND BRÜDERLICHE GEWALT',
-           W / 2, H - 14, { color: '#8f86a8', align: 'center' });
+           W / 2, H - 12, { color: '#c0b4d4', align: 'center' });
   }
 
   function drawSelect() {
