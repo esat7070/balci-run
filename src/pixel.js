@@ -147,6 +147,14 @@
     } else ctx.drawImage(img, Math.round(x), Math.round(y));
   }
 
+  /** Einfarbige Silhouette, z.B. fuer das Leuchten verwandelter Bosse. */
+  function drawTint(ctx, name, x, y, col) {
+    var s = get(name);
+    if (!s.tints) s.tints = {};
+    if (!s.tints[col]) s.tints[col] = silhouette(s.c, col);
+    ctx.drawImage(s.tints[col], Math.round(x), Math.round(y));
+  }
+
   /* ---------------------------------------------------------------
      Paletten
      --------------------------------------------------------------- */
@@ -493,6 +501,47 @@
     kNNNk
   `;
 
+  // Nach dem Snus: breiter Rumpf, der Pulli steht offen, Brust raus.
+  var E_TORSO_BUFF = `
+    ..kkkkkkkkkkkkkk..
+    .krrrrrrYYrrrrrrk.
+    krrrrrrkYYkrrrrrrk
+    krRRRRksddskRRRRrk
+    krrrrRksddskRrrrrk
+    kRrrrRkdsdskRrrrRk
+    .kRrrRksddskRrrRk.
+    .kRRRRkdsdskRRRRk.
+    ..kRRRkYyYYkRRRk..
+    ..kRRRRRRRRRRRRk..
+    ..kbbbbbbbbbbbbk..
+    ...kkkkkkkkkkkk...
+  `;
+
+  var E_ARM_BUFF = `
+    .kkkk..
+    krrrrk.
+    krrrrrk
+    kRrrrRk
+    .kRRRk.
+    kssssdk
+    kssssdk
+    ksssddk
+    .kssdk.
+    ..kkk..
+  `;
+
+  var E_LEG_BUFF = `
+    .kkkk.
+    kbbbbk
+    kbbbbk
+    kbBBbk
+    kbbbbk
+    .kbbk.
+    .kbbk.
+    knnnnk
+    kNNNNk
+  `;
+
   /* ---------------------------------------------------------------
      RÜMPFE
      --------------------------------------------------------------- */
@@ -598,6 +647,9 @@
   def('e_torso', E_TORSO, 'esat');
   def('e_arm', E_ARM, 'esat');
   def('e_leg', E_LEG, 'esat');
+  def('e_torso_buff', E_TORSO_BUFF, 'esat');
+  def('e_arm_buff', E_ARM_BUFF, 'esat');
+  def('e_leg_buff', E_LEG_BUFF, 'esat');
 
   def('h_head', H_HEAD, 'huseyin');
   def('h_head_angry', H_HEAD_ANGRY, 'huseyin');
@@ -642,6 +694,18 @@
       legLOX: 1, legROX: 6, legOY: 10,
       footY: 19,
       height: 30, width: 12
+    },
+    // Esat nach dem Snus: breiter, dickere Arme, immer wuetend
+    esat_buff: {
+      heads: { normal: 'e_head_rage', laugh: 'e_head_grin', hurt: 'e_head_hurt',
+               sleep: 'e_head_rage', eat: 'e_head_grin', growl: 'e_head_rage',
+               rage: 'e_head_rage' },
+      torso: 'e_torso_buff', arm: 'e_arm_buff', leg: 'e_leg_buff',
+      headOX: 2, headOY: -11,
+      armBackOX: -5, armFrontOX: 16, armOY: 2,
+      legLOX: 3, legROX: 9, legOY: 10,
+      footY: 19,
+      height: 30, width: 18
     }
   };
 
@@ -725,7 +789,7 @@
 
   global.Pixel = {
     art: art, palette: palette, def: def, get: get,
-    draw: draw, drawWhite: drawWhite, drawChar: drawChar,
+    draw: draw, drawWhite: drawWhite, drawTint: drawTint, drawChar: drawChar,
     CHARS: CHARS, POSES: POSES, _sprites: sprites
   };
 

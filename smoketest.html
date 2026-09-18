@@ -179,7 +179,10 @@ function run() {
     put('[]');
     G._storeScore('<script>x', 10, 1, 1, 0);
     var l3 = read();
-    var nameOk = l3.length === 1 && /^[A-Z0-9\-. ]{1,6}$/.test(l3[0].n);
+    var nameOk = l3.length === 1 && /^[A-Z0-9ÄÖÜ\-. ]{1,10}$/.test(l3[0].n);
+    // ueberlange Namen werden auf 10 Zeichen gekuerzt
+    G._storeScore('ABCDEFGHIJKLMNOP', 10, 1, 1, 0);
+    nameOk = nameOk && read().some(function (e) { return e.n === 'ABCDEFGHIJ'; });
     ok(nameOk, 'Namen werden gesaeubert und begrenzt',
        l3.length ? '"' + l3[0].n + '"' : 'leer');
 
@@ -381,7 +384,12 @@ function run() {
           deathSpots[bucket] = (deathSpots[bucket] || 0) + 1;
         }
         if (G.player.x > maxX) { maxX = G.player.x; lastImprove = tick; }
-        if (G.state === 'clear' || G.state === 'ending' || G.state === 'dialog') break;
+        if (G.state === 'clear' || G.state === 'ending') break;
+        if (G.state === 'dialog') {
+          // Dialog am Levelende = geschafft; unterwegs (z.B. Kolonne) wegklicken
+          if (G.player.won || G.bossStarted) break;
+          G.dialog = null; G.frozen = false; G.state = 'play';
+        }
       }
       stuckAt = Math.round(maxX / 16);
       G._render();

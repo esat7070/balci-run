@@ -207,11 +207,11 @@
   // MIRKANS ARENA: weite Strasse. Er stuermt mit dem Wagen, also braucht
   // man Platz zum Ausweichen und niedrige Stufen zum Runterspringen.
   lvl2.g(230, 261, 15);
-  lvl2.p(234, 12, 4).p(244, 9, 4).p(254, 12, 4);
+  lvl2.p(234, 11, 4).p(244, 8, 4).p(254, 11, 4);
   lvl2.bossAt(246, 15);
   lvl2.d.bossType = 'mirkan';
   lvl2.d.arena = { x: 230, w: 32 };
-  lvl2.q(240, 10, 'doener', 2).it('herz', 243, 9);
+  lvl2.q(240, 10, 'doener', 2).it('herz', 245, 7);
 
   lvl2.p(19, 13, 4).p(37, 13, 4).p(53, 13, 4).p(71, 13, 4)
       .p(85, 12, 4).p(101, 13, 4).p(119, 13, 4).p(133, 12, 4)
@@ -292,11 +292,11 @@
   // LENNARTS ARENA: Hanteln fliegen im Bogen. Eine Pyramide zum
   // Hochklettern, damit man von oben auf ihn drauf kommt.
   lvl3.g(216, 247, 11);
-  lvl3.p(220, 8, 3).p(228, 5, 5).p(238, 8, 3).p(244, 6, 3);
+  lvl3.p(220, 7, 3).p(228, 5, 5).p(238, 7, 3).p(244, 6, 3);
   lvl3.bossAt(232, 11);
   lvl3.d.bossType = 'lennart';
   lvl3.d.arena = { x: 216, w: 32 };
-  lvl3.q(226, 6, 'doener', 2).it('herz', 229, 5);
+  lvl3.q(226, 6, 'doener', 2).it('herz', 229, 4);
 
   // Kletterrouten nach oben
   lvl3.p(18, 20, 4).p(24, 17, 4).p(30, 14, 4).p(36, 11, 4).p(42, 8, 5)
@@ -393,7 +393,7 @@
   // ERFANS ARENA: sein Pfannenschlag schickt Wellen ueber den Boden.
   // Drei kleine Inseln, auf denen man ihnen ausweichen kann.
   lvl4.g(238, 269, 15);
-  lvl4.p(242, 12, 3).p(250, 12, 3).p(258, 12, 3).p(249, 8, 5);
+  lvl4.p(242, 11, 3).p(250, 11, 3).p(258, 11, 3).p(249, 7, 5);
   lvl4.bossAt(254, 15);
   lvl4.d.bossType = 'erfan';
   lvl4.d.arena = { x: 238, w: 32 };
@@ -575,7 +575,8 @@
       ['yusuf', 'STILBRUCH. ESAT WARTET SCHON.'],
       ['huseyin', 'UM ZWEI UHR NACHTS?'],
       ['yusuf', 'ESAT WARTET IMMER. STEIG EIN.'],
-      ['', 'GAS GEBEN MIT RECHTS. SPERREN WERDEN ÜBERFAHREN.']
+      ['', 'GAS GEBEN MIT RECHTS. SPERREN WERDEN ÜBERFAHREN.'],
+      ['', 'ACHTUNG: ROTE AMPELN, POLIZEI UND STRAFZETTEL.']
     ],
     outro: []
   });
@@ -609,7 +610,16 @@
       .row('wecker', 15, [40, 80, 130, 186, 228])
       .row('biene', 10, [30, 90, 140, 200, 250]);
 
+  // Polizei am Strassenrand: wirft Strafzettel, hechtet vor dem Mustang weg
+  lvl6.row('polizei', 15, [36, 72, 122, 164, 214]);
+
   lvl6.cp(110, 15).cp(212, 15);
+
+  // Ampeln. Wer bei Rot drueberfaehrt, wird geblitzt.
+  lvl6.d.ampeln = [30, 86, 136, 182, 232];
+
+  // Die Kollegen stossen unterwegs dazu
+  lvl6.d.convoy = [{ who: 'erfan', at: 20 }, { who: 'lennart', at: 114 }];
 
   lvl6.sign(8, 15, 'GAS GEBEN. SPERREN SIND KEIN PROBLEM.')
       .sign(106, 15, 'NOCH 8 MINUTEN BIS STILBRUCH. SAGT ESAT.')
@@ -665,7 +675,10 @@
     ],
     phase2: [
       ['huseyin', 'DAS WAR NUR DAS AUFWÄRMEN!'],
-      ['yusuf', 'DAS SAGST DU JEDES MAL.']
+      ['yusuf', 'DAS SAGST DU JEDES MAL.'],
+      ['huseyin', 'ICH HAB HEUTE DREI SCHÜSSELN SALAT GEGESSEN.'],
+      ['huseyin', 'OHNE DRESSING.'],
+      ['yusuf', 'ER DREHT DURCH. ER HAT GRÜNE AUGEN WIE ICH.']
     ],
     phase3: [
       ['huseyin', 'ICH HABE EINEN PERSONAL TRAINER!'],
@@ -741,10 +754,12 @@
     phase2: [
       ['esat', 'MOMENT. MOMENT!'],
       ['esat', 'ICH BRAUCH KURZ WAS.'],
-      ['yusuf', 'ER DRÜCKT SNOOZE. MITTEN IM KAMPF.'],
-      ['esat', 'NEUN MINUTEN. DANN BIN ICH EIN ANDERER MENSCH.'],
-      ['huseyin', 'DAS FUNKTIONIERT SO NICHT!'],
-      ['esat', 'BEI MIR SCHON.']
+      ['yusuf', 'ER NIMMT SNUS. MITTEN IM KAMPF.'],
+      ['esat', 'EIN SNUS UND ICH BIN EIN ANDERER MENSCH.'],
+      ['huseyin', 'DAS IST NIKOTIN, KEIN PROTEIN!'],
+      ['esat', 'BEI MIR IST DAS BEIDES.'],
+      ['yusuf', 'WARUM IST ER JETZT DOPPELT SO BREIT?'],
+      ['esat', 'DISZIPLIN, YUSUF. UND SNUS.']
     ],
     phase3: [
       ['esat', 'OKAY, JETZT WIRD ES UNGEMÜTLICH.'],
@@ -787,7 +802,11 @@
       ],
       phase2: [
         ['mirkan', 'WARUM SPRINGST DU AUF MEIN AUTO?'],
-        ['yusuf', 'DAS IST AUCH WIEDER EINE FRAGE.']
+        ['yusuf', 'DAS IST AUCH WIEDER EINE FRAGE.'],
+        ['mirkan', 'WEISST DU, WAS DAS HIER FÜR EIN KNOPF IST?'],
+        ['mirkan', 'SPORT PLUS. TUNING-MODUS.'],
+        ['yusuf', 'DEIN AUTO BRENNT HINTEN.'],
+        ['mirkan', 'DAS SOLL SO! ...ODER? SOLL DAS SO?']
       ],
       end: [
         ['mirkan', 'OKAY! OKAY! ICH FRAG NICHTS MEHR!'],
@@ -810,7 +829,10 @@
       ],
       phase2: [
         ['lennart', 'LETZTE WIEDERHOLUNG! IMMER DIE LETZTE!'],
-        ['yusuf', 'DAS SAGST DU SEIT ZEHN MINUTEN.']
+        ['yusuf', 'DAS SAGST DU SEIT ZEHN MINUTEN.'],
+        ['lennart', 'JETZT IST MASSEPHASE.'],
+        ['yusuf', 'DU BIST GERADE EINEN KOPF GEWACHSEN.'],
+        ['lennart', 'DAS IST DER PUMP, BRO.']
       ],
       end: [
         ['lennart', 'OKAY. RESPEKT. DU HAST KRAFT.'],
@@ -839,7 +861,10 @@
         ['yusuf', 'NEIN.'],
         ['erfan', 'GENAU SO LANGE WIE ER BRAUCHT!'],
         ['yusuf', 'DAS IST KEINE ANTWORT, ERFAN.'],
-        ['erfan', 'DOCH! IN DER KÜCHE SCHON!']
+        ['erfan', 'DOCH! IN DER KÜCHE SCHON!'],
+        ['erfan', 'ICH HAB AN DEM SAFRAN GEROCHEN.'],
+        ['erfan', 'DEM GANZEN GLAS.'],
+        ['yusuf', 'SEINE AUGEN SIND GOLDEN. DAS IST NICHT GUT.']
       ],
       end: [
         ['erfan', 'OKAY... OKAY. ICH BIN RUHIG.'],
@@ -975,10 +1000,39 @@
     'ICH HAB NUR KURZ AUFS HANDY GESCHAUT.'
   ];
 
+  /* Level 6: wer unterwegs dazukommt, und was die Polizei so sagt. */
+  var CONVOY_DIALOG = {
+    erfan: [
+      ['erfan', 'YUSUF! WARTE! ICH KOMM MIT!'],
+      ['yusuf', 'ERFAN? MIT DEM SCHWARZEN CLA?'],
+      ['erfan', 'ICH HAB KUBIDE IM KOFFERRAUM. FÜR ALLE.'],
+      ['huseyin', 'WARUM HAT HIER JEDER EIN AUTO AUSSER MIR?'],
+      ['erfan', 'FAHR VOR. ICH BLEIB DIR IM NACKEN.']
+    ],
+    lennart: [
+      ['lennart', 'BROOO! STILBRUCH? ICH BIN DABEI!'],
+      ['yusuf', 'LENNART. IN EINER SILBERNEN E-KLASSE.'],
+      ['lennart', 'DIE HAT MEIN OPA MIR GEGEBEN. SIE HAT SITZHEIZUNG.'],
+      ['lennart', 'ICH HAB AUCH SHAKES DABEI. FALLS JEMAND WILL.'],
+      ['yusuf', 'NIEMAND WILL, LENNART.']
+    ]
+  };
+
+  var POLIZEI_LINES = [
+    'HALT! POLIZEI!',
+    'FÜHRERSCHEIN UND FAHRZEUGSCHEIN!',
+    'WISSEN SIE, WIE SCHNELL SIE WAREN?',
+    'HABEN SIE GETRUNKEN? HONIG ZÄHLT AUCH!',
+    'DAS GIBT PUNKTE IN FLENSBURG!',
+    'AUSSTEIGEN! ...BITTE.'
+  ];
+
   var LEVELS = [lvl1.out(), lvl2.out(), lvl3.out(), lvl4.out(),
                 lvl5.out(), lvl6.out(), lvl7.out()];
 
   global.Levels = {
+    convoy: CONVOY_DIALOG,
+    polizeiLines: POLIZEI_LINES,
     list: LEVELS,
     boss: BOSS_DIALOG,
     esat: ESAT_DIALOG,

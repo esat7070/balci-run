@@ -25,6 +25,11 @@
     try { s = JSON.parse(raw); } catch (e) { return; }
     if (!s || typeof s !== 'object') return;
 
+    var num = function (v, max) {
+      var x = Math.floor(Number(v));
+      return isFinite(x) ? Math.max(0, Math.min(max, x)) : 0;
+    };
+
     var n = Math.floor(Number(s.unlocked));
     save.unlocked = isFinite(n) ? Math.max(1, Math.min(7, n)) : 1;
     save.completed = (s.completed === true);
@@ -33,16 +38,24 @@
       for (var i = 0; i < s.best.length && i < 8; i++) {
         var b = s.best[i];
         if (!b || typeof b !== 'object') { save.best[i] = null; continue; }
-        var num = function (v, max) {
-          var x = Math.floor(Number(v));
-          return isFinite(x) ? Math.max(0, Math.min(max, x)) : 0;
-        };
         save.best[i] = {
           honey: num(b.honey, 99999),
           score: num(b.score, 9999999),
           time: num(b.time, 359999)
         };
       }
+    }
+
+    // Laufender Durchgang (fuer "WEITER"). Die Pruefsumme wird erst
+    // beim Benutzen kontrolliert — siehe validRun().
+    var r = s.run;
+    if (r && typeof r === 'object') {
+      save.run = {
+        from: num(r.from, 6), next: num(r.next, 6),
+        s: num(r.s, 9999999), h: num(r.h, 99999), t: num(r.t, 359999),
+        d: num(r.d, 9999), e: num(r.e, 9999), l: num(r.l, 99),
+        g: typeof r.g === 'string' ? r.g.slice(0, 16) : ''
+      };
     }
   })();
 
@@ -72,7 +85,9 @@
     dialog: null, dialogIdx: 0, dialogChar: 0, dialogAfter: null,
     menuIdx: 0, selIdx: 0,
     resultTimer: 0,
-    endScroll: 0
+    endScroll: 0,
+    // Handy/Tablet: grobe Zeigergenauigkeit = Finger
+    touch: !!(global.matchMedia && global.matchMedia('(pointer:coarse)').matches)
   };
 
   /** Etwas in N Spiel-Ticks ausführen. Bewusst NICHT setTimeout:
@@ -84,6 +99,24 @@
     G.cam.shakeAmp = Math.max(G.cam.shakeAmp, amp);
   };
   G.cameraTopY = function () { return G.cam.y - 20; };
+  G.viewW = function () { return W; };
+  /** Kurzes farbiges Aufblitzen, z.B. bei einer Boss-Verwandlung. */
+  G.flashScreen = function (col, dur) { G.flashFx = { col: col, t: dur, max: dur }; };
+
+  /** Geschosse und Gegner entschaerfen, OHNE die Listen zu veraendern.
+      Diese Rueckrufe koennen mitten im Geschoss-Durchlauf kommen
+      (Kippe trifft Boss) — geleert wird erst beim Aufraeumen danach. */
+  function clearShots() {
+    for (var i = 0; i < G.projectiles.length; i++) {
+      if (G.projectiles[i]) G.projectiles[i].dead = true;
+    }
+  }
+  function clearEnemies() {
+    for (var i = 0; i < G.enemies.length; i++) {
+      var e = G.enemies[i];
+      if (e && !e.dead) { e.dead = true; e.deadTimer = 71; }
+    }
+  }
   G.addItem = function (t, x, y, popped) { G.items.push(new E.Item(t, x, y, popped)); };
   G.addProjectile = function (t, x, y, vx, vy, friendly) {
     var pr = new E.Projectile(t, x, y, vx, vy, friendly);
@@ -142,8 +175,27 @@
         G.player.eatCount = keep.eatCount;
       }
     }
+    // Im Mustang ist die Trefferbox so breit wie das (doppelt grosse) Auto
+    G.player.w = lvl.driving ? 64 : 12;
+    G.player.h = lvl.driving ? 24 : 26;
+
     if (!fromCheckpoint) G.checkpointStats = snapshotStats();
-    if (!fromCheckpoint) { G.checkpoint = null; G.bossIntroSeen = false; }
+    if (!fromCheckpoint) {
+      G.checkpoint = null; G.bossIntroSeen = false; G.bossHalf = false;
+      G.convoySeen = {};
+    }
+
+    // Level 6: Kolonne und Ampeln. Wer schon eingestiegen war, ist nach
+    // einem Checkpoint direkt wieder dabei — ohne den Dialog nochmal.
+    G.convoy = [];
+    G.convoyTriggers = [];
+    (lvl.convoy || []).forEach(function (c) {
+      if (c.at * T < G.player.x || G.convoySeen[c.who]) G.convoy.push(convoyCar(c.who));
+      else G.convoyTriggers.push(c);
+    });
+    G.ampeln = (lvl.ampeln || []).map(function (ax, n) {
+      return { x: ax * T, off: n * 97, passed: ax * T < G.player.x };
+    });
 
     G.cam.x = Math.max(0, Math.min(lvl.w * T - W, G.player.cx() - W / 2));
     G.cam.y = Math.max(0, Math.min(lvl.h * T - H, G.player.y - H / 2));
@@ -153,6 +205,72 @@
     G.bossCleared = false;
     if (!fromCheckpoint) G.time = 0;
     G.frozen = false;
+  }
+
+  /* ================= Level 6: Kolonne & Ampeln ================= */
+
+  // Autos in der Kolonne: fahren auf der hinteren Spur mit
+  var CONVOY_CARS = {
+    erfan:   { spr: 'cla',     head: 'erfan_head',   off: -86,  name: 'ERFAN',   col: '#e8c24a' },
+    lennart: { spr: 'eklasse', head: 'lennart_head', off: -166, name: 'LENNART', col: '#e8b894' }
+  };
+
+  function convoyCar(who) {
+    var p = G.player;
+    return { who: who, def: CONVOY_CARS[who], x: p.cx() + CONVOY_CARS[who].off - 200,
+             y: p.feet(), t: 0 };
+  }
+
+  var MIRKAN_OFF = 58;         // Mirkan faehrt leicht versetzt vorne mit
+  var AMPEL_CYCLE = 360;      // gruen 0-179, gelb 180-219, rot 220-359
+  function ampelColor(a) {
+    var t = (G.tick + a.off) % AMPEL_CYCLE;
+    return t < 180 ? 'gruen' : (t < 220 ? 'gelb' : 'rot');
+  }
+
+  function updateDriving(p) {
+    var i;
+    // Neue Kollegen
+    if (G.convoyTriggers.length && p.cx() > G.convoyTriggers[0].at * T) {
+      var c = G.convoyTriggers.shift();
+      G.convoy.push(convoyCar(c.who));
+      G.convoySeen[c.who] = true;
+      S.play('oneUp');
+      if (LV.convoy && LV.convoy[c.who]) {
+        startDialog(LV.convoy[c.who], function () { G.state = 'play'; });
+      }
+    }
+    // Kolonne folgt weich hinter Yusuf
+    for (i = 0; i < G.convoy.length; i++) {
+      var m = G.convoy[i];
+      m.t++;
+      m.x += ((p.cx() + m.def.off) - m.x) * 0.07;
+      m.y += (p.feet() - m.y) * 0.12;
+      if (m.t % 7 === 0) {
+        G.particles.spawn({ x: m.x - 34, y: m.y - 14, vx: -0.6, vy: -0.2, life: 20,
+                            col: '#8e8880', size: 2, grav: -0.01 });
+      }
+    }
+    // Ampeln
+    for (i = 0; i < G.ampeln.length; i++) {
+      var a = G.ampeln[i];
+      if (a.passed || p.dead || p.cx() < a.x + 8) continue;
+      a.passed = true;
+      var col = ampelColor(a);
+      if (col === 'rot') {
+        G.flashScreen('#ffffff', 22);
+        S.play('bossHit');
+        var pen = Math.min(p.score, 150);
+        p.score -= pen;
+        G.floats.add(p.cx(), p.y - 30, 'GEBLITZT! -' + pen, '#ff6a6a', 90);
+        G.floats.add(p.cx(), p.y - 44, 'ROT WAR SCHON 3 SEKUNDEN.', '#f4f4ee', 90);
+      } else if (col === 'gruen') {
+        p.score += 50;
+        G.floats.add(p.cx(), p.y - 30, 'GRÜNE WELLE +50', '#8cd85a', 70);
+      } else {
+        G.floats.add(p.cx(), p.y - 30, 'DUNKELGELB. GERADE NOCH.', '#ffd257', 70);
+      }
+    }
   }
 
   /* ================= Dialoge ================= */
@@ -236,14 +354,15 @@
   };
 
   G.onMiniPhase = function (type) {
-    G.projectiles.length = 0;
+    G.bossHalf = true;
+    clearShots();
     G.player.invuln = Math.max(G.player.invuln, 70);
     startDialog(LV.mini[type].phase2, function () { G.state = 'play'; });
   };
 
   G.onMiniDead = function (type) {
     G.frozen = true;
-    G.projectiles.length = 0;
+    clearShots();
     if (type === 'erfan') G.rescued = true;
     G.after(70, function () {
       startDialog(LV.mini[type].end, function () {
@@ -257,7 +376,8 @@
   };
 
   G.onEsatPhase = function (phase) {
-    G.projectiles.length = 0;
+    G.bossHalf = true;
+    clearShots();
     G.player.invuln = Math.max(G.player.invuln, 80);
     var d = phase === 2 ? LV.esat.phase2 : LV.esat.phase3;
     startDialog(d, function () { G.state = 'play'; });
@@ -265,12 +385,13 @@
 
   G.onEsatDead = function () {
     G.frozen = true;
-    G.projectiles.length = 0;
-    G.enemies.length = 0;
+    clearShots();
+    clearEnemies();
     G.after(85, function () {
       startDialog(LV.esat.end, function () {
         save.unlocked = LV.list.length;
         save.completed = true;      // schaltet die Levelauswahl frei
+        save.run = null;            // Durchgang ist fertig
         persist();
         fadeTo(function () { startNameEntry(); });
       });
@@ -280,7 +401,8 @@
   G.onBossPhase = function (phase) {
     // Alles Fliegende wegräumen, sonst hängt beim Weiterspielen noch
     // ein Salatblatt in der Luft, das man nie kommen sah.
-    G.projectiles.length = 0;
+    G.bossHalf = true;
+    clearShots();
     G.player.invuln = Math.max(G.player.invuln, 70);
     var d = phase === 2 ? LV.boss.phase2 : LV.boss.phase3;
     startDialog(d, function () { G.state = 'play'; });
@@ -288,11 +410,12 @@
 
   G.onBossDead = function () {
     G.frozen = true;
-    G.projectiles.length = 0;
+    clearShots();
     G.after(85, function () {
       startDialog(LV.boss.end, function () {
         save.unlocked = Math.max(save.unlocked, 6);
         persist();
+        saveRun(5);
         // Weiter geht's: Mustang, Stilbruch, Siegerehrung.
         fadeTo(function () {
           G.checkpoint = null;
@@ -337,6 +460,7 @@
       G.muteFlash = 60;
     }
     if (G.muteFlash > 0) G.muteFlash--;
+    if (G.flashFx && G.flashFx.t > 0 && G.state !== 'paused') G.flashFx.t--;
 
     global.Input.endFrame();
   }
@@ -357,29 +481,86 @@
     return items;
   }
 
+  function inRect(tp, r) {
+    return tp && tp.x >= r.x && tp.x < r.x + r.w && tp.y >= r.y && tp.y < r.y + r.h;
+  }
+
+  /* Wo die Dinge auf dem Titelbild liegen — Zeichnen und Antippen
+     benutzen dieselben Masse. */
+  function titleMenuTop(n) { return 160 - (n - 5) * 7; }
+  function titleBoardRect() { return { x: W - 158, y: 110, w: 150, h: 96 }; }
+
+  function activateMenu(it) {
+    S.resume();
+    S.play('select');
+    if (it.k === 'play') startGame(0);
+    else if (it.k === 'continue') {
+      var r = save.run && validRun(save.run.next) ? save.run : null;
+      startGame(r ? r.next : Math.min(LV.list.length - 1, save.unlocked - 1), true);
+    }
+    else if (it.k === 'select') { G.state = 'select'; G.selIdx = 0; }
+    else if (it.k === 'scores') openScores();
+    else if (it.k === 'howto') G.state = 'howto';
+    else S.toggleMute();
+  }
+
+  function openScores() {
+    G.scoreCat = 0;
+    G.state = 'scores';
+    if (global.Online) global.Online.refresh(true);
+  }
+
   function updateTitle() {
     var items = menuItems();
     var n = items.length;
     if (G.menuIdx >= n) G.menuIdx = 0;
+    if (global.Online && G.tick % 120 === 0) global.Online.refresh();
+
+    // Am Handy: Menuepunkte direkt antippen
+    var tp = global.Input.tap();
+    if (tp) {
+      var top0 = titleMenuTop(n);
+      for (var i = 0; i < n; i++) {
+        var half = F.measure(items[i].label, 1, 1) / 2 + 24;
+        if (inRect(tp, { x: W / 2 - half, y: top0 + i * 15 - 5, w: half * 2, h: 15 })) {
+          G.menuIdx = i;
+          activateMenu(items[i]);
+          return;
+        }
+      }
+      if (inRect(tp, titleBoardRect())) { S.play('select'); openScores(); }
+      return;   // daneben getippt: nichts tun, statt versehentlich zu starten
+    }
+
     if (global.Input.hit('down')) { G.menuIdx = (G.menuIdx + 1) % n; S.play('move'); }
     if (global.Input.hit('up')) { G.menuIdx = (G.menuIdx + n - 1) % n; S.play('move'); }
-
-    if (global.Input.hit('jump') || global.Input.hit('confirm')) {
-      S.resume();
-      var it = items[G.menuIdx];
-      S.play('select');
-      if (it.k === 'play') startGame(0);
-      else if (it.k === 'continue') startGame(Math.min(LV.list.length - 1, save.unlocked - 1));
-      else if (it.k === 'select') { G.state = 'select'; G.selIdx = 0; }
-      else if (it.k === 'scores') { G.scoreList = loadScores(); G.scoreCat = 0; G.state = 'scores'; }
-      else if (it.k === 'howto') G.state = 'howto';
-      else S.toggleMute();
-    }
+    if (global.Input.hit('jump') || global.Input.hit('confirm')) activateMenu(items[G.menuIdx]);
     if (G.tick % 6 === 0) S.resume();
+  }
+
+  /** Karten-Masse der Levelauswahl — fuer Zeichnen und Antippen. */
+  function selectCards() {
+    var nL = LV.list.length, gap = 6;
+    var cw = Math.min(76, Math.floor((W - 24 - gap * (nL - 1)) / nL));
+    var left0 = Math.round((W - (cw * nL + gap * (nL - 1))) / 2);
+    return { n: nL, gap: gap, cw: cw, left0: left0, y: 80, ch: 130 };
   }
 
   function updateSelect() {
     var max = Math.min(LV.list.length, save.unlocked);
+    var tp = global.Input.tap();
+    if (tp) {
+      var sc = selectCards();
+      for (var i = 0; i < max; i++) {
+        if (inRect(tp, { x: sc.left0 + i * (sc.cw + sc.gap), y: sc.y - 8, w: sc.cw, h: sc.ch + 8 })) {
+          if (G.selIdx === i) { S.play('select'); startGame(i); }
+          else { G.selIdx = i; S.play('move'); }
+          return;
+        }
+      }
+      if (tp.y > H - 40) { G.state = 'title'; S.play('select'); }
+      return;
+    }
     if (global.Input.hit('right')) { G.selIdx = Math.min(max - 1, G.selIdx + 1); S.play('move'); }
     if (global.Input.hit('left')) { G.selIdx = Math.max(0, G.selIdx - 1); S.play('move'); }
     if (global.Input.hit('jump') || global.Input.hit('confirm')) {
@@ -394,30 +575,83 @@
     if (global.Input.anyHit()) { G.state = 'title'; S.play('select'); }
   }
 
-  function startGame(idx) {
+  function startGame(idx, cont) {
     fadeTo(function () {
       G.checkpoint = null;
       loadLevel(idx, false);
-      G.player.lives = 4; G.player.honey = 0; G.player.score = 0;
-      G.player.deaths = 0; G.player.eatCount = 0;
+      var p = G.player, r = cont ? validRun(idx) : null;
+      if (r) {
+        // Gespeicherten Durchgang fortsetzen
+        p.lives = Math.max(r.l, 2); p.honey = r.h; p.score = r.s;
+        p.deaths = r.d; p.eatCount = r.e;
+        G.run = { from: r.from };
+        G.runTime = r.t * 60;
+      } else {
+        p.lives = 4; p.honey = 0; p.score = 0; p.deaths = 0; p.eatCount = 0;
+        G.run = { from: idx };
+        G.runTime = 0;
+      }
+      // Erst JETZT den Stand merken — vorher stand hier noch der Honig
+      // der letzten Runde drin, und ein Tod vor dem ersten Checkpoint
+      // hat ihn zurueckgeholt.
+      G.checkpointStats = snapshotStats();
       G.lastName = null; G.lastScore = null;
       S.music(LV.list[idx].music);
       startDialog(LV.list[idx].intro, function () { G.state = 'play'; });
     });
   }
 
+  /** Antippbare Knoepfe fuer Pause und Game Over (am Handy gibt es kein ESC). */
+  function touchButtons(y, labels) {
+    var bw = 100, gap = 8, total = labels.length * bw + (labels.length - 1) * gap;
+    var x0 = Math.round((W - total) / 2), out = [];
+    for (var i = 0; i < labels.length; i++) {
+      out.push({ x: x0 + i * (bw + gap), y: y, w: bw, h: 24, label: labels[i] });
+    }
+    return out;
+  }
+
+  function drawTouchButtons(btns) {
+    for (var i = 0; i < btns.length; i++) {
+      var b = btns[i];
+      rect(b.x, b.y, b.w, b.h, 'rgba(38,26,54,0.95)');
+      ctx.strokeStyle = '#ffc23c';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(b.x + 0.5, b.y + 0.5, b.w - 1, b.h - 1);
+      F.draw(ctx, b.label, b.x + b.w / 2, b.y + 9, { color: '#ffe9a8', align: 'center' });
+    }
+  }
+
+  function pauseButtons() {
+    return touchButtons(170, ['WEITER', S.isMuted() ? 'TON AN' : 'TON AUS', 'HAUPTMENÜ']);
+  }
+  function gameoverButtons() {
+    return touchButtons(H - 44, ['NOCHMAL', 'HAUPTMENÜ']);
+  }
+
+  function toTitle() {
+    fadeTo(function () { G.state = 'title'; G.menuIdx = 0; S.music('menu'); });
+  }
+
   function updatePaused() {
+    var tp = global.Input.tap();
+    if (tp) {
+      var pb = pauseButtons();
+      if (inRect(tp, pb[0])) { G.state = 'play'; S.play('pause'); }
+      else if (inRect(tp, pb[1])) { G.muteState = S.toggleMute(); }
+      else if (inRect(tp, pb[2])) toTitle();
+      return;
+    }
     if (global.Input.hit('pause') || global.Input.hit('confirm')) {
       G.state = 'play'; S.play('pause');
     }
-    if (global.Input.hit('back')) {
-      fadeTo(function () { G.state = 'title'; G.menuIdx = 0; S.music('menu'); });
-    }
+    if (global.Input.hit('back')) toTitle();
   }
 
   function updatePlay() {
     if (global.Input.hit('pause')) { G.state = 'paused'; S.play('pause'); return; }
     G.time++;
+    G.runTime = (G.runTime || 0) + 1;
     updateWorld();
   }
 
@@ -469,11 +703,12 @@
         if (!pr) continue;
         pr.update(G);
       }
-
-      sweep(G.enemies, function (x) { return x.dead && x.deadTimer > 70; });
-      sweep(G.items, function (x) { return x.dead; });
-      sweep(G.projectiles, function (x) { return x.dead; });
     }
+    // Auch im Dialog aufraeumen: dort werden Geschosse nur als "weg"
+    // markiert und sollen nicht eingefroren sichtbar bleiben.
+    sweep(G.enemies, function (x) { return x.dead && x.deadTimer > 70; });
+    sweep(G.items, function (x) { return x.dead; });
+    sweep(G.projectiles, function (x) { return x.dead; });
 
     // Blöcke "wackeln"
     for (var key in G.world.blocks) {
@@ -519,6 +754,17 @@
         G.checkpointStats = snapshotStats();
       }
       G.boss.intro = false;
+      // Halbzeit-Checkpoint: wer nach der Verwandlung stirbt, faengt
+      // nicht wieder bei voller Energie an. Mehr Leben pro Boss ist nur
+      // fair, wenn man die erste Haelfte nicht immer wiederholen muss.
+      if (G.bossHalf) {
+        var hb = G.boss;
+        hb.hp = Math.floor(hb.maxHp / 2);
+        hb.onTransform(G);
+        hb.phase = 2;
+        hb.state = 'idle'; hb.timer = 70;
+        G.floats.add(hb.cx(), hb.y - 20, 'WEITER AB HALBZEIT', '#ffd257', 120);
+      }
       // Jeder Kampf klingt anders
       S.music(bt === 'esat' ? 'bossfinal' : (E.MINIBOSS[bt] ? 'boss2' : 'boss'));
       G.shake(5, 20);
@@ -531,6 +777,8 @@
       }
     }
 
+    if (G.lvl.driving && !frozen) updateDriving(p);
+
     // Mirkan faehrt neben Yusuf her und stellt Fragen. Sehr viele.
     if (G.mirkanTriggers.length && p.cx() > G.mirkanTriggers[0] * T) {
       G.mirkanTriggers.shift();
@@ -541,12 +789,12 @@
       G.mirkan.t++;
       if (G.mirkan.t % 105 === 25) {
         var ml = LV.mirkanLines;
-        G.floats.add(p.cx() - 76, p.y - 26, ml[G.mirkan.qi % ml.length], '#b8c0d4', 105);
+        G.floats.add(p.cx() + MIRKAN_OFF, p.y - 44, ml[G.mirkan.qi % ml.length], '#b8c0d4', 105);
         G.mirkan.qi++;
         S.play('move');
       }
       if (G.mirkan.t > G.mirkan.dur) {
-        G.floats.add(p.cx() - 70, p.y - 30, 'OKAY. BIS SPÄTER DANN.', '#8f86a8', 90);
+        G.floats.add(p.cx() + MIRKAN_OFF, p.y - 44, 'OKAY. BIS SPÄTER DANN.', '#8f86a8', 90);
         G.mirkan = null;
       }
     }
@@ -588,6 +836,7 @@
     save.best[idx] = rec;
     if (save.unlocked < idx + 2 && idx < LV.list.length - 1) save.unlocked = idx + 2;
     persist();
+    if (idx < LV.list.length - 1) saveRun(idx + 1);
 
     // Level 6 endet mit der Siegerehrung — und die eskaliert.
     if (G.lvl.id === 6) {
@@ -614,7 +863,10 @@
 
   /* ================= Bestenliste ================= */
 
-  var NAME_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-. ';
+  // Nur Zeichen, die die Pixelschrift kennt. Dieselbe Liste prueft auch
+  // der Server (supabase-setup.sql), falls die weltweite Liste aktiv ist.
+  var NAME_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÜ0123456789-. ';
+  var NAME_MAX = 10;
   var SCORE_KEY = 'balci_scores_v2';
   var SCORE_SALT = 'balci-run-honig-v2';
   var MAX_SCORES = 10;
@@ -641,10 +893,12 @@
   function cleanName(raw) {
     var s = String(raw === null || raw === undefined ? '' : raw).toUpperCase();
     var out = '';
-    for (var i = 0; i < s.length && out.length < 6; i++) {
+    for (var i = 0; i < s.length && i < 40 && out.length < NAME_MAX; i++) {
       var c = s.charAt(i);
       if (NAME_CHARS.indexOf(c) >= 0) out += c;
     }
+    // Wie bisher nur hinten kuerzen — sonst passen die Pruefsummen
+    // alter Eintraege nicht mehr und sie verschwinden aus der Liste.
     out = out.replace(/\s+$/, '');
     return out || 'ANONYM';
   }
@@ -702,6 +956,58 @@
     return l;
   }
 
+  /* ---------- Der laufende Durchgang ----------
+     Punkte, Honig, Zeit und Tode zaehlen ueber ALLE Level. Nach jedem
+     geschafften Level wird der Stand gespeichert — "WEITER" setzt ihn
+     fort, ein Absturz kostet also nicht den Bestenlisten-Eintrag.
+     In die Bestenliste kommt nur, wer bei Level 1 angefangen hat;
+     sonst koennte man mit Level 7 allein die Zeitwertung gewinnen. */
+  function runSig(r) {
+    return hashStr(['run', r.from, r.next, r.s, r.h, r.t, r.d, r.e, r.l].join('|') + SCORE_SALT);
+  }
+
+  function saveRun(nextIdx) {
+    if (!G.run) return;
+    var p = G.player;
+    var r = {
+      from: G.run.from, next: nextIdx,
+      s: clampInt(p.score, 0, 9999999), h: clampInt(p.honey, 0, 99999),
+      t: clampInt(G.runTime / 60, 0, 359999), d: clampInt(p.deaths || 0, 0, 9999),
+      e: clampInt(p.eatCount || 0, 0, 9999), l: clampInt(p.lives, 0, 99)
+    };
+    r.g = runSig(r);
+    save.run = r;
+    persist();
+  }
+
+  function validRun(idx) {
+    var r = save.run;
+    return (r && r.next === idx && r.g === runSig(r)) ? r : null;
+  }
+
+  function fullRun() { return !!(G.run && G.run.from === 0); }
+
+  /** Die Liste, die angezeigt wird: weltweit, wenn eingerichtet und
+      erreichbar — sonst die aus diesem Browser. Serverdaten werden genauso
+      streng geprueft wie lokale: Namen nur aus der Pixelschrift, Zahlen
+      begrenzt. Angezeigt wird ohnehin nur ueber die Pixelschrift, nie als
+      HTML — eingeschleuster Code kann also nichts ausrichten. */
+  function boardList() {
+    var on = global.Online;
+    var raw = on && on.enabled() ? on.list() : null;
+    if (!raw) return { list: loadScores(), global: false };
+    var out = [];
+    for (var i = 0; i < raw.length && out.length < 100; i++) {
+      var e = raw[i];
+      if (!e || typeof e !== 'object') continue;
+      out.push({
+        n: cleanName(e.n), s: clampInt(e.s, 0, 9999999), h: clampInt(e.h, 0, 99999),
+        t: clampInt(e.t, 0, 359999), d: clampInt(e.d, 0, 9999)
+      });
+    }
+    return { list: out, global: true };
+  }
+
   function fmtTime(sec) {
     sec = clampInt(sec, 0, 359999);
     return Math.floor(sec / 60) + ':' + ('0' + (sec % 60)).slice(-2);
@@ -719,45 +1025,102 @@
       val: function (e) { return '' + e.d; } }
   ];
 
+  /* ---------- Namenseingabe ----------
+     Ein echtes Textfeld statt Buchstaben-Rad: am Handy kommt die normale
+     Tastatur, am PC tippt man einfach. Es gibt keinen Zeitdruck — der
+     Eintrag passiert erst beim Tippen auf EINTRAGEN (oder Enter).
+     Vorher hat ein noch gedrueckter Sprung-Knopf aus dem Dialog den
+     Namen sofort abgeschickt. */
+  var nameForm = document.getElementById('nameform');
+  var nameInput = document.getElementById('nfname');
+  var nameOk = document.getElementById('nfok');
+
   function startNameEntry() {
-    G.nameIdx = [24, 20, 18, 38, 38, 38];   // "YUS" + Leerzeichen als Vorschlag
-    G.namePos = 0;
     G.state = 'nameentry';
+    G.nameSent = false;
+    G.partialRun = !fullRun();
+    G.nameTimer = 0;
     S.play('win');
+    if (G.partialRun) return;            // nur ein Hinweis, kein Eintrag
+    if (!nameForm) return;               // Testseiten ohne Formular
+    global.Input.releaseAll();
+    nameInput.value = '';
+    nameOk.disabled = true;
+    nameForm.hidden = false;
+    // kurze Sperre gegen versehentliches Doppeltippen
+    setTimeout(function () { nameOk.disabled = false; }, 800);
+    if (!G.touch) setTimeout(function () { try { nameInput.focus(); } catch (e) {} }, 60);
   }
 
-  function currentName() {
-    var s = '';
-    for (var i = 0; i < G.nameIdx.length; i++) s += NAME_CHARS.charAt(G.nameIdx[i]);
-    return s.replace(/\s+$/, '') || 'YUSUF';
+  function submitName(raw) {
+    if (G.state !== 'nameentry' || G.nameSent) return;
+    G.nameSent = true;
+    if (nameForm) { nameForm.hidden = true; try { nameInput.blur(); } catch (e) {} }
+    var sec = Math.floor((G.runTime || 0) / 60);
+    var name = cleanName(String(raw || '').replace(/^\s+/, ''));
+    G.lastName = name;
+    G.lastScore = G.player.score;
+    G.scoreList = storeScore(name, G.player.score, G.player.honey, sec, G.player.deaths || 0);
+    if (global.Online) {
+      global.Online.submit({
+        n: name, s: clampInt(G.player.score, 0, 9999999), h: clampInt(G.player.honey, 0, 99999),
+        t: clampInt(sec, 0, 359999), d: clampInt(G.player.deaths || 0, 0, 9999)
+      });
+    }
+    G.scoreCat = 0;
+    S.play('oneUp');
+    fadeTo(function () { G.state = 'teaser'; G.endScroll = 0; });
+  }
+
+  if (nameForm) {
+    document.getElementById('nfform').addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (!nameOk.disabled) submitName(nameInput.value);
+    });
+    // Nur erlaubte Zeichen — was die Pixelschrift nicht kennt, fliegt raus.
+    // Erst beim Verlassen des Felds: waehrend des Tippens umschreiben
+    // bringt manche Android-Tastaturen durcheinander.
+    nameInput.addEventListener('blur', function () {
+      var v = nameInput.value.toUpperCase(), out = '';
+      for (var i = 0; i < v.length && out.length < NAME_MAX; i++) {
+        if (NAME_CHARS.indexOf(v.charAt(i)) >= 0) out += v.charAt(i);
+      }
+      if (out !== nameInput.value) nameInput.value = out;
+    });
   }
 
   function updateNameEntry() {
-    var In = global.Input;
-    if (In.hit('right')) { G.namePos = (G.namePos + 1) % 6; S.play('move'); }
-    if (In.hit('left')) { G.namePos = (G.namePos + 5) % 6; S.play('move'); }
-    if (In.hit('up')) {
-      G.nameIdx[G.namePos] = (G.nameIdx[G.namePos] + 1) % NAME_CHARS.length;
-      S.play('move');
+    var go = global.Input.hit('jump') || global.Input.hit('confirm');
+    G.nameTimer++;
+    // Nicht ab Level 1 gespielt: nur Hinweis, dann weiter zum Teaser
+    if (G.partialRun) {
+      if (go && G.nameTimer > 45 && !G.nameSent) {
+        G.nameSent = true;
+        fadeTo(function () { G.state = 'teaser'; G.endScroll = 0; });
+      }
+      return;
     }
-    if (In.hit('down')) {
-      G.nameIdx[G.namePos] = (G.nameIdx[G.namePos] + NAME_CHARS.length - 1) % NAME_CHARS.length;
-      S.play('move');
-    }
-    if (In.hit('jump') || In.hit('confirm')) {
-      var sec = Math.floor(G.time / 60);
-      G.lastName = currentName();
-      G.lastScore = G.player.score;
-      G.scoreList = storeScore(G.lastName, G.player.score, G.player.honey,
-                               sec, G.player.deaths || 0);
-      G.scoreCat = 0;
-      S.play('oneUp');
-      fadeTo(function () { G.state = 'teaser'; G.endScroll = 0; });
-    }
+    // Ohne Formular (Testseiten): Sprung traegt einen Standardnamen ein
+    if (!nameForm && go) submitName('YUSUF');
   }
 
   function updateScores() {
     var In = global.Input;
+    if (global.Online && G.tick % 300 === 0) global.Online.refresh();
+    var tp = In.tap();
+    if (tp) {
+      // Kategorie antippen = sortieren, sonst zurueck
+      if (tp.y >= 38 && tp.y < 60) {
+        var cx0 = 60;
+        for (var c = 0; c < SCORE_CATS.length; c++) {
+          var lw = F.measure(SCORE_CATS[c].k, 1, 1);
+          if (tp.x >= cx0 - 12 && tp.x < cx0 + lw + 12) { G.scoreCat = c; S.play('move'); return; }
+          cx0 += lw + 26;
+        }
+      }
+      G.state = 'title'; S.play('select');
+      return;
+    }
     if (In.hit('right')) { G.scoreCat = (G.scoreCat + 1) % SCORE_CATS.length; S.play('move'); }
     if (In.hit('left')) {
       G.scoreCat = (G.scoreCat + SCORE_CATS.length - 1) % SCORE_CATS.length;
@@ -805,6 +1168,12 @@
   }
 
   function updateGameover() {
+    var tp = global.Input.tap();
+    if (tp) {
+      var gb = gameoverButtons();
+      if (inRect(tp, gb[1])) { toTitle(); return; }
+      if (!inRect(tp, gb[0])) return;
+    }
     if (global.Input.hit('jump') || global.Input.hit('confirm')) {
       S.play('select');
       fadeTo(function () {
@@ -843,7 +1212,7 @@
     cam.y += (ty - cam.y) * 0.09;
 
     var maxX = Math.max(0, G.lvl.w * T - W);
-    var maxY = Math.max(0, G.lvl.h * T - H);
+    var maxY = Math.max(0, G.lvl.h * T - H + BOTTOM_PAD);
 
     if (G.arena && G.bossStarted) {
       cam.x = Math.max(G.arena.x, Math.min(G.arena.x + G.arena.w - W, cam.x));
@@ -864,6 +1233,7 @@
   /* ================= Rendering ================= */
 
   function render() {
+    applyView();
     ctx.save();
     ctx.clearRect(0, 0, W, H);
 
@@ -877,6 +1247,12 @@
     else if (G.state === 'gameover') { drawScene(); drawGameover(); }
     else {
       drawScene();
+      if (G.flashFx && G.flashFx.t > 0) {
+        ctx.globalAlpha = 0.5 * G.flashFx.t / G.flashFx.max;
+        ctx.fillStyle = G.flashFx.col;
+        ctx.fillRect(0, 0, W, H);
+        ctx.globalAlpha = 1;
+      }
       drawHUD();
       if (G.state === 'paused') drawPause();
       if (G.state === 'clear') drawResults();
@@ -1071,6 +1447,18 @@
         else P.draw(ctx, deepSpr, px, py);
       }
     }
+
+    // Handy: eine Reihe Erde unter dem Level, damit die Knoepfe auf dem
+    // Boden liegen und nicht im Spielfeld. Unter Gruben bleibt es dunkel.
+    if (BOTTOM_PAD > 0 && camY + H > w.h * T) {
+      for (var ex = tx0; ex <= tx1; ex++) {
+        var hole = (ex < 0 || ex >= w.w || !w.solid(ex, w.h - 1));
+        for (var ey = w.h; ey * T < camY + H; ey++) {
+          if (hole) rect(ex * T - camX, ey * T - camY, T, T, '#07050b');
+          else P.draw(ctx, deepSpr, ex * T - camX, ey * T - camY);
+        }
+      }
+    }
   }
 
   function drawHazards(camX, camY) {
@@ -1220,12 +1608,59 @@
     }
   }
 
+  /** Ampel: Mast, Kasten, drei Lichter. Rot leuchtet mit Schein. */
+  function drawAmpeln(camX, camY) {
+    for (var i = 0; i < G.ampeln.length; i++) {
+      var a = G.ampeln[i];
+      var px = Math.round(a.x - camX), gy = 15 * T - camY;
+      if (px < -30 || px > W + 30) continue;
+      var col = ampelColor(a);
+      rect(px + 6, gy - 46, 3, 46, '#3a3a48');
+      rect(px, gy - 74, 15, 30, '#101016');
+      rect(px + 1, gy - 73, 13, 28, '#22222c');
+      var lights = [['rot', '#ff3a30', '#4a1512'], ['gelb', '#ffc23c', '#4a3a12'],
+                    ['gruen', '#4ae05a', '#123a18']];
+      for (var l = 0; l < 3; l++) {
+        var on = (lights[l][0] === col);
+        var ly = gy - 69 + l * 8;
+        if (on) {
+          ctx.globalAlpha = 0.28;
+          rect(px - 3, ly - 3, 21, 11, lights[l][1]);
+          ctx.globalAlpha = 1;
+        }
+        rect(px + 4, ly, 7, 6, on ? lights[l][1] : lights[l][2]);
+      }
+      // Haltelinie auf der Strasse
+      rect(px - 4, gy, 3, 3, col === 'rot' ? '#f4f4ee' : '#8a8a96');
+    }
+  }
+
+  /** Auto samt Fahrer. (cx, feetY) = Mitte unten, s = Vergroesserung. */
+  function drawCar(spr, head, headDX, cx, feetY, flip, s) {
+    var sp = P.get(spr), hs = P.get(head);
+    var left = Math.round(cx - sp.w * s / 2), top = Math.round(feetY - sp.h * s + s);
+    ctx.save();
+    ctx.translate(left, top);
+    ctx.scale(s, s);
+    // Kopf zuerst, Auto darueber — so schaut der Fahrer aus dem Fenster
+    P.draw(ctx, head, flip ? (sp.w - headDX - hs.w) : headDX, -7, flip);
+    P.draw(ctx, spr, 0, 0, flip);
+    ctx.restore();
+    return { left: left, top: top, w: sp.w * s };
+  }
+
   function drawScene() {
     var camX = Math.round(G.cam.x + G.cam.sx), camY = Math.round(G.cam.y + G.cam.sy);
     drawSky(G.world.theme);
+    // Der Hintergrund ist fuer 288 Pixel Hoehe gezeichnet. In der
+    // naeheren Handy-Ansicht wird er mit dem Boden nach oben geschoben.
+    ctx.save();
+    if (H < 288) ctx.translate(0, H - 288 - BOTTOM_PAD);
     drawParallax(G.world.theme, camX, camY);
+    ctx.restore();
 
     drawCheckpoints(camX, camY);
+    if (G.ampeln.length) drawAmpeln(camX, camY);
     drawSigns(camX, camY);
     drawGoal(camX, camY);
     drawTiles(camX, camY);
@@ -1271,25 +1706,45 @@
         }
         continue;
       }
+      if (pr.dead) continue;
+      if (pr.t === 'welle') {
+        // Bodenwelle: flackernde Zacken, die ueber den Boden rollen
+        var wx2 = Math.round(pr.x - camX), wy2 = Math.round(pr.y - camY);
+        var ph = (pr.t0 >> 2) % 2;
+        ctx.globalAlpha = 0.9;
+        rect(wx2, wy2 + 6, 14, 4, pr.col);
+        rect(wx2 + 2 + ph * 2, wy2 + 2, 4, 4, pr.col);
+        rect(wx2 + 8 - ph * 2, wy2, 4, 6, pr.col);
+        rect(wx2 + 1, wy2 + 8, 12, 1, '#ffffff');
+        ctx.globalAlpha = 1;
+        continue;
+      }
       if (!pr.spr) continue;
       P.draw(ctx, pr.spr, pr.x - camX, pr.y - camY, pr.vx < 0);
     }
 
-    // Mirkan faehrt nebenher und fragt
+    // Die Kolonne faehrt auf der hinteren Spur mit (Level 6)
+    var mp = G.player, BACK = 9;
+    for (i = 0; i < G.convoy.length; i++) {
+      var cv = G.convoy[i];
+      var cr = drawCar(cv.def.spr, cv.def.head, 12, cv.x - camX, cv.y - camY - BACK,
+                       mp.facing < 0, 2);
+      if (cv.t < 360) {
+        F.draw(ctx, cv.def.name, cr.left + cr.w / 2, cr.top - 26,
+               { color: cv.def.col, align: 'center', shadow: true });
+      }
+    }
+
+    // Mirkan faehrt neben Yusuf her und fragt
     if (G.mirkan) {
-      var mp = G.player;
-      var mw = P.get('mercedes').w;
       var sway = Math.sin(G.mirkan.t * 0.07) * 4;
-      var mx = mp.cx() - camX - 88 + sway - mw / 2;
-      var my = mp.feet() - camY - P.get('mercedes').h + 1;
-      // Kopf zuerst, Auto drueber — er schaut aus dem Fenster
-      P.draw(ctx, 'mirkan_head', mx + 13, my - 7, mp.facing < 0);
-      P.draw(ctx, 'mercedes', mx, my, mp.facing < 0);
-      F.draw(ctx, 'MIRKAN', mx + mw / 2, my - 16,
+      var mr = drawCar('mercedes', 'mirkan_head', 13, mp.cx() + MIRKAN_OFF + sway - camX,
+                       mp.feet() - camY - BACK, mp.facing < 0, 2);
+      F.draw(ctx, 'MIRKAN', mr.left + mr.w / 2, mr.top - 26,
              { color: '#b8c0d4', align: 'center', shadow: true });
       if (G.tick % 5 === 0) {
         G.particles.spawn({
-          x: mp.cx() - 108 + sway, y: mp.feet() - 5,
+          x: mp.cx() + MIRKAN_OFF - 34 + sway, y: mp.feet() - 14,
           vx: -0.7, vy: -0.2, life: 22, col: '#8e8880', size: 2, grav: -0.01
         });
       }
@@ -1342,18 +1797,14 @@
 
     // Level 6: Yusuf sitzt im Mustang.
     if (G.lvl.driving && !p.dead) {
-      var cw = P.get('mustang').w, chh = P.get('mustang').h;
-      var carX = Math.round(p.cx() - camX - cw / 2);
-      var carY = Math.round(p.feet() - camY - chh + 1);
-      // Kopf zuerst, Auto drueber — so schaut er aus dem Fenster
-      P.draw(ctx, 'y_head', carX + (p.facing < 0 ? 12 : 14), carY - 7, p.facing < 0);
-      P.draw(ctx, 'mustang', carX, carY, p.facing < 0);
+      // Doppelt so gross wie frueher — die Trefferbox ist entsprechend breit
+      drawCar('mustang', 'y_head', 14, p.cx() - camX, p.feet() - camY, p.facing < 0, 2);
       // Auspuff
-      if (Math.abs(p.vx) > 1 && G.tick % 4 === 0) {
+      if (Math.abs(p.vx) > 1 && G.tick % 3 === 0) {
         G.particles.spawn({
-          x: p.cx() - p.facing * 20, y: p.feet() - 5,
-          vx: -p.facing * 0.8, vy: -0.25, life: 26,
-          col: '#8e8880', size: 2, grav: -0.01
+          x: p.cx() - p.facing * 42, y: p.feet() - 8,
+          vx: -p.facing * 1.0, vy: -0.25, life: 26,
+          col: '#8e8880', size: 3, grav: -0.01
         });
       }
       return;
@@ -1390,9 +1841,38 @@
     }
   }
 
+  /* Angriffe, vor denen gewarnt wird — Beruehrung tut dann weh. */
+  var BOSS_WARN = {
+    chargeprep: 1, carjump: 1, slam: 1, doubleslam: 1, dashprep: 1,
+    stampf: 1, drift: 1, wirbel: 1, tornado: 1
+  };
+
+  /** Leuchtender Rand um einen verwandelten Boss (Sprite-Bosse). */
+  function drawAura(sn, col) {
+    ctx.globalAlpha = 0.45 + Math.sin(G.tick * 0.25) * 0.2;
+    P.drawTint(ctx, sn, -1, 0, col);
+    P.drawTint(ctx, sn, 1, 0, col);
+    P.drawTint(ctx, sn, 0, -1, col);
+    P.drawTint(ctx, sn, 0, 1, col);
+    ctx.globalAlpha = 1;
+  }
+
+  /** Dasselbe fuer zusammengesetzte Figuren (Huseyin, Esat). */
+  function drawCharAura(who, x, y, o, col) {
+    var a = { pose: o.pose, face: o.face, frame: o.frame, flip: o.flip, scale: o.scale,
+              flash: col, flashAlpha: 1,
+              alpha: 0.4 + Math.sin(G.tick * 0.25) * 0.18 };
+    P.drawChar(ctx, who, x - 2, y, a);
+    P.drawChar(ctx, who, x + 2, y, a);
+    P.drawChar(ctx, who, x, y - 2, a);
+  }
+
   function drawBoss(camX, camY) {
     var b = G.boss;
-    var px = b.cx() - camX, py = b.y + b.h - camY;
+    // Waehrend der Verwandlung zittert er
+    var jit = (b.state === 'transform') ? ((G.tick >> 1) % 2 ? 1 : -1) : 0;
+    var px = b.cx() - camX + jit, py = b.y + b.h - camY;
+    var glow = b.rage && !b.dead;
 
     // Level-Bosse sind gezeichnete Sprites, keine zusammengesetzten Figuren
     if (E.MINIBOSS[G.lvl.bossType]) {
@@ -1401,27 +1881,43 @@
       var sp = P.get(sn);
       var sc = b.scale || d.scale;   // Lennart waechst mitten im Kampf
       var dw = sp.w * sc, dh = sp.h * sc;
-      var dx0 = Math.round(b.cx() - camX - dw / 2);
+      var dx0 = Math.round(b.cx() - camX - dw / 2) + jit;
       var dy0 = Math.round(b.y + b.h - camY - dh);
+      // Mirkans Wagen federt beim Rasen
+      if (b.t === 'mirkan' && !b.dead && b.grounded &&
+          (b.state === 'charge' || b.state === 'drift')) {
+        dy0 += (G.tick >> 1) % 2;
+      }
 
       ctx.save();
       if (b.dead) ctx.globalAlpha = Math.max(0.15, 1 - b.deadTimer / 140);
-      else if (b.invuln > 0 && (G.tick >> 1) % 2 === 0) ctx.globalAlpha = 0.55;
+      else if (b.invuln > 0 && b.state !== 'transform' && (G.tick >> 1) % 2 === 0) {
+        ctx.globalAlpha = 0.55;
+      }
       ctx.translate(dx0 + (b.facing < 0 ? dw : 0), dy0);
       ctx.scale(b.facing < 0 ? -sc : sc, sc);
-      if (b.flash > 0 && (G.tick >> 1) % 2 === 0) P.drawWhite(ctx, sn, 0, 0, false);
-      else P.draw(ctx, sn, 0, 0, false);
-      // Mirkan sitzt sichtbar am Steuer: Kopf schaut oben aus dem Wagen
+      // Mirkan sitzt sichtbar am Steuer: Kopf zuerst, der Wagen darueber
       if (b.t === 'mirkan') {
-        var bump = (b.state === 'charge') ? 1 : 0;
+        var bump = (b.state === 'charge' || b.state === 'drift') ? 1 : 0;
+        if (glow) P.drawTint(ctx, 'mirkan_head', 9, -7 + bump, b.rageCol);
         P.draw(ctx, 'mirkan_head', 9, -6 + bump, false);
       }
+      if (glow || b.state === 'transform') drawAura(sn, b.rageCol);
+      if (b.flash > 0 && (G.tick >> 1) % 2 === 0) P.drawWhite(ctx, sn, 0, 0, false);
+      else P.draw(ctx, sn, 0, 0, false);
       ctx.restore();
 
-      var warn = (b.state === 'chargeprep' || b.state === 'carjump' ||
-                  b.state === 'slam');
-      if (!b.dead && warn && (G.tick >> 2) % 2 === 0) {
-        F.draw(ctx, '!', px, dy0 - 14, { color: '#ff6a6a', align: 'center', scale: 2 });
+      // Tuning: Flammen aus dem Auspuff
+      if (b.t === 'mirkan' && glow && G.tick % 2 === 0) {
+        G.particles.spawn({
+          x: b.cx() - b.facing * (b.w / 2 + 2), y: b.y + b.h - 8,
+          vx: -b.facing * (1.5 + Math.random()), vy: -0.3, life: 14,
+          col: (G.tick % 4) ? '#ff8a2a' : '#ffd257', size: 3, grav: -0.02
+        });
+      }
+
+      if (!b.dead && BOSS_WARN[b.state] && (G.tick >> 2) % 2 === 0) {
+        F.draw(ctx, '!', px, dy0 - 16, { color: '#ff6a6a', align: 'center', scale: 2 });
       }
       if (!b.dead && b.state === 'pushups') {
         F.draw(ctx, 'LIEGESTÜTZE', px, dy0 - 14,
@@ -1434,7 +1930,7 @@
     if (G.lvl.bossType === 'esat') {
       var ep = 'idle', ef = 'normal';
       if (b.dead) { ep = 'hurt'; ef = 'hurt'; }
-      else if (b.state === 'snooze') { ep = 'sleep'; ef = 'sleep'; }
+      else if (b.state === 'transform') { ep = 'cheer'; ef = 'rage'; }
       else if (b.state === 'dash') { ep = 'run'; ef = 'rage'; }
       else if (b.state === 'walk') ep = 'run';
       else if (!b.grounded) ep = b.vy < 0 ? 'jump' : 'fall';
@@ -1442,31 +1938,29 @@
         ep = 'cheer'; ef = 'laugh';
       }
       if (b.flash > 0) ef = 'hurt';
-      else if (b.snoozed && !b.dead && ef === 'normal') ef = 'rage';
+      else if (b.rage && !b.dead && ef === 'normal') ef = 'rage';
 
-      var eo = { pose: ep, face: ef, frame: b.anim, flip: b.facing < 0, scale: 2 };
+      var who = b.buff ? 'esat_buff' : 'esat';
+      var eo = { pose: ep, face: ef, frame: b.anim, flip: b.facing < 0, scale: b.buff ? 3 : 2 };
+      if (glow || b.state === 'transform') drawCharAura(who, px, py, eo, b.rageCol);
       if (b.dead) eo.alpha = Math.max(0.2, 1 - b.deadTimer / 160);
       if (b.flash > 0 && (G.tick >> 1) % 2 === 0) {
         eo.flash = '#ffffff'; eo.flashAlpha = 0.8;
       }
-      if (b.invuln > 0 && (G.tick >> 1) % 2 === 0 && !b.dead) eo.alpha = 0.55;
-      if (b.snoozed && !b.dead) {
-        eo.flash = '#2fd39e';
-        eo.flashAlpha = 0.14 + Math.sin(G.tick * 0.16) * 0.08;
+      if (b.invuln > 0 && b.state !== 'transform' && (G.tick >> 1) % 2 === 0 && !b.dead) {
+        eo.alpha = 0.55;
       }
-      P.drawChar(ctx, 'esat', px, py, eo);
+      P.drawChar(ctx, who, px, py, eo);
 
-      if (b.state === 'snooze' && !b.dead) {
-        for (var z = 0; z < 3; z++) {
-          var zt = (G.tick * 0.02 + z * 0.33) % 1;
-          F.draw(ctx, 'Z', px + 12 + zt * 14, py - b.h - 4 - zt * 20, {
-            color: 'rgba(200,255,220,' + (1 - zt).toFixed(2) + ')',
-            scale: 1 + Math.floor(zt * 2)
-          });
-        }
+      // Die Snus-Dose in der Hand, solange er sich verwandelt
+      if (b.state === 'transform' && b.timer > 60) {
+        var sx = px + (b.facing < 0 ? -18 : 12), sy = py - 60;
+        rect(sx, sy, 10, 5, '#1c6a8a');
+        rect(sx, sy, 10, 1, '#6fc8e8');
+        rect(sx + 3, sy + 2, 4, 1, '#ffffff');
       }
-      if (b.state === 'dashprep' && (G.tick >> 2) % 2 === 0) {
-        F.draw(ctx, '!', px, py - b.h - 10, { color: '#ff6a6a', align: 'center', scale: 2 });
+      if (!b.dead && BOSS_WARN[b.state] && (G.tick >> 2) % 2 === 0) {
+        F.draw(ctx, '!', px, py - b.h - 12, { color: '#ff6a6a', align: 'center', scale: 2 });
       }
       return;
     }
@@ -1474,24 +1968,32 @@
     var pose = 'idle', face = 'normal', frame = b.anim;
 
     if (b.dead) pose = 'hurt';
+    else if (b.state === 'transform') { pose = 'cheer'; face = 'laugh'; }
     else if (b.state === 'pushups') { pose = 'duck'; face = 'laugh'; frame = (G.tick >> 3); }
-    else if (b.state === 'dash') { pose = 'run'; face = 'laugh'; }
+    else if (b.state === 'dash' || b.state === 'tornado') { pose = 'run'; face = 'laugh'; }
     else if (b.state === 'walk') pose = 'run';
     else if (!b.grounded) pose = b.vy < 0 ? 'jump' : 'fall';
     else if (b.state === 'throw' || b.state === 'shake' || b.state === 'rain') pose = 'cheer';
     if (b.flash > 0) face = 'hurt';
-    if (b.phase >= 3 && !b.dead) face = 'laugh';
+    else if (b.rage && !b.dead) face = 'laugh';
 
     var opts = {
       pose: pose, face: face, frame: frame,
-      flip: b.facing < 0, scale: 2
+      flip: b.state === 'tornado' ? ((G.tick >> 2) % 2 === 0) : b.facing < 0,
+      scale: 2
     };
+    if (glow || b.state === 'transform') drawCharAura('huseyin', px, py, opts, b.rageCol);
     if (b.dead) opts.alpha = Math.max(0.2, 1 - b.deadTimer / 160);
     if (b.flash > 0 && (G.tick >> 1) % 2 === 0) {
       opts.flash = '#ffffff'; opts.flashAlpha = 0.8;
     }
-    if (b.invuln > 0 && (G.tick >> 1) % 2 === 0 && !b.dead) opts.alpha = 0.55;
+    if (b.invuln > 0 && b.state !== 'transform' && (G.tick >> 1) % 2 === 0 && !b.dead) {
+      opts.alpha = 0.55;
+    }
     P.drawChar(ctx, 'huseyin', px, py, opts);
+    if (!b.dead && BOSS_WARN[b.state] && (G.tick >> 2) % 2 === 0) {
+      F.draw(ctx, '!', px, py - b.h - 12, { color: '#ff6a6a', align: 'center', scale: 2 });
+    }
   }
 
   function drawParticles(camX, camY) {
@@ -1544,18 +2046,19 @@
     // Leben
     F.draw(ctx, 'YUSUF x' + Math.max(0, p.lives), 8, 44, { color: '#f4bd91', shadow: true });
 
-    // Punkte + Zeit
-    F.draw(ctx, 'PUNKTE ' + p.score, W - 8, 8, { color: '#ffe9a8', align: 'right', shadow: true });
+    // Punkte + Zeit. Am Handy liegen oben rechts Pause und Vollbild.
+    var rx = G.touch ? W - 58 : W - 8;
+    F.draw(ctx, 'PUNKTE ' + p.score, rx, 8, { color: '#ffe9a8', align: 'right', shadow: true });
     var sec = Math.floor(G.time / 60);
     F.draw(ctx, 'ZEIT ' + Math.floor(sec / 60) + ':' + ('0' + (sec % 60)).slice(-2),
-           W - 8, 20, { color: '#d8cfe8', align: 'right', shadow: true });
+           rx, 20, { color: '#d8cfe8', align: 'right', shadow: true });
 
     // Gold-Döner-Balken
     if (p.power > 0) {
       var bw = 70, pw = Math.round(bw * p.power / 560);
-      rect(W - 8 - bw, 34, bw, 6, 'rgba(0,0,0,0.5)');
-      rect(W - 8 - bw, 34, pw, 6, '#ffd257');
-      F.draw(ctx, 'GOLD-DÖNER', W - 8 - bw - 4, 34, { color: '#ffd257', align: 'right' });
+      rect(rx - bw, 34, bw, 6, 'rgba(0,0,0,0.5)');
+      rect(rx - bw, 34, pw, 6, '#ffd257');
+      F.draw(ctx, 'GOLD-DÖNER', rx - bw - 4, 34, { color: '#ffd257', align: 'right' });
     }
 
     // Bosslebensbalken
@@ -1565,30 +2068,37 @@
       var mini = E.MINIBOSS[bt2];
       // Der Balken sitzt ganz unten und der Name steht DARIN — sonst
       // liegt die Schrift mitten im Spielfeld und verdeckt den Gegner.
-      var w2 = 250, x2 = (W - w2) / 2;
-      var by2 = H - 20;
-      rect(0, by2 - 4, W, 24, 'rgba(8,5,12,0.72)');
+      // Am Handy liegen unten die Knoepfe — dort sitzt der Balken oben.
+      var w2 = G.touch ? 190 : 250, x2 = Math.round((W - w2) / 2);
+      var by2 = G.touch ? 8 : H - 20;
+      if (!G.touch) rect(0, by2 - 4, W, 24, 'rgba(8,5,12,0.72)');
       rect(x2 - 2, by2 - 2, w2 + 4, 16, 'rgba(6,4,10,0.9)');
       rect(x2, by2, w2, 12, '#241830');
       var hw = Math.round(w2 * Math.max(0, G.boss.hp) / G.boss.maxHp);
-      var barCol = mini ? mini.col
-        : (isE ? (G.boss.snoozed ? '#2fd39e' : '#6fc8e8')
-               : (G.boss.phase >= 3 ? '#9dff6a'
-                 : (G.boss.phase === 2 ? '#c8e85a' : '#5ec24a')));
+      // Nach der Verwandlung wechselt der Balken die Farbe und pulsiert
+      var barCol = G.boss.rage ? G.boss.rageCol
+        : (mini ? mini.col : (isE ? '#6fc8e8' : '#5ec24a'));
+      if (G.boss.rage && G.boss.phase >= 3 && (G.tick >> 3) % 2 === 0) barCol = '#ffffff';
       rect(x2, by2, hw, 12, barCol);
       rect(x2, by2, hw, 2, 'rgba(255,255,255,0.35)');
+      // Markierung bei der Haelfte: dort verwandelt er sich
+      if (!G.boss.rage) rect(x2 + Math.floor(w2 / 2), by2, 1, 12, 'rgba(255,255,255,0.6)');
 
       var bname = mini ? mini.name : (isE ? 'ESAT' : 'HUSEYIN BALCI');
       F.draw(ctx, bname, W / 2, by2 + 3,
              { color: '#ffffff', align: 'center', shadow: true });
 
-      var lbl = (isE && G.boss.snoozed) ? 'SNOOZE'
-              : (mini && G.boss.pumped) ? 'WARM'
-              : 'PH ' + G.boss.phase;
-      F.draw(ctx, lbl, x2 + w2 + 5, by2 + 3, { color: barCol });
-      // Offenes Fenster sichtbar machen — der Kampf soll lesbar sein
-      if (G.boss.open && !G.boss.dead && (G.tick >> 3) % 2 === 0) {
-        F.draw(ctx, 'OFFEN', x2 - 5, by2 + 3, { color: '#ffd257', align: 'right' });
+      var lbl = G.boss.rage ? G.boss.rageName : 'PH 1';
+      var lblCol = G.boss.rage ? G.boss.rageCol : barCol;
+      var openNow = G.boss.open && !G.boss.dead && (G.tick >> 3) % 2 === 0;
+      if (G.touch) {
+        // Oben ist es eng: Zusatzinfos unter den Balken
+        F.draw(ctx, lbl, x2, by2 + 17, { color: lblCol, shadow: true });
+        if (openNow) F.draw(ctx, 'OFFEN', x2 + w2, by2 + 17, { color: '#ffd257', align: 'right', shadow: true });
+      } else {
+        F.draw(ctx, lbl, x2 + w2 + 5, by2 + 3, { color: lblCol });
+        // Offenes Fenster sichtbar machen — der Kampf soll lesbar sein
+        if (openNow) F.draw(ctx, 'OFFEN', x2 - 5, by2 + 3, { color: '#ffd257', align: 'right' });
       }
     }
   }
@@ -1693,7 +2203,7 @@
     drawParallax('zimmer', G.tick * 0.28, 0);
 
     // Boden
-    for (var tx = 0; tx < 33; tx++) {
+    for (var tx = 0; tx <= W / 16; tx++) {
       P.draw(ctx, SP.tileTop('zimmer'), tx * 16, 240);
       P.draw(ctx, SP.tileFill('zimmer'), tx * 16, 256);
       P.draw(ctx, SP.tileFill('zimmer'), tx * 16, 272);
@@ -1701,8 +2211,8 @@
 
     // Yusuf & Hussein
     var f = (G.tick >> 3);
-    P.drawChar(ctx, 'yusuf', 118, 240, { pose: 'idle', frame: f, face: (G.tick % 200 < 30) ? 'laugh' : 'normal' });
-    P.drawChar(ctx, 'huseyin', 392, 240, { pose: 'idle', frame: f, flip: true, face: 'normal' });
+    P.drawChar(ctx, 'yusuf', 84, 240, { pose: 'idle', frame: f, face: (G.tick % 200 < 30) ? 'laugh' : 'normal' });
+    P.drawChar(ctx, 'huseyin', 152, 240, { pose: 'idle', frame: f, flip: true, face: 'normal' });
 
     // schwebende Honiggläser
     for (var i = 0; i < 5; i++) {
@@ -1720,7 +2230,7 @@
     });
 
     var items = menuItems();
-    var top0 = 160 - (items.length - 5) * 7;
+    var top0 = titleMenuTop(items.length);
     for (i = 0; i < items.length; i++) {
       var it = items[i];
       var sel = (i === G.menuIdx);
@@ -1734,19 +2244,40 @@
       });
     }
 
-    // Bestenliste ist immer sichtbar — unten rechts, wie besprochen
-    var best = loadScores();
+    // Bestenliste ist beim Start immer sichtbar: die besten fuenf
+    drawTitleBoard();
+
     ctx.fillStyle = 'rgba(10,6,16,0.72)';
     ctx.fillRect(0, H - 17, W, 17);
-    if (best.length) {
-      ctx.fillStyle = 'rgba(10,6,16,0.8)';
-      ctx.fillRect(W - 152, H - 44, 152, 27);
-      F.draw(ctx, 'BESTENLISTE', W - 8, H - 40, { color: '#8f86a8', align: 'right' });
-      F.draw(ctx, best[0].n + '   ' + best[0].s, W - 8, H - 29,
-             { color: '#ffd257', align: 'right' });
-    }
     F.draw(ctx, 'EIN SPIEL ÜBER HONIG, SCHLAF UND BRÜDERLICHE GEWALT',
            W / 2, H - 12, { color: '#c0b4d4', align: 'center' });
+  }
+
+  function drawTitleBoard() {
+    var r = titleBoardRect();
+    var b = boardList();
+    var list = b.list.slice().sort(SCORE_CATS[0].cmp);
+    ctx.fillStyle = 'rgba(10,6,16,0.96)';
+    ctx.fillRect(r.x, r.y, r.w, r.h);
+    rect(r.x, r.y, r.w, 1, '#ffc23c');
+    F.draw(ctx, 'BESTENLISTE', r.x + 6, r.y + 5, { color: '#ffd257' });
+    F.draw(ctx, b.global ? 'WELTWEIT' : 'LOKAL', r.x + r.w - 6, r.y + 5,
+           { color: b.global ? '#6fc8e8' : '#6a6280', align: 'right' });
+    if (!list.length) {
+      F.draw(ctx, 'NOCH LEER.', r.x + 6, r.y + 30, { color: '#c8b8e0' });
+      F.draw(ctx, 'SEI DER ERSTE!', r.x + 6, r.y + 42, { color: '#8f86a8' });
+    }
+    for (var i = 0; i < list.length && i < 5; i++) {
+      var e = list[i], y = r.y + 20 + i * 14;
+      var col = i === 0 ? '#ffe9a8' : '#ffffff';
+      F.draw(ctx, (i + 1) + '.', r.x + 6, y, { color: '#8f86a8' });
+      F.draw(ctx, e.n, r.x + 20, y, { color: col });
+      F.draw(ctx, '' + e.s, r.x + r.w - 6, y, { color: col, align: 'right' });
+    }
+    if ((G.tick >> 5) % 2 === 0) {
+      F.draw(ctx, G.touch ? 'ANTIPPEN = ALLE' : 'MENÜ: BESTENLISTE', r.x + r.w / 2, r.y + r.h - 9,
+             { color: '#6a6280', align: 'center' });
+    }
   }
 
   function drawSelect() {
@@ -1759,9 +2290,12 @@
       color: '#ffd257', align: 'center', scale: 3, shadow: true
     });
 
-    for (var i = 0; i < LV.list.length; i++) {
+    // Karten passen sich der Breite an — bei 7 Leveln war die letzte
+    // Karte vorher halb abgeschnitten.
+    var sc = selectCards();
+    for (var i = 0; i < sc.n; i++) {
       var unlocked = i < save.unlocked;
-      var x = 14 + i * 82, y = 80, cw = 76, ch = 130;
+      var x = sc.left0 + i * (sc.cw + sc.gap), y = sc.y, cw = sc.cw, ch = sc.ch;
       var sel = (i === G.selIdx);
 
       ctx.fillStyle = sel ? 'rgba(52,34,20,0.95)' : 'rgba(22,15,30,0.9)';
@@ -1780,7 +2314,8 @@
         F.draw(ctx, 'FRÜH', x + cw / 2, yy + 64, { color: '#5d5470', align: 'center' });
       } else {
         var name = LV.list[i].name;
-        var lines = F.wrap(name, cw - 12, 1, 0);
+        // Lange Woerter wie SALAT-FESTUNG am Bindestrich umbrechen
+        var lines = F.wrap(name.replace(/-/g, '- '), cw - 8, 1, 0);
         for (var li = 0; li < lines.length && li < 4; li++) {
           F.draw(ctx, lines[li], x + cw / 2, yy + 44 + li * 10,
                  { color: '#ffffff', align: 'center' });
@@ -1797,7 +2332,8 @@
       }
     }
 
-    F.draw(ctx, 'LINKS / RECHTS WÄHLEN   -   SPRUNG STARTET   -   ESC ZURÜCK',
+    F.draw(ctx, G.touch ? 'KARTE ANTIPPEN   -   NOCHMAL TIPPEN STARTET   -   HIER TIPPEN = ZURÜCK'
+                        : 'LINKS / RECHTS WÄHLEN   -   SPRUNG STARTET   -   ESC ZURÜCK',
            W / 2, H - 22, { color: '#a094b8', align: 'center' });
   }
 
@@ -1830,7 +2366,7 @@
     F.draw(ctx, 'STEH ZU LANGE STILL UND YUSUF SCHLÄFT EIN.', 30, 240, { color: '#a094b8' });
     F.draw(ctx, 'AM HANDY: QUER HALTEN. A = SPRUNG, B = KIPPE.', 30, 252, { color: '#8f86a8' });
 
-    F.draw(ctx, 'BELIEBIGE TASTE = ZURÜCK', W / 2, H - 18,
+    F.draw(ctx, G.touch ? 'TIPPEN = ZURÜCK' : 'BELIEBIGE TASTE = ZURÜCK', W / 2, H - 18,
            { color: '#ffd257', align: 'center' });
   }
 
@@ -1844,38 +2380,27 @@
       color: '#ffd257', align: 'center', scale: 3, shadow: true,
       wave: G.tick * 0.06, waveAmp: 1
     });
-    F.draw(ctx, 'TRAG DICH IN DIE BESTENLISTE EIN', W / 2, 56,
+    F.draw(ctx, G.partialRun ? 'ESAT IST BESIEGT!' : 'TRAG DICH IN DIE BESTENLISTE EIN', W / 2, 56,
            { color: '#c8b8e0', align: 'center' });
 
-    var sec = Math.floor(G.time / 60);
+    var sec = Math.floor((G.runTime || 0) / 60);
     F.draw(ctx, 'PUNKTE ' + G.player.score + '   HONIG ' + G.player.honey +
                 '   ZEIT ' + fmtTime(sec) + '   TODE ' + (G.player.deaths || 0),
            W / 2, 72, { color: '#ffe9a8', align: 'center' });
 
-    // Namensfelder
-    var slotW = 34, total = 6 * slotW, sx = (W - total) / 2;
-    for (var i = 0; i < 6; i++) {
-      var x = sx + i * slotW, sel = (i === G.namePos);
-      ctx.fillStyle = sel ? 'rgba(80,58,24,0.95)' : 'rgba(26,18,34,0.9)';
-      ctx.fillRect(x + 2, 104, slotW - 6, 44);
-      ctx.strokeStyle = sel ? '#ffd257' : '#6a5f80';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(x + 3, 105, slotW - 8, 42);
-      F.draw(ctx, NAME_CHARS.charAt(G.nameIdx[i]), x + slotW / 2 - 2, 116,
-             { color: '#ffffff', align: 'center', scale: 3 });
-      if (sel && (G.tick >> 3) % 2 === 0) {
-        F.draw(ctx, '`', x + slotW / 2 - 2, 92, { color: '#ffd257', align: 'center' });
-        F.draw(ctx, '\\', x + slotW / 2 - 2, 152, { color: '#ffd257', align: 'center' });
+    if (G.partialRun) {
+      F.draw(ctx, 'IN DIE BESTENLISTE KOMMEN NUR DURCHGÄNGE,', W / 2, 118,
+             { color: '#ffffff', align: 'center' });
+      F.draw(ctx, 'DIE BEI LEVEL 1 ANFANGEN.', W / 2, 132, { color: '#ffffff', align: 'center' });
+      F.draw(ctx, 'WEITER NACH EINEM ABSTURZ ZÄHLT TROTZDEM.', W / 2, 150,
+             { color: '#8f86a8', align: 'center' });
+      if (G.nameTimer > 45 && (G.tick >> 4) % 2 === 0) {
+        F.draw(ctx, G.touch ? 'TIPPEN = WEITER' : 'SPRUNG = WEITER', W / 2, 180,
+               { color: '#ffd257', align: 'center' });
       }
-    }
-
-    F.draw(ctx, 'HOCH / RUNTER  =  BUCHSTABE', W / 2, 180,
-           { color: '#a094b8', align: 'center' });
-    F.draw(ctx, 'LINKS / RECHTS  =  FELD', W / 2, 194,
-           { color: '#a094b8', align: 'center' });
-    if ((G.tick >> 4) % 2 === 0) {
-      F.draw(ctx, 'SPRUNG = EINTRAGEN', W / 2, 214,
-             { color: '#ffd257', align: 'center', scale: 2 });
+    } else if (G.nameSent) {
+      // Das Textfeld selbst ist ein HTML-Formular ueber dem Bild (index.html).
+      F.draw(ctx, 'EINGETRAGEN!', W / 2, 140, { color: '#ffd257', align: 'center', scale: 2 });
     }
 
     P.drawChar(ctx, 'yusuf', 60, H - 16, { pose: 'cheer', face: 'laugh', frame: (G.tick >> 3) });
@@ -1889,12 +2414,15 @@
     ctx.fillStyle = 'rgba(8,5,12,0.82)';
     ctx.fillRect(0, 0, W, H);
 
-    F.draw(ctx, 'BESTENLISTE', W / 2, 16, {
+    F.draw(ctx, 'BESTENLISTE', W / 2, 7, {
       color: '#ffd257', align: 'center', scale: 3, shadow: true
     });
 
-    var list = (G.scoreList || loadScores()).slice();
+    var board = boardList();
+    var list = board.list.slice();
     var cat = SCORE_CATS[G.scoreCat || 0];
+    F.draw(ctx, board.global ? 'WELTWEIT' : 'NUR AUF DIESEM GERÄT', W / 2, 31,
+           { color: board.global ? '#6fc8e8' : '#6a6280', align: 'center' });
 
     // Kategorie-Leiste
     var cx0 = 60;
@@ -1937,7 +2465,8 @@
       }
     }
 
-    F.draw(ctx, 'LINKS / RECHTS = SORTIEREN     SPRUNG = ZURÜCK', W / 2, H - 14,
+    F.draw(ctx, G.touch ? 'KATEGORIE ANTIPPEN = SORTIEREN     SONST TIPPEN = ZURÜCK'
+                        : 'LINKS / RECHTS = SORTIEREN     SPRUNG = ZURÜCK', W / 2, H - 14,
            { color: '#ffd257', align: 'center' });
   }
 
@@ -1968,7 +2497,7 @@
              { color: '#c8b8e0', align: 'center' });
     }
     if (G.endScroll > 150 && (G.tick >> 4) % 2 === 0) {
-      F.draw(ctx, 'SPRUNG = BESTENLISTE', W / 2, H - 18,
+      F.draw(ctx, G.touch ? 'TIPPEN = BESTENLISTE' : 'SPRUNG = BESTENLISTE', W / 2, H - 18,
              { color: '#ffd257', align: 'center' });
     }
   }
@@ -1979,6 +2508,7 @@
     F.draw(ctx, 'PAUSE', W / 2, 100, { color: '#ffd257', align: 'center', scale: 4, shadow: true });
     F.draw(ctx, 'YUSUF MACHT SOWIESO GERADE PAUSE.', W / 2, 146,
            { color: '#c8b8e0', align: 'center' });
+    if (G.touch) { drawTouchButtons(pauseButtons()); return; }
     F.draw(ctx, 'SPRUNG = WEITER    ESC = HAUPTMENÜ', W / 2, 176,
            { color: '#ffffff', align: 'center' });
     F.draw(ctx, 'M = TON ' + (S.isMuted() ? 'AN' : 'AUS'), W / 2, 192,
@@ -2011,7 +2541,7 @@
     F.draw(ctx, 'HÖ HÖ HÖÖÖ!', 130, 186, { color: '#ffd257' });
 
     if (G.resultTimer > 40 && (G.tick >> 4) % 2 === 0) {
-      F.draw(ctx, 'SPRUNG DRÜCKEN FÜR WEITER', W / 2, H - 26,
+      F.draw(ctx, G.touch ? 'TIPPEN FÜR WEITER' : 'SPRUNG DRÜCKEN FÜR WEITER', W / 2, H - 26,
              { color: '#ffd257', align: 'center' });
     }
   }
@@ -2026,7 +2556,8 @@
            { color: '#8f86a8', align: 'center' });
     P.drawChar(ctx, 'yusuf', W / 2 - 60, 220, { pose: 'sleep', face: 'sleep', frame: (G.tick >> 4) });
     P.drawChar(ctx, 'huseyin', W / 2 + 60, 220, { pose: 'idle', face: 'laugh', frame: (G.tick >> 3), flip: true });
-    if ((G.tick >> 4) % 2 === 0) {
+    if (G.touch) drawTouchButtons(gameoverButtons());
+    else if ((G.tick >> 4) % 2 === 0) {
       F.draw(ctx, 'SPRUNG = NOCHMAL     ESC = HAUPTMENÜ', W / 2, H - 22,
              { color: '#ffd257', align: 'center' });
     }
@@ -2038,7 +2569,7 @@
     ctx.fillStyle = 'rgba(8,5,12,0.42)';
     ctx.fillRect(0, 0, W, H);
 
-    for (var tx = 0; tx < 33; tx++) {
+    for (var tx = 0; tx <= W / 16; tx++) {
       P.draw(ctx, SP.tileTop('garten'), tx * 16, 240);
       P.draw(ctx, SP.tileFill('garten'), tx * 16, 256);
       P.draw(ctx, SP.tileFill('garten'), tx * 16, 272);
@@ -2092,31 +2623,134 @@
     }
 
     if (G.endScroll > 620 && (G.tick >> 4) % 2 === 0) {
-      F.draw(ctx, 'SPRUNG = HAUPTMENÜ', W / 2, H - 16,
+      F.draw(ctx, G.touch ? 'TIPPEN = HAUPTMENÜ' : 'SPRUNG = HAUPTMENÜ', W / 2, H - 16,
              { color: '#ffd257', align: 'center' });
     }
   }
 
   /* ================= Skalierung ================= */
 
+  /* Am PC: feste 512x288, moeglichst ganzzahlig vergroessert.
+     Am Handy fuellt das Bild den ganzen Bildschirm:
+       - die Breite folgt dem Seitenverhaeltnis, also keine schwarzen Balken,
+       - im Spiel ist die Ansicht naeher dran (weniger Himmel, groessere
+         Figuren), und das Bodenband liegt unten, wo die Knoepfe sind.
+     Menues behalten ihre 288 Pixel Hoehe, damit nichts abgeschnitten wird. */
+  var PLAY_STATES = { play: 1, dialog: 1, paused: 1 };
+  var BOTTOM_PAD = 0;   // Extra-Erde unter dem Level (nur Handy-Spielansicht)
+
+  function wantedView() {
+    var ww = window.innerWidth, wh = window.innerHeight;
+    var aspect = ww / Math.max(1, wh);
+    if (!G.touch || aspect < 1.6) return { w: 512, h: 288 };
+    var play = !!PLAY_STATES[G.state];
+    var h = play ? 232 : 288;
+    var w = Math.round(h * aspect);
+    w = Math.max(play ? 400 : 512, Math.min(play ? 580 : 660, w));
+    return { w: w, h: h };
+  }
+
+  var inMenu = null;
+
+  function applyView() {
+    // Steuerknoepfe nur im Spiel zeigen; Menues bedient man per Antippen
+    var menuNow = !(G.state === 'play' || G.state === 'dialog');
+    if (menuNow !== inMenu) {
+      inMenu = menuNow;
+      document.body.classList.toggle('inmenu', menuNow);
+    }
+    var v = wantedView();
+    if (v.w === W && v.h === H) return;
+    W = v.w; H = v.h;
+    BOTTOM_PAD = (H < 288) ? 16 : 0;
+    canvas.width = W; canvas.height = H;
+    ctx.imageSmoothingEnabled = false;
+    resize();
+  }
+
   function resize() {
-    var pad = (window.matchMedia && window.matchMedia('(pointer:coarse)').matches) ? 0 : 24;
-    var sw = (window.innerWidth - pad) / W;
-    var sh = (window.innerHeight - pad) / H;
-    var s = Math.max(1, Math.min(sw, sh));
-    // Ganzzahlige Skalierung, solange sie nicht zu viel Platz verschenkt
-    var si = Math.floor(s);
-    if (si >= 1 && (s - si) < 0.34) s = si;
+    var ww = window.innerWidth, wh = window.innerHeight, s;
+    if (G.touch) {
+      s = Math.min(ww / W, wh / H);
+    } else {
+      s = Math.max(1, Math.min((ww - 24) / W, (wh - 24) / H));
+      // Ganzzahlige Skalierung, solange sie nicht zu viel Platz verschenkt
+      var si = Math.floor(s);
+      if (si >= 1 && (s - si) < 0.34) s = si;
+    }
     canvas.style.width = Math.round(W * s) + 'px';
     canvas.style.height = Math.round(H * s) + 'px';
   }
-  window.addEventListener('resize', resize);
-  window.addEventListener('orientationchange', function () { setTimeout(resize, 120); });
+  function onResize() { applyView(); resize(); }
+  window.addEventListener('resize', onResize);
+  window.addEventListener('orientationchange', function () { setTimeout(onResize, 150); });
+  document.addEventListener('fullscreenchange', function () { setTimeout(onResize, 100); });
+  document.addEventListener('webkitfullscreenchange', function () { setTimeout(onResize, 100); });
 
   /* ================= Start ================= */
 
   global.Input.init(canvas);
+  applyView();
   resize();
+
+  /* ---------- Handy: Vollbild ----------
+     Browser erlauben Vollbild nur nach einem Tippen. Darum gibt es am
+     Handy einen Startknopf: ein Tippen = Vollbild + Querformat sperren
+     (Android) + Ton an. Das iPhone kann im Browser kein echtes Vollbild;
+     dort hilft "Zum Home-Bildschirm" — von da startet das Spiel ohne
+     Adressleiste (siehe manifest.webmanifest). */
+  (function mobileStart() {
+    var ov = document.getElementById('tapstart');
+    var go = document.getElementById('startbtn');
+    var hint = document.getElementById('fshint');
+    var fsb = document.getElementById('fsbtn');
+    if (!ov || !go) return;
+    var de = document.documentElement;
+    var canFs = !!(de.requestFullscreen || de.webkitRequestFullscreen);
+    var ios = /iP(hone|od|ad)/.test(navigator.userAgent) ||
+              (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    var standalone = navigator.standalone === true ||
+      !!(global.matchMedia && global.matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches);
+
+    function isFs() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+    function lockLandscape() {
+      try {
+        if (screen.orientation && screen.orientation.lock) {
+          screen.orientation.lock('landscape').catch(function () {});
+        }
+      } catch (e) {}
+    }
+    function enterFs() {
+      try {
+        var r = de.requestFullscreen ? de.requestFullscreen({ navigationUI: 'hide' })
+                                     : de.webkitRequestFullscreen();
+        if (r && r.then) r.then(lockLandscape, function () {});
+        else lockLandscape();
+      } catch (e) {}
+    }
+    function exitFs() {
+      try {
+        if (document.exitFullscreen) document.exitFullscreen();
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+      } catch (e) {}
+    }
+
+    if (fsb) {
+      if (!canFs || standalone) fsb.hidden = true;
+      fsb.addEventListener('click', function () { if (isFs()) exitFs(); else enterFs(); });
+    }
+
+    if (!G.touch || standalone) return;   // PC oder schon als App gestartet
+    if (!canFs) hint.textContent = ios ? 'Echtes Vollbild: Teilen → Zum Home-Bildschirm' : '';
+    ov.hidden = false;
+    go.addEventListener('click', function () {
+      if (canFs && !isFs()) enterFs();
+      S.resume();
+      if (G.state === 'title') S.music('menu');
+      ov.hidden = true;
+      setTimeout(onResize, 250);
+    });
+  })();
 
   // Dummy-Welt, damit das Titelbild etwas zum Zeichnen hat
   G.player = new E.Player(0, 0);

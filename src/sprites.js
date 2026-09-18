@@ -1135,6 +1135,157 @@
     l: '#fff0a8', t: '#241f28', T: '#c8cede'
   });
 
+  /* Erfans schwarzer CLA: flaches Coupe-Dach. */
+  P.def('cla', `
+    ...........kkkkkkkkkkk............
+    .........kkwwwwwwwwwwwkkk.........
+    .......kkwwwwwwwwwwwwwwwwkk.......
+    .....kkwwwwwwwwwwwwwwwwwwwwkk.....
+    kkkkksssssssssssssssssssssssskkkkk
+    kssssssssssssssssssssssssssssssllk
+    kcsssssssssssssssssssssssssssssllk
+    kSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSk
+    kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+    ....kkkkkk..............kkkkkk....
+    ...kttttttk............kttttttk...
+    ..kttTTTTttk..........kttTTTTttk..
+    ..kttTTTTttk..........kttTTTTttk..
+    ...kttttttk............kttttttk...
+    ....kkkkkk..............kkkkkk....
+  `, {
+    k: '#060608', s: '#25262e', S: '#111116', w: '#3e5068',
+    l: '#fff0a8', c: '#aeb6c6', t: '#1c1a20', T: '#9aa2b4'
+  });
+
+  /* Lennarts silberne E-Klasse: kantiger, mit Mittelsaeule. */
+  P.def('eklasse', `
+    .........kkkkkkkkkkkkkkk..........
+    ........kwwwwwwkwwwwwwwwk.........
+    .......kwwwwwwwkwwwwwwwwwk........
+    ......kwwwwwwwwkwwwwwwwwwwk.......
+    kkkkkksssssssssssssssssssssskkkkkk
+    kssssssssssssssssssssssssssssssllk
+    kccccccccccccccccccccccccccccccllk
+    kSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSk
+    kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+    ....kkkkkk..............kkkkkk....
+    ...kttttttk............kttttttk...
+    ..kttTTTTttk..........kttTTTTttk..
+    ..kttTTTTttk..........kttTTTTttk..
+    ...kttttttk............kttttttk...
+    ....kkkkkk..............kkkkkk....
+  `, {
+    k: '#14161c', s: '#c4c9d2', S: '#868d9a', w: '#46607a',
+    l: '#fff0a8', c: '#eef2f8', t: '#1c1a20', T: '#d4d9e4'
+  });
+
+  /* Erfans Kopf fuers Autofenster: Glatze, Vollbart, Kinn frei. */
+  P.def('erfan_head', `
+    ....kkkkkk....
+    ..kksssssskk..
+    .kssssssssssk.
+    ksssssssssssHk
+    kssssssssssssk
+    .kssgwsswgsdk.
+    .kjssssdsssjk.
+    .kjjssssssjjk.
+    .kjjkmmmmkjjk.
+    .kjjjsssjjjdk.
+    ..kjjsssjjdk..
+    ...kjdddjdk...
+    ....kkkkkk....
+  `, {
+    k: '#12101a', s: '#d9a276', d: '#b5805a', H: '#f2c9a0', j: '#1d1712',
+    g: '#2a2016', w: '#ffffff', m: '#7d2724'
+  });
+
+  /* Lennarts Kopf: kurze braune Haare, breiter Nacken. */
+  P.def('lennart_head', `
+    ....kkkkkk....
+    ..kkhhhhhhkk..
+    .khhhhhhhhhhk.
+    khhhhhhhhhhhhk
+    khsssssssssshk
+    .ksgwsssswgsk.
+    .kssssdssssdk.
+    .kssssssssssk.
+    .ksskmmmmkssk.
+    ..kssssssssk..
+    ...kddddddk...
+  `, {
+    k: '#12101a', h: '#6a4424', s: '#f0c09a', d: '#cf9a74',
+    g: '#2a3a5a', w: '#ffffff', m: '#8a3030'
+  });
+
+  /* Polizei. Blaue Uniform, Muetze, Schnurrbart, Strafzettel-Block. */
+  var POLIZEI_PAL = {
+    k: '#10121c', b: '#2c4a8c', B: '#1e3566', y: '#22242c', s: '#f0c09a',
+    d: '#cf9a74', g: '#1a1a1a', m: '#5a3a28', w: '#ffd257', n: '#1f2a44'
+  };
+  P.def('polizei', `
+    ...kkkkkkkk...
+    ..kbbbbbbbbk..
+    ..kbbbwwbbbk..
+    .kkkkkkkkkkkk.
+    ..kssssssssk..
+    ..ksgsssgsdk..
+    ..kssssssssk..
+    ..kssmmmmssk..
+    ...kssssssk...
+    ..kkbbbbbbkk..
+    .kbbbbwbbbbbk.
+    kbbbbbbbbbbbbk
+    kbBbbbbbbbbBbk
+    ksbbbbbbbbbbsk
+    kskbbbbbbbbksk
+    .kkyyyyyyyykk.
+    ..knnnnnnnnk..
+    ..knnnnnnnnk..
+    ..knnnkknnnk..
+    ..knnnkknnnk..
+    ..knnnkknnnk..
+    ..knnk..knnk..
+    .kkkkk..kkkkk.
+    .kkkkk..kkkkk.
+  `, POLIZEI_PAL);
+  P.def('polizei2', `
+    ...kkkkkkkk...
+    ..kbbbbbbbbk..
+    ..kbbbwwbbbk..
+    .kkkkkkkkkkkk.
+    ..kssssssssk..
+    ..ksgsssgsdk..
+    ..kssssssssk..
+    ..kssmmmmssk..
+    ...kssssssk...
+    ..kkbbbbbbkk..
+    .kbbbbwbbbbbk.
+    kbbbbbbbbbbbbk
+    kbBbbbbbbbbBbk
+    ksbbbbbbbbbbsk
+    kskbbbbbbbbksk
+    .kkyyyyyyyykk.
+    ..knnnnnnnnk..
+    ..knnnnnnnnk..
+    ..knnnkknnnk..
+    .knnnk..knnnk.
+    .knnk....knnk.
+    .knnk....knnk.
+    kkkkk....kkkkk
+    kkkkk....kkkkk
+  `, POLIZEI_PAL);
+
+  /* Strafzettel. Fliegt im Bogen. */
+  P.def('zettel', `
+    kkkkkkkkkk
+    kwwwwwwwwk
+    kwkkkkwwwk
+    kwwwwwwwwk
+    kwkkkkkkwk
+    kwwwwwwwwk
+    kkkkkkkkkk
+  `, { k: '#3a3a48', w: '#f4f4ee' });
+
   /* ---------------------------------------------------------------
      TILES — zwei Masken, sechs Welten
      --------------------------------------------------------------- */

@@ -41,7 +41,14 @@
 
   /* ---------------- Tastatur ---------------- */
 
+  function typingInField(e) {
+    var t = e.target;
+    return !!(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA'));
+  }
+
   global.addEventListener('keydown', function (e) {
+    // Im Namensfeld tippt man Text, man steuert nicht Yusuf
+    if (typingInField(e)) return;
     var acts = KEYMAP[e.code];
     if (!acts) return;
     // Scrollen und Seitensprünge unterdrücken
@@ -51,6 +58,7 @@
   }, { passive: false });
 
   global.addEventListener('keyup', function (e) {
+    if (typingInField(e)) return;
     var acts = KEYMAP[e.code];
     if (!acts) return;
     for (var i = 0; i < acts.length; i++) setAction(acts[i], false);
@@ -64,46 +72,74 @@
   /* ---------------- Touch ---------------- */
 
   var touchState = {};
+  var tapPos = null;    // letztes Tippen aufs Bild, in Spielkoordinaten
+
+  function actsFor(key) {
+    return (key === 'jump') ? ['jump', 'confirm']
+         : (key === 'pause') ? ['pause']
+         : (key === 'throw') ? ['throw', 'run']
+         : [key];
+  }
+
+  function setKey(key, v) {
+    if (!!touchState[key] === v) return;
+    touchState[key] = v;
+    actsFor(key).forEach(function (a) { setAction(a, v); });
+    var el = document.querySelector('#touch .tbtn[data-key="' + key + '"]');
+    if (el) el.classList.toggle('on', v);
+  }
+
+  /* Alle Finger auf einmal auswerten: welcher Finger liegt gerade auf
+     welchem Knopf? So kann man vom Links- auf den Rechts-Knopf rutschen,
+     ohne den Daumen anzuheben — wie bei einem echten Steuerkreuz. */
+  function refreshTouches(e) {
+    e.preventDefault();
+    var want = {};
+    for (var i = 0; i < e.touches.length; i++) {
+      var t = e.touches[i];
+      var el = document.elementFromPoint(t.clientX, t.clientY);
+      var k = el && el.getAttribute ? el.getAttribute('data-key') : null;
+      if (k) want[k] = true;
+    }
+    var btns = document.querySelectorAll('#touch .tbtn[data-key]');
+    for (var j = 0; j < btns.length; j++) {
+      var key = btns[j].getAttribute('data-key');
+      setKey(key, !!want[key]);
+    }
+  }
 
   function bindTouch() {
-    var btns = document.querySelectorAll('#touch .tbtn');
+    var btns = document.querySelectorAll('#touch .tbtn[data-key]');
     Array.prototype.forEach.call(btns, function (b) {
       var key = b.getAttribute('data-key');
-      var acts = (key === 'jump') ? ['jump', 'confirm']
-               : (key === 'pause') ? ['pause']
-               : (key === 'throw') ? ['throw', 'run']
-               : [key];
-
-      function on(e) {
-        e.preventDefault();
-        touchState[key] = true;
-        acts.forEach(function (a) { setAction(a, true); });
-      }
-      function off(e) {
-        e.preventDefault();
-        touchState[key] = false;
-        acts.forEach(function (a) { setAction(a, false); });
-      }
-
-      b.addEventListener('touchstart', on, { passive: false });
-      b.addEventListener('touchend', off, { passive: false });
-      b.addEventListener('touchcancel', off, { passive: false });
-      b.addEventListener('mousedown', on);
-      b.addEventListener('mouseup', off);
-      b.addEventListener('mouseleave', off);
+      ['touchstart', 'touchmove', 'touchend', 'touchcancel'].forEach(function (ev) {
+        b.addEventListener(ev, refreshTouches, { passive: false });
+      });
+      // Maus (z.B. Tablet mit Maus oder Test am PC)
+      b.addEventListener('mousedown', function (e) { e.preventDefault(); setKey(key, true); });
+      b.addEventListener('mouseup', function () { setKey(key, false); });
+      b.addEventListener('mouseleave', function () { setKey(key, false); });
     });
   }
 
-  /* Tippen irgendwo auf dem Bild = Bestätigen (für Menüs auf dem Handy) */
+  /* Tippen aufs Bild = Bestätigen. Zusätzlich merken wir uns WO getippt
+     wurde, damit man Menüpunkte direkt antippen kann. */
   function bindScreenTap(canvas) {
+    function tapAt(cx, cy) {
+      var r = canvas.getBoundingClientRect();
+      if (!r.width || !r.height) return;
+      tapPos = {
+        x: (cx - r.left) / r.width * canvas.width,
+        y: (cy - r.top) / r.height * canvas.height
+      };
+      setAction('confirm', true);
+      setTimeout(function () { setAction('confirm', false); }, 60);
+    }
     canvas.addEventListener('touchstart', function (e) {
-      setAction('confirm', true);
-      setTimeout(function () { setAction('confirm', false); }, 60);
+      var t = e.changedTouches && e.changedTouches[0];
+      if (t) tapAt(t.clientX, t.clientY);
     }, { passive: true });
-    canvas.addEventListener('mousedown', function () {
-      setAction('confirm', true);
-      setTimeout(function () { setAction('confirm', false); }, 60);
-    });
+    canvas.addEventListener('mousedown', function (e) { tapAt(e.clientX, e.clientY); });
   }
 
   /* ---------------- Gamepad ---------------- */
@@ -147,6 +183,13 @@
   function endFrame() {
     ACTIONS.forEach(function (a) { pressed[a] = false; released[a] = false; });
     anyPressed = false;
+    tapPos = null;
+  }
+
+  /** Alles loslassen — z.B. wenn ein Eingabefeld den Fokus bekommt. */
+  function releaseAll() {
+    ACTIONS.forEach(function (a) { if (held[a]) setAction(a, false); });
+    Object.keys(touchState).forEach(function (k) { setKey(k, false); });
   }
 
   global.Input = {
@@ -162,6 +205,9 @@
     axis: function () {
       return (held.right ? 1 : 0) - (held.left ? 1 : 0);
     },
+    /** Wo in diesem Frame aufs Bild getippt wurde (oder null). */
+    tap: function () { return tapPos; },
+    releaseAll: releaseAll,
     endFrame: endFrame
   };
 
