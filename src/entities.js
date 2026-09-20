@@ -22,6 +22,7 @@
   var BUFFER = 8;
   var POUND_CHARGE = 8;
   var POUND_SPEED = 13;
+  var POUND_BOSS_DMG = 0.5;   // Arschbombe auf Bosse: halber Schaden
   var SLEEP_AFTER = 300;  // 5 Sekunden nichts tun -> Yusuf pennt
 
   /* Schwierigkeitsgrad pro Level. Wirkt auf Tempo und Angriffslust
@@ -608,7 +609,7 @@
       // WICHTIG: alle Boss-Klassen erwarten hier den Spieler als dritten
       // Wert. Frueher stand hier ein "true" — das hat beim Bauch-Stampfer
       // auf Mirkan, Lennart, Erfan und Esat das Spiel abstuerzen lassen.
-      if (bd < 56 && bdy < 34) g.boss.hit(g, 1, this);
+      if (bd < 56 && bdy < 34) g.boss.hit(g, POUND_BOSS_DMG, this);
     }
     for (var s = 0; s < 14; s++) {
       g.particles.spawn({
@@ -1108,6 +1109,14 @@
     else { this.w = 10; this.h = 14; this.spr = 'shaker'; this.grav = 0; }
   }
 
+  /** Welt aus Sicht eines Geschosses. Boss-Angriffe fliegen durch die
+      schwebenden Arena-Plattformen — sonst stellt man sich einfach
+      darunter und der Kampf laeuft von allein. */
+  Projectile.prototype.solidAt = function (g, tx, ty) {
+    if (this.bossShot && g.boss && ty < g.boss.floorRow) return false;
+    return g.world.solid(tx, ty);
+  };
+
   Projectile.prototype.pop = function (g, col) {
     if (this.dead) return;
     this.dead = true;
@@ -1142,7 +1151,7 @@
                             size: 2, grav: 0.1 });
       }
       var ahead2 = Math.floor((this.x + (this.vx > 0 ? this.w : 0)) / T);
-      if (g.world.solid(ahead2, cyT)) { this.pop(g, this.col); return; }
+      if (this.solidAt(g, ahead2, cyT)) { this.pop(g, this.col); return; }
       if (!g.player.dead && overlap(this, g.player)) {
         this.pop(g, this.col);
         if (g.player.power <= 0 && g.player.pound !== -1) {
@@ -1164,7 +1173,7 @@
 
     if (this.t === 'bombe') {
       var bty = Math.floor((this.y + this.h) / T);
-      if (this.vy > 0 && g.world.solid(cxT, bty)) {
+      if (this.vy > 0 && this.solidAt(g, cxT, bty)) {
         this.dead = true;
         g.shake(4, 10);
         global.Sound.play('pound');
@@ -1183,7 +1192,7 @@
     if (this.t === 'kippe') {
       // Kippen hüpfen über den Boden statt geradeaus zu fliegen.
       var below = Math.floor((this.y + this.h) / T);
-      if (this.vy > 0 && g.world.solid(cxT, below)) {
+      if (this.vy > 0 && this.solidAt(g, cxT, below)) {
         this.y = below * T - this.h;
         this.vy = -3.5;
         g.particles.spawn({ x: this.x + 5, y: this.y + 4, vx: 0, vy: -0.5,
@@ -1191,8 +1200,8 @@
         if (--this.bounces <= 0) this.pop(g, '#ffb43c');
       }
       var ahead = Math.floor((this.x + (this.vx > 0 ? this.w : 0)) / T);
-      if (g.world.solid(ahead, cyT)) this.pop(g, '#ffb43c');
-    } else if (g.world.solid(cxT, cyT)) {
+      if (this.solidAt(g, ahead, cyT)) this.pop(g, '#ffb43c');
+    } else if (this.solidAt(g, cxT, cyT)) {
       this.pop(g);
     }
 
@@ -1259,7 +1268,11 @@
     var p = g.player;
     if (p.dead || b.invuln > 0 || b.state === 'transform' || !overlap(b, p)) return;
     var stomp = p.vy > 0.5 && (p.feet() - b.y) < b.stompY;
-    if (stomp || p.power > 0 || p.pound === -1) b.hit(g, 1, p);
+    // Die Arschbombe macht nur halben Schaden. Vorher konnte man jeden
+    // Boss einfach mit Bauch-Stampfern zuspammen und ueberrennen.
+    if (p.power > 0) b.hit(g, 1, p);
+    else if (p.pound === -1) b.hit(g, POUND_BOSS_DMG, p);
+    else if (stomp) b.hit(g, 1, p);
     else if (!b.open) p.hurt(g, 1, b.cx());
   }
 
@@ -1283,7 +1296,7 @@
     }
   }
 
-  function bossBounce(b, g, p, col) {
+  function bossBounce(b, g, p, col, dmg) {
     b.invuln = b.rage ? 40 : 48;
     b.flash = 16;
     b.state = 'idle';
@@ -1292,6 +1305,8 @@
     b.vx = (p && p.cx() > b.cx()) ? -2.6 : 2.6;
     if (p) { p.vy = -8.2; p.jumpsLeft = 1; p.laughTimer = 40; }
     global.Sound.play('bossHit');
+    // Sichtbar machen, warum der Balken kaum kleiner wird
+    if (dmg && dmg < 1) g.floats.add(b.cx(), b.y - 20, 'NUR HALB!', '#c8c0d8', 50);
     g.shake(6, 14);
     g.particles.burst(b.cx(), b.y + b.h / 2, 16, { col: col, spread: 3, up: 1, life: 30 });
   }
@@ -1563,7 +1578,7 @@
   Boss.prototype.hit = function (g, dmg, p) {
     if (this.invuln > 0 || this.dead || this.state === 'transform') return;
     this.hp -= dmg;
-    bossBounce(this, g, p, '#9dff6a');
+    bossBounce(this, g, p, '#9dff6a', dmg);
     if (Math.random() < 0.5) global.Sound.play('laugh');
     g.floats.add(this.cx(), this.y - 6, 'TREFFER!', '#9dff6a', 45);
 
@@ -2058,7 +2073,7 @@
   MiniBoss.prototype.hit = function (g, dmg, p) {
     if (this.invuln > 0 || this.dead || this.state === 'transform') return;
     this.hp -= dmg;
-    bossBounce(this, g, p, this.def.col);
+    bossBounce(this, g, p, this.def.col, dmg);
     if (this.hp <= 0) {
       this.dead = true; this.deadTimer = 0; this.vy = -6;
       (p || g.player).score += this.def.score;
@@ -2282,7 +2297,7 @@
   BossEsat.prototype.hit = function (g, dmg, p) {
     if (this.invuln > 0 || this.dead || this.state === 'transform') return;
     this.hp -= dmg;
-    bossBounce(this, g, p, '#2fd39e');
+    bossBounce(this, g, p, '#2fd39e', dmg);
     if (this.hp <= 0) {
       this.dead = true; this.deadTimer = 0; this.vy = -7;
       g.shake(10, 44);

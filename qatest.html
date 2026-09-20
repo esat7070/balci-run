@@ -51,6 +51,7 @@ window.__restore = function () {
 <script src="src/input.js"></script>
 <script src="src/levels.js"></script>
 <script src="src/entities.js"></script>
+<script src="src/eat.js"></script>
 <script src="src/game.js"></script>
 
 <script>
@@ -101,6 +102,17 @@ function killBoss() {
   b.state = 'idle'; b.invuln = 0; b.hp = 1;
   b.hit(G, 1, P());
 }
+/** Level 8 durchspielen: Anruf annehmen, dann satt essen. */
+function playLevel8() {
+  until(function () { return G.state === 'play' && G.lvlIndex === 7; }, 1500, true);
+  tick(20);
+  press('confirm');                                   // Anruf annehmen
+  until(function () { return G.eat && G.eat.phase === 'eat'; }, 1500, true);
+  var guard = 0;
+  while (G.eat.kcal < G.eat.goal && guard++ < 600) { press('jump'); tick(3); }
+  return until(function () { return G.state === 'nameentry'; }, 1500, true);
+}
+
 function triggerBoss() {
   var p = P();
   p.x = G.arena.x + 80; p.y = G.lvl.boss.y * 16 - p.h - 2; p.vy = 0;
@@ -206,7 +218,9 @@ setTimeout(function () {
     ok(P().w === 12, 'Nach dem Auto wieder normale Trefferbox', P().w);
     ok(triggerBoss(), 'Esat erscheint');
     killBoss();
-    ok(until(function () { return G.state === 'nameentry'; }, 1500, true), 'Nach Esat: Namenseingabe');
+    ok(until(function () { return G.state === 'play' && G.lvlIndex === 7; }, 1500, true),
+       'Nach Esat geht es in Level 8', G.lvlIndex + 1);
+    ok(playLevel8(), 'Level 8 geschafft, dann Namenseingabe');
 
     var nf = document.getElementById('nameform');
     var ok0 = document.getElementById('nfok');
@@ -233,12 +247,33 @@ setTimeout(function () {
     ok(until(function () { return G.state === 'play' && G.lvlIndex === 6; }, 400, true), 'Level 7 ueber Levelauswahl');
     ok(triggerBoss(), 'Esat erscheint');
     killBoss();
-    ok(until(function () { return G.state === 'nameentry'; }, 1500, true), 'Siegerbildschirm');
+    ok(playLevel8(), 'Level 8 und dann der Siegerbildschirm');
     ok(nf.hidden, 'Kein Namensfeld bei Teil-Durchgang');
     for (q = 0; q < 60; q++) tick(1);
     press('confirm');
     ok(until(function () { return G.state === 'teaser'; }, 200, false), 'Bestaetigen fuehrt zum Teaser');
     ok(window.__submits.length === 1, 'Nichts an den Server geschickt', window.__submits.length);
+
+    /* ============ E2. Level 8: der Morgen danach ============ */
+    section('E2. Level 8 (Essen)');
+    G._loadLevel(7, false); G.state = 'play'; G.frozen = false; G.banner = 0;
+    ok(!!G.eat && G.eat.phase === 'ring', 'Szene startet mit klingelndem Handy',
+       G.eat ? G.eat.phase : 'keine Szene');
+    tick(30);
+    press('confirm');
+    ok(until(function () { return G.state === 'dialog'; }, 200, false), 'Anruf von Erfan');
+    ok(until(function () { return G.eat.phase === 'eat'; }, 900, true), 'Danach steht Yusuf am Tisch');
+    tick(30);
+    ok(G.eat.slots.filter(function (s) { return !!s.food; }).length > 0, 'Essen liegt auf dem Tisch');
+    var scoreBefore8 = P().score, guard8 = 0;
+    while (G.eat.kcal < G.eat.goal && guard8++ < 500) { press('jump'); tick(4); }
+    ok(G.eat.kcal >= G.eat.goal, 'Zaehler erreicht 10.000 Kalorien', G.eat.kcal);
+    ok(P().score > scoreBefore8, 'Essen gibt Punkte', '+' + (P().score - scoreBefore8));
+    ok(until(function () { return G.state === 'dialog'; }, 300, false), 'Schlussgespraech');
+    ok(until(function () { return G.state === 'nameentry'; }, 900, true), 'Danach die Namenseingabe');
+    ok(save().completed === true, 'Spiel gilt als durchgespielt');
+    document.getElementById('nameform').hidden = true;
+    G.nameSent = true;
 
     /* ============ E. Level 6 ============ */
     section('E. Mustang-Level');

@@ -41,6 +41,7 @@ window.__restore = function () {
 <script src="src/input.js"></script>
 <script src="src/levels.js"></script>
 <script src="src/entities.js"></script>
+<script src="src/eat.js"></script>
 <script src="src/game.js"></script>
 
 <script>
@@ -150,6 +151,26 @@ function run() {
     });
     ok(badSpawn.length === 0, 'L' + (i + 1) + ' Start/Checkpoints nicht neben Gefahrenfeldern',
        badSpawn.join(' '));
+
+    // Nichts darf ineinander stecken: Items nicht im Boden oder in einem
+    // Block, und zwei Bloecke nicht auf derselben Kachel.
+    var solidsOnly = new Ent.World();
+    solidsOnly.load({ w: L.w, h: L.h, theme: L.theme, solids: L.solids, blocks: [],
+                      hazards: [], movers: [], signs: [] });
+    var blockAt = {};
+    var stuck2 = [];
+    L.blocks.forEach(function (b) {
+      var key = b.x + ',' + b.y;
+      if (blockAt[key]) stuck2.push('2 Bloecke @' + key);
+      blockAt[key] = b.type;
+      if (solidsOnly.solid(b.x, b.y)) stuck2.push(b.type + ' im Boden @' + key);
+    });
+    L.items.forEach(function (it) {
+      var key = it.x + ',' + it.y;
+      if (solidsOnly.solid(it.x, it.y)) stuck2.push(it.t + ' im Boden @' + key);
+      else if (blockAt[key]) stuck2.push(it.t + ' im ' + blockAt[key] + ' @' + key);
+    });
+    ok(stuck2.length === 0, 'L' + (i + 1) + ' nichts steckt ineinander', stuck2.join(' '));
 
     // Jeder Fragezeichen-Block muss erreichbar sein: entweder von unten
     // anspringbar (Luft darunter) oder von oben stampfbar (Luft darueber).
@@ -323,7 +344,12 @@ function run() {
       // danach fleissig weiter sammeln
       p.honey = 95; p.score = 7000;
       p.kill(G);
-      for (var i = 0; i < 400 && G.state === 'play'; i++) G._update();
+      // Direkt nach dem Wiederbeleben messen. Laesst man laenger laufen,
+      // erledigt Yusuf schon wieder Gegner und die Punkte steigen wieder.
+      for (var i = 0; i < 400; i++) {
+        G._update();
+        if (G.state === 'play' && !G.player.dead && G.player.invuln > 0) break;
+      }
       honeyAfter = G.player.honey;
       scoreAfter = G.player.score;
     } catch (e) { err = e.message; }
@@ -383,6 +409,25 @@ function run() {
     G.state = 'play';
     G.frozen = false;
     G.banner = 0;
+
+    // Level 8 ist kein Laufweg, sondern die Essen-Szene. Die pruefen
+    // wir hier nur grob; alles Weitere macht qatest.html.
+    if (L.eat) {
+      var eErr = null;
+      try {
+        for (var et = 0; et < 900; et++) {
+          G._update();
+          if (G.state === 'dialog') { G.dialog = null; G.frozen = false; G.state = 'play'; }
+          if (et % 9 === 0) G._render();
+        }
+      } catch (ex) { eErr = ex.message; }
+      ok(!eErr, 'L' + (idx + 1) + ' Essen-Szene laeuft ohne Absturz', eErr || '');
+      ok(!!G.eat && G.eat.phase !== 'ring', 'L' + (idx + 1) + ' Szene kommt in Gang',
+         G.eat ? G.eat.phase : 'keine Szene');
+      results.push('L' + (idx + 1) + ': Essen-Szene, Phase ' + (G.eat ? G.eat.phase : '-'));
+      return;
+    }
+
     var p = G.player;
     p.lives = 999;
     var startX = p.x;

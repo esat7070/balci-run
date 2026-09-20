@@ -31,7 +31,7 @@
     };
 
     var n = Math.floor(Number(s.unlocked));
-    save.unlocked = isFinite(n) ? Math.max(1, Math.min(7, n)) : 1;
+    save.unlocked = isFinite(n) ? Math.max(1, Math.min(LV.list.length, n)) : 1;
     save.completed = (s.completed === true);
 
     if (Array.isArray(s.best)) {
@@ -100,6 +100,7 @@
   };
   G.cameraTopY = function () { return G.cam.y - 20; };
   G.viewW = function () { return W; };
+  G.showDialog = function (lines, after) { startDialog(lines, after); };
   /** Kurzes farbiges Aufblitzen, z.B. bei einer Boss-Verwandlung. */
   G.flashScreen = function (col, dur) { G.flashFx = { col: col, t: dur, max: dur }; };
 
@@ -120,6 +121,9 @@
   G.addItem = function (t, x, y, popped) { G.items.push(new E.Item(t, x, y, popped)); };
   G.addProjectile = function (t, x, y, vx, vy, friendly) {
     var pr = new E.Projectile(t, x, y, vx, vy, friendly);
+    // Alles, was waehrend eines Bosskampfes vom Gegner kommt, fliegt
+    // durch die Arena-Plattformen hindurch (siehe Projectile.solidAt).
+    pr.bossShot = !!(G.boss && !G.boss.dead && !friendly);
     G.projectiles.push(pr);
     return pr;
   };
@@ -140,6 +144,8 @@
             : (lvl.boss ? { x: (lvl.boss.x - 34) * T, w: 45 * T } : null);
     G.mirkanTriggers = (lvl.mirkan || []).slice();
     G.mirkan = null;
+    // Level 8 ist keine Huepfstrecke, sondern die Szene aus eat.js
+    G.eat = (lvl.eat && global.Eat) ? global.Eat.init(G, lvl) : null;
 
     var i;
     for (i = 0; i < lvl.enemies.length; i++) {
@@ -396,13 +402,27 @@
     clearEnemies();
     G.after(85, function () {
       startDialog(LV.esat.end, function () {
-        save.unlocked = LV.list.length;
-        save.completed = true;      // schaltet die Levelauswahl frei
-        save.run = null;            // Durchgang ist fertig
+        // Nach Esat geht es zu Hause weiter: Level 8, der Morgen danach.
+        save.unlocked = Math.max(save.unlocked, 8);
         persist();
-        fadeTo(function () { startNameEntry(); });
+        saveRun(7);
+        fadeTo(function () {
+          G.checkpoint = null;
+          loadLevel(7, false);
+          S.music(LV.list[7].music);
+          G.state = 'play';
+        });
       });
     });
+  };
+
+  /** Level 8 geschafft: 10.000 Kalorien sind drin. */
+  G.onEatDone = function () {
+    save.unlocked = LV.list.length;
+    save.completed = true;      // durchgespielt
+    save.run = null;
+    persist();
+    fadeTo(function () { startNameEntry(); });
   };
 
   G.onBossPhase = function (phase) {
@@ -683,6 +703,8 @@
 
   function updateWorld() {
     var p = G.player, i;
+    // Level 8 hat seine eigene Welt (Couch, Schreibtisch, Essen)
+    if (G.eat) { global.Eat.update(G, W, H); return; }
     // Während eines Dialogs steht die ganze Welt still. Vorher lief
     // Huseyin weiter und hat Yusuf verprügelt, während man nicht
     // steuern konnte — das war der unfairste Bug im Spiel.
@@ -1273,7 +1295,7 @@
         ctx.fillRect(0, 0, W, H);
         ctx.globalAlpha = 1;
       }
-      drawHUD();
+      if (!G.eat) drawHUD();
       if (G.state === 'paused') drawPause();
       if (G.state === 'clear') drawResults();
       if (G.state === 'dialog') drawDialog();
@@ -1670,6 +1692,11 @@
   }
 
   function drawScene() {
+    if (G.eat) {
+      global.Eat.draw(ctx, G, W, H);
+      if (G.banner > 0) drawBanner();
+      return;
+    }
     var camX = Math.round(G.cam.x + G.cam.sx), camY = Math.round(G.cam.y + G.cam.sy);
     drawSky(G.world.theme);
     // Der Hintergrund ist fuer 288 Pixel Hoehe gezeichnet. In der
@@ -2499,21 +2526,21 @@
 
     var a = Math.min(1, G.endScroll / 60);
     ctx.globalAlpha = a;
-    F.draw(ctx, 'DEMNÄCHST', W / 2, 54, {
+    F.draw(ctx, 'DEMNÄCHST', W / 2, 46, {
       color: '#8f86a8', align: 'center', scale: 2
     });
-    F.draw(ctx, 'ESATS', W / 2, 84, {
-      color: '#6fc8e8', align: 'center', scale: 5, shadow: 1,
-      shadowColor: '#10303f', wave: G.tick * 0.05, waveAmp: 1
+    F.draw(ctx, 'LEVEL 9', W / 2, 74, {
+      color: '#ffd257', align: 'center', scale: 5, shadow: 1,
+      shadowColor: '#5e2a10', wave: G.tick * 0.05, waveAmp: 1
     });
-    F.draw(ctx, "JUMP'N'RUN", W / 2, 132, {
-      color: '#ffd257', align: 'center', scale: 4, shadow: 1, shadowColor: '#5e2a10'
+    F.draw(ctx, 'DER HUNGER BLEIBT', W / 2, 122, {
+      color: '#ff8aa0', align: 'center', scale: 2, shadow: true
     });
     ctx.globalAlpha = 1;
 
-    P.draw(ctx, 'esat', W / 2 - 8, 178);
+    P.draw(ctx, 'esat', W / 2 - 8, 172);
     if (G.endScroll > 90) {
-      F.draw(ctx, 'ER WEISS NOCH NICHTS DAVON.', W / 2, H - 44,
+      F.draw(ctx, 'UND DANACH: ESATS EIGENES JUMP\'N\'RUN.', W / 2, H - 44,
              { color: '#c8b8e0', align: 'center' });
     }
     if (G.endScroll > 150 && (G.tick >> 4) % 2 === 0) {

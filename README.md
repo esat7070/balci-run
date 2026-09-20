@@ -21,6 +21,7 @@ Handy und Tablet funktionieren auch (Touch-Steuerung blendet sich automatisch ei
 | `Shift` / `E` | Rennen + **Kippe werfen** |
 | `Esc` / `P` | Pause |
 | `M` | Ton an / aus |
+| Maus ziehen (Level 8) | Essen zu Yusuf ziehen; alternativ Pfeile + Sprung |
 
 Gamepad wird ebenfalls erkannt.
 
@@ -46,10 +47,14 @@ Gamepad wird ebenfalls erkannt.
   Treffer kostet dich nur das Päckchen statt eines Herzens.
 - **Nicht in die Gabeln treten.** Küchen sind gefährlicher als sie aussehen.
 - **Jeder Boss verwandelt sich** bei halber Energie — und wird schneller und wilder.
+- **Die Arschbombe macht bei Bossen nur halben Schaden.** Sonst haette man
+  jeden Kampf einfach mit Bauch-Stampfern zugespammt.
+- **Boss-Angriffe fliegen durch die Arena-Plattformen.** Unter einer Plattform
+  stehenbleiben hilft also nicht mehr.
 
 Steh mal zu lange still. Yusuf schläft dann einfach ein. Und knurren tut er sowieso.
 
-## Die sieben Level
+## Die acht Level
 
 | # | Level | Wo |
 |---|---|---|
@@ -60,6 +65,7 @@ Steh mal zu lange still. Yusuf schläft dann einfach ein. Und knurren tut er sow
 | 5 | Huseyins Salat-Festung | Gebaut aus Disziplin. Und Salat. |
 | 6 | Mustang nach Stilbruch | Siegerfahrt, 2 Uhr nachts |
 | 7 | Der letzte Kampf | Esat hat es zu weit getrieben |
+| 8 | Der Morgen danach | Sonntag, 13:40 Uhr, auf der Couch |
 
 ### Jedes Level hat seinen eigenen Boss
 
@@ -102,6 +108,16 @@ Spiel genau die Bewegung bestrafen, die es verlangt. Am Lebensbalken steht
 **OFFEN**, wenn du gefahrlos ranspringen kannst. Über Bodenwellen springt man
 drüber.
 
+### Level 8: Der Morgen danach
+
+Nach Esat geht es zu Hause weiter, und zwar ohne Springen. Yusuf liegt mit
+Krümeln auf der Couch, **Erfan ruft an** und brüllt ihn wach. Danach steht er
+am Schreibtisch, und du **ziehst ihm das Essen mit der Maus** (am Handy mit dem
+Finger) **in den Mund** — oder wählst es mit den Pfeiltasten und drückst Sprung.
+Über jedem Teil stehen die Kalorien: Beefy, Rippen-Burger, Chips, Döner,
+Pommes, Schokolade, Nuggets. Ziel: **10.000 Kalorien**. Danach steht Yusuf auf,
+sagt, er habe immer noch Hunger — und **Level 9** wird angekündigt.
+
 Während aller Gespräche steht die Welt still: Gegner, Würfe und Bosse
 bewegen sich nicht, der Hintergrund wird abgedunkelt und rechts oben im
 Textfeld steht **PAUSE**. Man kann also nicht sterben, während jemand redet.
@@ -123,9 +139,10 @@ Die besten fünf stehen **immer auf dem Titelbild** (antippen oder im Menü
 **BESTENLISTE** für die ganze Liste). Sortierbar nach **Punkten, Honig, Zeit
 oder Toden**.
 
-Wer Esat besiegt, trägt sich in einem normalen Textfeld ein — ohne Zeitdruck,
-bis zu 10 Zeichen, erst **EINTRAGEN** speichert. Gezählt wird der **ganze
-Durchgang** über alle sieben Level. In die Liste kommen nur Durchgänge, die bei
+Wer Esat besiegt und danach Level 8 leer isst, trägt sich in einem normalen
+Textfeld ein — ohne Zeitdruck, bis zu 10 Zeichen, erst **EINTRAGEN** speichert.
+Gezählt wird der **ganze Durchgang** über alle acht Level (die Kalorien aus
+Level 8 geben auch Punkte). In die Liste kommen nur Durchgänge, die bei
 **Level 1** begonnen haben (auch wenn sie zwischendurch mit WEITER fortgesetzt
 wurden) — sonst könnte man mit Level 7 allein die Zeitwertung gewinnen.
 
@@ -194,6 +211,7 @@ src/audio.js        Chiptune-Engine
 src/input.js        Tastatur / Gamepad / Touch
 src/levels.js       Die sieben Level + alle Dialoge
 src/entities.js     Physik, Gegner-KI, alle Bosse
+src/eat.js          Level 8: Couch, Anruf, 10.000 Kalorien
 src/online.js       Weltweite Bestenliste (aus, bis eingerichtet)
 src/game.js         Spielschleife, Kamera, Menüs, HUD
 ```

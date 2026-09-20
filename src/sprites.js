@@ -1287,6 +1287,134 @@
   `, { k: '#3a3a48', w: '#f4f4ee' });
 
   /* ---------------------------------------------------------------
+     LEVEL 8 — der Morgen danach: Handy, Hand und sehr viel Essen
+     --------------------------------------------------------------- */
+
+  P.palette('food', {
+    k: '#3a2412',
+    b: '#e8b55c', B: '#c98f3e', w: '#fff4d8', l: '#6fbf4a',
+    m: '#8a4a28', M: '#5e3018', c: '#ffcf4a', q: '#7d2318',
+    r: '#e0483c', R: '#a72e26', y: '#ffd257', Y: '#e0a81e',
+    n: '#d8a05a', N: '#a8763c', o: '#f0e0d0', s: '#f4bd91',
+    z: '#2a2030', Z: '#4a4258', f: '#f2f2ee'
+  });
+
+  /* Beefy — der grosse Burger. */
+  P.def('food_beefy', `
+    ..kkkkkkkkkkkk..
+    .kbbbbbbbbbbbbk.
+    kbbwbbbwbbbwbbbk
+    kbbbbbbbbbbbbbbk
+    kllllllllllllllk
+    kmmmmmmmmmmmmmmk
+    kcccccccccccccck
+    kBBBBBBBBBBBBBBk
+    .kkkkkkkkkkkkkk.
+  `, 'food');
+
+  /* Rippen-Burger. Sauce bis zum Ellenbogen. */
+  P.def('food_rippen', `
+    ..kkkkkkkkkkkk..
+    .kbbbbbbbbbbbbk.
+    kbbbbbbbbbbbbbbk
+    kqqqqqqqqqqqqqqk
+    kmqmqmqmqmqmqmqk
+    kqqqqqqqqqqqqqqk
+    kooooooooooooook
+    kBBBBBBBBBBBBBBk
+    .kkkkkkkkkkkkkk.
+  `, 'food');
+
+  /* Chipstuete. */
+  P.def('food_chips', `
+    .kkkkkkkkkk.
+    kwwwwwwwwwwk
+    kwrrrrrrrrwk
+    kwrwwwwwwrwk
+    kwrwyyyywrwk
+    kwrwyyyywrwk
+    kwrwwwwwwrwk
+    kwrrrrrrrrwk
+    kwwwwwwwwwwk
+    kwrrrrrrrrwk
+    kwwwwwwwwwwk
+    .kkkkkkkkkk.
+  `, 'food');
+
+  /* Pommes in der roten Schachtel. */
+  P.def('food_pommes', `
+    ...yy..yy.....
+    ..yy..yy..yy..
+    ..yy..yy..yy..
+    .kkkkkkkkkkkk.
+    .krrrrrrrrrrk.
+    .krwwwwwwwwrk.
+    .krrrrrrrrrrk.
+    .krrrrrrrrrrk.
+    ..krrrrrrrrk..
+    ..kkkkkkkkkk..
+  `, 'food');
+
+  /* Tafel Schokolade. */
+  P.def('food_schoko', `
+    kkkkkkkkkkkkkkkk
+    kMMMMMMMMMMMMMMk
+    kMnnMnnMnnMnnMMk
+    kMnnMnnMnnMnnMMk
+    kMMMMMMMMMMMMMMk
+    kMnnMnnMnnMnnMMk
+    kMnnMnnMnnMnnMMk
+    kMMMMMMMMMMMMMMk
+    kffffffffffffffk
+    kkkkkkkkkkkkkkkk
+  `, 'food');
+
+  /* Nuggets in der Schachtel. */
+  P.def('food_nuggets', `
+    ...nnn...nnn....
+    ..nnnnn.nnnnn...
+    ..nnnnn.nnnnn...
+    kkkkkkkkkkkkkkkk
+    krrrrrrrrrrrrrrk
+    krrwwwwwwwwwwrrk
+    krrwwwwwwwwwwrrk
+    krrrrrrrrrrrrrrk
+    .kkkkkkkkkkkkkk.
+    ..kkkkkkkkkkkk..
+  `, 'food');
+
+  /* Das Handy. Erfan ruft an, und zwar hartnaeckig. */
+  P.def('handy', `
+    kkkkkkkkkk
+    kZZZZZZZZk
+    kZffffffZk
+    kZffffffZk
+    kZffffffZk
+    kZffffffZk
+    kZffffffZk
+    kZffffffZk
+    kZZZZZZZZk
+    kZZkkkkZZk
+    kkkkkkkkkk
+  `, 'food');
+
+  /* Yusufs Hand — damit zieht man das Essen zum Mund. */
+  P.def('hand', `
+    ...kk.......
+    ..kssk......
+    ..kssk.kk...
+    ..kssk.ksk..
+    ..ksskkkssk.
+    .kkssssssssk
+    .ksssssssssk
+    .ksssssssssk
+    .ksssssssssk
+    ..kssssssssk
+    ..kssssssskk
+    ...kkkkkkkk.
+  `, 'food');
+
+  /* ---------------------------------------------------------------
      TILES — zwei Masken, sechs Welten
      --------------------------------------------------------------- */
 

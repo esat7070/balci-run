@@ -485,6 +485,19 @@
     snore: function () {
       tone({ wave: 'sawtooth', f0: 110, f1: 70, dur: 0.5, gain: 0.16,
              vibrato: 7, vibratoDepth: 14 });
+    },
+    // Level 8: Erfan ruft an. Zweiklang, zweimal — wie ein altes Handy.
+    ring: function () {
+      var t0 = ctx ? ctx.currentTime : 0;
+      [0, 0.16].forEach(function (d) {
+        tone({ at: t0 + d, wave: 'p50', f0: 1320, dur: 0.1, gain: 0.22 });
+        tone({ at: t0 + d + 0.08, wave: 'p50', f0: 990, dur: 0.1, gain: 0.22 });
+      });
+    },
+    // Ein Bissen.
+    bite: function () {
+      tone({ wave: 'sawtooth', f0: 260, f1: 90, dur: 0.11, gain: 0.26 });
+      noise({ dur: 0.1, gain: 0.2, f0: 2600, f1: 600 });
     }
   };
 

@@ -123,6 +123,51 @@
     });
   }
 
+  /* Zeiger (Maus oder Finger) auf dem Bild — fuer Level 8, wo man das
+     Essen mit der Hand zum Mund zieht. Koordinaten wie im Spielbild. */
+  var ptr = { x: 0, y: 0, down: false, justDown: false, justUp: false, on: false };
+
+  function bindPointer(canvas) {
+    function toCanvas(cx, cy) {
+      var r = canvas.getBoundingClientRect();
+      if (!r.width || !r.height) return null;
+      return { x: (cx - r.left) / r.width * canvas.width,
+               y: (cy - r.top) / r.height * canvas.height };
+    }
+    function move(e) {
+      var p = toCanvas(e.clientX, e.clientY);
+      if (!p) return;
+      ptr.x = p.x; ptr.y = p.y; ptr.on = true;
+    }
+    function down(e) {
+      move(e);
+      if (!ptr.down) { ptr.down = true; ptr.justDown = true; }
+    }
+    function up(e) {
+      move(e);
+      if (ptr.down) { ptr.down = false; ptr.justUp = true; }
+    }
+    if (global.PointerEvent) {
+      canvas.addEventListener('pointerdown', down);
+      global.addEventListener('pointermove', move);
+      global.addEventListener('pointerup', up);
+      global.addEventListener('pointercancel', up);
+    } else {
+      canvas.addEventListener('touchstart', function (e) {
+        if (e.touches[0]) down(e.touches[0]);
+      }, { passive: true });
+      global.addEventListener('touchmove', function (e) {
+        if (e.touches[0]) move(e.touches[0]);
+      }, { passive: true });
+      global.addEventListener('touchend', function (e) {
+        if (e.changedTouches[0]) up(e.changedTouches[0]);
+      }, { passive: true });
+      canvas.addEventListener('mousedown', down);
+      global.addEventListener('mousemove', move);
+      global.addEventListener('mouseup', up);
+    }
+  }
+
   /* Tippen aufs Bild = Bestätigen. Zusätzlich merken wir uns WO getippt
      wurde, damit man Menüpunkte direkt antippen kann. */
   function bindScreenTap(canvas) {
@@ -198,6 +243,7 @@
     ACTIONS.forEach(function (a) { pressed[a] = false; released[a] = false; });
     anyPressed = false;
     tapPos = null;
+    ptr.justDown = false; ptr.justUp = false;
   }
 
   /** Alles loslassen — z.B. wenn ein Eingabefeld den Fokus bekommt. */
@@ -207,7 +253,7 @@
   }
 
   global.Input = {
-    init: function (canvas) { bindTouch(); bindScreenTap(canvas); },
+    init: function (canvas) { bindTouch(); bindScreenTap(canvas); bindPointer(canvas); },
     poll: pollPad,
     down: function (a) { return !!held[a]; },
     hit: function (a) { return !!pressed[a]; },
@@ -221,6 +267,8 @@
     },
     /** Wo in diesem Frame aufs Bild getippt wurde (oder null). */
     tap: function () { return tapPos; },
+    /** Maus-/Fingerzeiger auf dem Bild: {x, y, down, justDown, justUp}. */
+    pointer: function () { return ptr; },
     releaseAll: releaseAll,
     endFrame: endFrame
   };

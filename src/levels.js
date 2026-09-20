@@ -421,8 +421,8 @@
       .mv(208, 11, 2, 'x', 5, 0.6);
 
   lvl4.q(11, 11, 'honig', 5).q(29, 11, 'doener').q(58, 11, 'honig', 5)
-      .q(74, 8, 'gold').q(92, 11, 'honig', 5).q(116, 10, 'baklava')
-      .q(138, 7, 'doener').q(156, 10, 'honig', 5).q(188, 11, 'gold')
+      .q(74, 7, 'gold').q(92, 11, 'honig', 5).q(116, 10, 'baklava')
+      .q(138, 6, 'doener').q(156, 10, 'honig', 5).q(188, 11, 'gold')
       .q(216, 11, 'honig', 5);
 
   lvl4.k(14, 12).k(15, 12, 'honig').k(40, 12).k(66, 11).k(67, 11)
@@ -516,8 +516,8 @@
       .mv(146, 9, 2, 'y', 6, 0.6);
 
   lvl5.q(13, 11, 'honig', 5).q(31, 11, 'doener').q(64, 11, 'honig', 5)
-      .q(78, 8, 'gold').q(96, 11, 'honig', 5).q(120, 10, 'baklava')
-      .q(142, 7, 'doener').q(160, 10, 'gold').q(60, 11, 'kippen')
+      .q(78, 7, 'gold').q(96, 11, 'honig', 5).q(120, 10, 'baklava')
+      .q(142, 6, 'doener').q(160, 9, 'gold').q(60, 11, 'kippen')
       .q(176, 10, 'doener', 3).q(196, 10, 'doener', 3)
       .q(186, 6, 'kippen');
 
@@ -662,6 +662,61 @@
   lvl7.bossAt(46, 14);
   lvl7.d.bossType = 'esat';
   lvl7.d.arena = { x: 0, w: 56 };
+
+  /* ---------------------------------------------------------------
+     LEVEL 8 — Der Morgen danach. Kein Springen, sondern Essen:
+     Erfan ruft an, Yusuf steht auf und raeumt den Tisch leer.
+     --------------------------------------------------------------- */
+
+  var lvl8 = L({
+    id: 8, name: 'DER MORGEN DANACH', sub: 'SONNTAG, 13:40 UHR',
+    theme: 'zimmer', music: 'l1', w: 32, h: 18, spawn: [3, 15], par: 120,
+    goal: [30, 15], diff: 1,
+    intro: [], outro: []
+  });
+  lvl8.g(0, 31, 15);          // nur damit die Welt etwas zum Laden hat
+
+  // Die Szene selbst steht in src/eat.js. Hier nur, was es zu essen gibt.
+  lvl8.d.eat = {
+    goal: 10000,
+    foods: [
+      { spr: 'food_beefy',   name: 'BEEFY',     kcal: 780 },
+      { spr: 'food_rippen',  name: 'RIPPEN',    kcal: 640 },
+      { spr: 'food_chips',   name: 'CHIPS',     kcal: 1100 },
+      { spr: 'doener',       name: 'DÖNER',     kcal: 1300 },
+      { spr: 'food_pommes',  name: 'POMMES',    kcal: 520 },
+      { spr: 'food_schoko',  name: 'SCHOKO',    kcal: 550 },
+      { spr: 'food_nuggets', name: 'NUGGETS',   kcal: 430 }
+    ]
+  };
+
+  lvl8.d.phone = [
+    ['', 'SONNTAG. 13:40 UHR.'],
+    ['', 'DAS HANDY KLINGELT SEIT ZWANZIG MINUTEN.'],
+    ['erfan', 'YUSUF! WACH AUF!'],
+    ['yusuf', 'MMPFH.'],
+    ['erfan', 'STEH AUF. SOFORT.'],
+    ['yusuf', 'ICH BIN WACH. ICH LIEGE NUR NOCH.'],
+    ['erfan', 'DU LIEGST AUF DEINEM ESSEN.'],
+    ['yusuf', '...DAS IST MEIN FRÜHSTÜCK. VON GESTERN.'],
+    ['erfan', 'ICH HAB DIR WAS AUF DEN TISCH GESTELLT.'],
+    ['erfan', 'ISS ES AUF. ALLES. DANN REDEN WIR WEITER.'],
+    ['yusuf', 'ICH HAB EIGENTLICH GAR KEINEN HUNGER.'],
+    ['erfan', '...'],
+    ['yusuf', 'ABER ICH ESS DAS JETZT KOMPLETT.'],
+    ['', 'ZIEH DAS ESSEN ZU YUSUF. 10.000 KALORIEN.']
+  ];
+
+  lvl8.d.full = [
+    ['', 'DER TISCH IST LEER. DER TELLER AUCH.'],
+    ['yusuf', 'HÖ HÖ HÖÖÖ.'],
+    ['yusuf', 'DAS WAR DIE VORSPEISE.'],
+    ['erfan', 'DAS WAREN ZEHNTAUSEND KALORIEN, YUSUF.'],
+    ['yusuf', 'ICH HAB IMMER NOCH HUNGER.'],
+    ['erfan', 'ICH WEISS. DARUM KOMME ICH JETZT VORBEI.'],
+    ['', 'YUSUF STEHT AUF. ZUM ZWEITEN MAL HEUTE.'],
+    ['', 'LEVEL 9 KOMMT BALD.']
+  ];
 
   /* ---------------------------------------------------------------
      Dialoge für den Bosskampf & das Ende
@@ -1030,8 +1085,37 @@
     'AUSSTEIGEN! ...BITTE.'
   ];
 
+  /* Aufraeumen: kein Item darf in einer Wand oder in einem Block stecken.
+     Die Honig-Boegen (trail mit Bogen) treffen sonst ab und zu eine
+     Plattform, und das Glas klebt dann halb im Boden. Hier wird es so
+     weit nach oben geschoben, bis es frei liegt. */
+  function tidyItems(L) {
+    var solid = {}, blocks = {}, key;
+    L.solids.forEach(function (r) {
+      for (var y = r[1]; y < r[1] + r[3]; y++) {
+        for (var x = r[0]; x < r[0] + r[2]; x++) solid[x + ',' + y] = true;
+      }
+    });
+    L.blocks.forEach(function (b) { blocks[b.x + ',' + b.y] = true; });
+
+    var out = [];
+    L.items.forEach(function (it) {
+      var y = it.y, tries = 0;
+      while (tries < 4) {
+        key = it.x + ',' + y;
+        if (!solid[key] && !blocks[key]) break;
+        y--; tries++;
+      }
+      key = it.x + ',' + y;
+      if (solid[key] || blocks[key]) return;     // kein Platz: lieber weglassen
+      out.push({ t: it.t, x: it.x, y: y });
+    });
+    L.items = out;
+    return L;
+  }
+
   var LEVELS = [lvl1.out(), lvl2.out(), lvl3.out(), lvl4.out(),
-                lvl5.out(), lvl6.out(), lvl7.out()];
+                lvl5.out(), lvl6.out(), lvl7.out(), lvl8.out()].map(tidyItems);
 
   global.Levels = {
     convoy: CONVOY_DIALOG,
