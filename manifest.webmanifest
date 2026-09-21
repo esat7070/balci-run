@@ -1,7 +1,7 @@
 {
   "name": "Balci Run — Yusufs Honig-Jagd",
   "short_name": "Balci Run",
-  "description": "Handgepixeltes Jump'n'Run: Honig sammeln, Salat vermeiden, Esat besiegen.",
+  "description": "Handgepixeltes Jump'n'Run: Honig sammeln, Salat vermeiden, heil nach Hause kommen.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "fullscreen",

@@ -146,6 +146,8 @@
     G.mirkan = null;
     // Level 8 ist keine Huepfstrecke, sondern die Szene aus eat.js
     G.eat = (lvl.eat && global.Eat) ? global.Eat.init(G, lvl) : null;
+    G.kasse = null;
+    if (!fromCheckpoint) G.drunk = 0;
 
     var i;
     for (i = 0; i < lvl.enemies.length; i++) {
@@ -416,13 +418,62 @@
     });
   };
 
-  /** Level 8 geschafft: 10.000 Kalorien sind drin. */
+  /** Level 8 geschafft: 10.000 Kalorien sind drin — und der Kuehlschrank leer. */
   G.onEatDone = function () {
-    save.unlocked = LV.list.length;
-    save.completed = true;      // durchgespielt
-    save.run = null;
+    save.unlocked = Math.max(save.unlocked, 9);
     persist();
-    fadeTo(function () { startNameEntry(); });
+    saveRun(8);
+    fadeTo(function () {
+      G.checkpoint = null;
+      loadLevel(8, false);
+      S.music(LV.list[8].music);
+      startDialog(LV.list[8].intro, function () { G.state = 'play'; });
+    });
+  };
+
+  /* ---------- Alex, Level 9 ---------- */
+
+  G.onAlexPhase = function (phase) {
+    G.bossHalf = true;
+    clearShots();
+    G.player.invuln = Math.max(G.player.invuln, 80);
+    startDialog(phase === 2 ? LV.alex.phase2 : LV.alex.phase3,
+                function () { G.state = 'play'; });
+  };
+
+  G.onAlexDead = function () {
+    G.frozen = true;
+    clearShots();
+    clearEnemies();
+    G.drunk = 0;                 // Kampf vorbei, Yusuf wird wieder nuechtern
+    G.after(85, function () {
+      startDialog(LV.alex.end, function () {
+        // Alex hat hier Schicht: Uebergang an die Kasse
+        fadeTo(function () {
+          G.kasse = global.Kasse ? global.Kasse.init() : null;
+          G.frozen = true;
+          G.state = 'play';
+          if (!G.kasse) { G.onKasseDone(); return; }
+          G.after(40, function () {
+            startDialog(LV.alex.kasse, function () { G.onKasseDone(); });
+          });
+        });
+      });
+    });
+  };
+
+  /** Abkassiert. Danach der Heimweg (Level 10). */
+  G.onKasseDone = function () {
+    save.unlocked = Math.max(save.unlocked, 10);
+    persist();
+    saveRun(9);
+    fadeTo(function () {
+      G.kasse = null;
+      G.checkpoint = null;
+      loadLevel(9, false);
+      S.music(LV.list[9].music);
+      startDialog(LV.list[9].intro, function () { G.state = 'play'; });
+    });
   };
 
   G.onBossPhase = function (phase) {
@@ -704,6 +755,7 @@
   function updateWorld() {
     var p = G.player, i;
     // Level 8 hat seine eigene Welt (Couch, Schreibtisch, Essen)
+    if (G.kasse) { global.Kasse.update(G, W, H); return; }
     if (G.eat) { global.Eat.update(G, W, H); return; }
     // Während eines Dialogs steht die ganze Welt still. Vorher lief
     // Huseyin weiter und hat Yusuf verprügelt, während man nicht
@@ -773,7 +825,12 @@
       var aTile = Math.floor(G.arena.x / T);
       var groundY = G.lvl.boss.y;
 
-      if (bt === 'esat') {
+      if (bt === 'alex') {
+        G.boss = new E.BossAlex(G.lvl.boss.x, G.lvl.boss.y);
+        G.world.fill(aTile - 1, 2, 1, groundY - 1, 1);
+        G.checkpoint = [aTile + 3, groundY];
+        G.checkpointStats = snapshotStats();
+      } else if (bt === 'esat') {
         G.boss = new E.BossEsat(G.lvl.boss.x, G.lvl.boss.y);
         G.checkpoint = [G.lvl.spawn[0], G.lvl.spawn[1]];
       } else if (E.MINIBOSS[bt]) {
@@ -801,12 +858,13 @@
         G.floats.add(hb.cx(), hb.y - 20, 'WEITER AB HALBZEIT', '#ffd257', 120);
       }
       // Jeder Kampf klingt anders
-      S.music(bt === 'esat' ? 'bossfinal' : (E.MINIBOSS[bt] ? 'boss2' : 'boss'));
+      S.music(bt === 'esat' ? 'bossfinal' : ((E.MINIBOSS[bt] || bt === 'alex') ? 'boss2' : 'boss'));
       G.shake(5, 20);
 
       if (!G.bossIntroSeen) {
         G.bossIntroSeen = true;
         var d0 = (bt === 'esat') ? null
+               : (bt === 'alex') ? LV.alex.start
                : (E.MINIBOSS[bt] ? LV.mini[bt].start : LV.boss.start);
         if (d0) startDialog(d0, function () { G.state = 'play'; });
       }
@@ -840,7 +898,8 @@
     if (!p.won && !p.dead) {
       var gx = G.lvl.goal[0] * T, gy = G.lvl.goal[1] * T;
       // Level-Bosse geben das Ziel frei; Huseyin und Esat enden anders.
-      var endsWithBoss = (G.lvl.bossType === 'huseyin' || G.lvl.bossType === 'esat');
+      var endsWithBoss = (G.lvl.bossType === 'huseyin' || G.lvl.bossType === 'esat' ||
+                          G.lvl.bossType === 'alex');
       var canFinish = !G.lvl.boss || (!endsWithBoss && G.bossCleared);
       if (canFinish && Math.abs(p.cx() - (gx + 12)) < 30 &&
           p.feet() > gy - 60 && p.feet() < gy + 40) {
@@ -872,6 +931,20 @@
     if (save.unlocked < idx + 2 && idx < LV.list.length - 1) save.unlocked = idx + 2;
     persist();
     if (idx < LV.list.length - 1) saveRun(idx + 1);
+
+    // Level 10 ist das Ende: Yusuf ist zu Hause.
+    if (G.lvl.id === 10) {
+      G.after(60, function () {
+        startDialog(G.lvl.outro, function () {
+          save.unlocked = LV.list.length;
+          save.completed = true;
+          save.run = null;
+          persist();
+          fadeTo(function () { startNameEntry(); });
+        });
+      });
+      return;
+    }
 
     // Level 6 endet mit der Siegerehrung — und die eskaliert.
     if (G.lvl.id === 6) {
@@ -1288,14 +1361,14 @@
     else if (G.state === 'scores') { drawScores(); }
     else if (G.state === 'gameover') { drawScene(); drawGameover(); }
     else {
-      drawScene();
+      drawDrunkOrPlain();
       if (G.flashFx && G.flashFx.t > 0) {
         ctx.globalAlpha = 0.5 * G.flashFx.t / G.flashFx.max;
         ctx.fillStyle = G.flashFx.col;
         ctx.fillRect(0, 0, W, H);
         ctx.globalAlpha = 1;
       }
-      if (!G.eat) drawHUD();
+      if (!G.eat && !G.kasse) drawHUD();
       if (G.state === 'paused') drawPause();
       if (G.state === 'clear') drawResults();
       if (G.state === 'dialog') drawDialog();
@@ -1354,6 +1427,29 @@
         rect(x, 196, 96, 94, t.near);
         rect(x + 30, 182, 14, 16, t.near);
         rect(x + 104, 210, 60, 80, t.near);
+      }
+    } else if (theme === 'markt') {
+      // Neonroehren an der Decke
+      for (i = -1; i < 14; i++) {
+        x = i * 96 - (f % 96);
+        rect(x + 16, 0, 60, 5, '#ffffff');
+        rect(x + 22, 5, 48, 3, 'rgba(255,255,255,0.4)');
+      }
+      // Regalreihen hinter dem Spielfeld, voll mit bunten Packungen
+      var PROD = ['#e0483c', '#ffd257', '#4aa832', '#5c7fd8', '#ff8a2a',
+                  '#f08aa8', '#a8e0f0', '#b07a3a'];
+      for (i = -1; i < 10; i++) {
+        x = i * 150 - (n % 150);
+        rect(x, 118, 128, 130, t.far);
+        rect(x, 118, 128, 3, '#9aa0ac');
+        for (var sr = 0; sr < 4; sr++) {
+          var sy2 = 126 + sr * 28;
+          rect(x + 4, sy2 + 20, 120, 3, '#8a8e98');
+          for (var sc = 0; sc < 7; sc++) {
+            rect(x + 8 + sc * 17, sy2, 13, 19, PROD[(i + sr * 3 + sc) % PROD.length]);
+            rect(x + 8 + sc * 17, sy2, 13, 4, 'rgba(255,255,255,0.35)');
+          }
+        }
       }
     } else if (theme === 'garten') {
       ctx.fillStyle = '#fff6b0';
@@ -1691,7 +1787,33 @@
     return { left: left, top: top, w: sp.w * s };
   }
 
+  /* Nach Alex' Flasche sieht Yusuf alles doppelt und schief.
+     Das Bild wackelt, ein zweites halbdurchsichtiges Bild liegt
+     versetzt darueber. */
+  function drawDrunkOrPlain() {
+    if (!G.drunk) { drawScene(); return; }
+    var dt = G.tick * 0.05;
+    ctx.save();
+    ctx.translate(W / 2 + Math.sin(dt) * 3, H / 2 + Math.cos(dt * 0.8) * 2);
+    ctx.rotate(Math.sin(dt * 0.6) * 0.02);
+    ctx.translate(-W / 2, -H / 2);
+    drawScene();
+    ctx.restore();
+    // Doppeltes Sehen: das fertige Bild nochmal versetzt darueber legen.
+    // (Die Szene ein zweites Mal zu zeichnen hat das Leuchten der Bosse
+    // doppelt aufgetragen — Alex war dann nur noch ein oranger Fleck.)
+    ctx.globalAlpha = 0.25;
+    ctx.drawImage(canvas, Math.round(Math.sin(dt * 1.3) * 6), Math.round(Math.cos(dt) * 4));
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = 'rgba(255,150,60,0.07)';
+    ctx.fillRect(0, 0, W, H);
+  }
+
   function drawScene() {
+    if (G.kasse) {
+      global.Kasse.draw(ctx, G, W, H);
+      return;
+    }
     if (G.eat) {
       global.Eat.draw(ctx, G, W, H);
       if (G.banner > 0) drawBanner();
@@ -1876,6 +1998,13 @@
     if (p.dead) opts.alpha = Math.max(0, 1 - p.deadTimer / 110);
     P.drawChar(ctx, 'yusuf', p.cx() - camX, p.feet() - camY, opts);
 
+    // Level 10: sechs Tueten. Mindestens.
+    if (G.lvl.bags && !p.dead) {
+      var bgx = Math.round(p.cx() - camX), bgy = Math.round(p.feet() - camY);
+      P.draw(ctx, 'tuete', bgx - 17, bgy - 15);
+      P.draw(ctx, 'tuete', bgx + 7, bgy - 13);
+    }
+
     if (p.sleeping) {
       var zx = p.cx() - camX + 10 * p.facing, zy = p.y - camY - 6;
       for (var i = 0; i < 3; i++) {
@@ -1891,7 +2020,7 @@
   /* Angriffe, vor denen gewarnt wird — Beruehrung tut dann weh. */
   var BOSS_WARN = {
     chargeprep: 1, carjump: 1, slam: 1, doubleslam: 1, dashprep: 1,
-    stampf: 1, drift: 1, wirbel: 1, tornado: 1
+    stampf: 1, drift: 1, wirbel: 1, tornado: 1, runter: 1
   };
 
   /** Leuchtender Rand um einen verwandelten Boss (Sprite-Bosse). */
@@ -1906,12 +2035,16 @@
 
   /** Dasselbe fuer zusammengesetzte Figuren (Huseyin, Esat). */
   function drawCharAura(who, x, y, o, col) {
+    // Nur ein Rand, keine Einfaerbung: sonst verschwindet die Figur
+    // komplett hinter ihrem eigenen Leuchten.
+    var d = (o.scale >= 3) ? 4 : 3;
     var a = { pose: o.pose, face: o.face, frame: o.frame, flip: o.flip, scale: o.scale,
               flash: col, flashAlpha: 1,
-              alpha: 0.4 + Math.sin(G.tick * 0.25) * 0.18 };
-    P.drawChar(ctx, who, x - 2, y, a);
-    P.drawChar(ctx, who, x + 2, y, a);
-    P.drawChar(ctx, who, x, y - 2, a);
+              alpha: 0.26 + Math.sin(G.tick * 0.25) * 0.1 };
+    P.drawChar(ctx, who, x - d, y, a);
+    P.drawChar(ctx, who, x + d, y, a);
+    P.drawChar(ctx, who, x, y - d, a);
+    P.drawChar(ctx, who, x, y + 1, a);
   }
 
   function drawBoss(camX, camY) {
@@ -1969,6 +2102,40 @@
       if (!b.dead && b.state === 'pushups') {
         F.draw(ctx, 'LIEGESTÜTZE', px, dy0 - 14,
                { color: '#ffd257', align: 'center', shadow: true });
+      }
+      return;
+    }
+
+    // Alex: klettert auf die Regale und hat immer eine Flasche dabei
+    if (G.lvl.bossType === 'alex') {
+      var ap = 'idle', af = 'normal';
+      if (b.dead) { ap = 'hurt'; af = 'hurt'; }
+      else if (b.state === 'transform') { ap = 'cheer'; af = 'rage'; }
+      else if (b.state === 'dash' || b.state === 'runter') { ap = 'run'; af = 'rage'; }
+      else if (b.state === 'stotter') { ap = 'cheer'; af = 'rage'; }
+      else if (b.state === 'walk') ap = 'run';
+      else if (!b.grounded) ap = b.vy < 0 ? 'jump' : 'fall';
+      else if (b.state === 'trinken' || b.sip > 0) ap = 'cheer';
+      if (b.flash > 0) af = 'hurt';
+      else if (b.rage && !b.dead && af === 'normal') af = 'drunk';
+
+      var ao = { pose: ap, face: af, frame: b.anim, flip: b.facing < 0,
+                 scale: b.rage ? 3 : 2 };
+      if (glow || b.state === 'transform') drawCharAura('alex', px, py, ao, b.rageCol);
+      if (b.dead) ao.alpha = Math.max(0.2, 1 - b.deadTimer / 160);
+      if (b.flash > 0 && (G.tick >> 1) % 2 === 0) { ao.flash = '#ffffff'; ao.flashAlpha = 0.8; }
+      if (b.invuln > 0 && b.state !== 'transform' && (G.tick >> 1) % 2 === 0 && !b.dead) {
+        ao.alpha = 0.55;
+      }
+      P.drawChar(ctx, 'alex', px, py, ao);
+
+      // Die Flasche in der Hand
+      if (!b.dead && (b.sip > 0 || b.state === 'trinken' || b.state === 'wodka')) {
+        P.draw(ctx, b.state === 'trinken' ? 'bier' : 'wodka',
+               px + (b.facing < 0 ? -20 : 10), py - b.h * 0.78);
+      }
+      if (!b.dead && BOSS_WARN[b.state] && (G.tick >> 2) % 2 === 0) {
+        F.draw(ctx, '!', px, py - b.h - 12, { color: '#ff6a6a', align: 'center', scale: 2 });
       }
       return;
     }
@@ -2093,6 +2260,12 @@
     // Leben
     F.draw(ctx, 'YUSUF x' + Math.max(0, p.lives), 8, 44, { color: '#f4bd91', shadow: true });
 
+    // Nach Alex' Dusche: wie viel Yusuf intus hat
+    if (G.drunk) {
+      F.draw(ctx, 'PROMILLE 1,4', 8 + Math.sin(G.tick * 0.12) * 2, 58,
+             { color: '#ff8a2a', shadow: true });
+    }
+
     // Punkte + Zeit. Am Handy liegen oben rechts Pause und Vollbild.
     var rx = G.touch ? W - 58 : W - 8;
     F.draw(ctx, 'PUNKTE ' + p.score, rx, 8, { color: '#ffe9a8', align: 'right', shadow: true });
@@ -2123,15 +2296,16 @@
       rect(x2, by2, w2, 12, '#241830');
       var hw = Math.round(w2 * Math.max(0, G.boss.hp) / G.boss.maxHp);
       // Nach der Verwandlung wechselt der Balken die Farbe und pulsiert
+      var isA = (bt2 === 'alex');
       var barCol = G.boss.rage ? G.boss.rageCol
-        : (mini ? mini.col : (isE ? '#6fc8e8' : '#5ec24a'));
+        : (mini ? mini.col : (isE ? '#6fc8e8' : (isA ? '#c9a05a' : '#5ec24a')));
       if (G.boss.rage && G.boss.phase >= 3 && (G.tick >> 3) % 2 === 0) barCol = '#ffffff';
       rect(x2, by2, hw, 12, barCol);
       rect(x2, by2, hw, 2, 'rgba(255,255,255,0.35)');
       // Markierung bei der Haelfte: dort verwandelt er sich
       if (!G.boss.rage) rect(x2 + Math.floor(w2 / 2), by2, 1, 12, 'rgba(255,255,255,0.6)');
 
-      var bname = mini ? mini.name : (isE ? 'ESAT' : 'HUSEYIN BALCI');
+      var bname = mini ? mini.name : (isE ? 'ESAT' : (isA ? 'ALEX' : 'HUSEYIN BALCI'));
       F.draw(ctx, bname, W / 2, by2 + 3,
              { color: '#ffffff', align: 'center', shadow: true });
 
@@ -2171,7 +2345,8 @@
     erfan:   { name: 'ERFAN',   col: '#e8c24a' },
     esat:    { name: 'ESAT',    col: '#6fc8e8' },
     lennart: { name: 'LENNART', col: '#e8b894' },
-    mirkan:  { name: 'MIRKAN',  col: '#b8c0d4' }
+    mirkan:  { name: 'MIRKAN',  col: '#b8c0d4' },
+    alex:    { name: 'ALEX',    col: '#c9a05a' }
   };
 
   function drawPortrait(who, x, y, talking) {
@@ -2192,6 +2367,9 @@
     } else if (who === 'mirkan') {
       ctx.scale(2, 2);
       P.draw(ctx, 'mirkan_head', 0, 1 + (talking ? 1 : 0));
+    } else if (who === 'alex') {
+      ctx.scale(2, 2);
+      P.draw(ctx, talking ? 'a_head_angry' : 'a_head', 1, 1);
     } else {
       ctx.scale(2, 2);
       P.draw(ctx, talking ? 'y_head_laugh' : 'y_head', 0, 0);
@@ -2360,23 +2538,31 @@
         F.draw(ctx, 'ZU', x + cw / 2, yy + 52, { color: '#5d5470', align: 'center' });
         F.draw(ctx, 'FRÜH', x + cw / 2, yy + 64, { color: '#5d5470', align: 'center' });
       } else {
-        var name = LV.list[i].name;
-        // Lange Woerter wie SALAT-FESTUNG am Bindestrich umbrechen
-        var lines = F.wrap(name.replace(/-/g, '- '), cw - 8, 1, 0);
-        for (var li = 0; li < lines.length && li < 4; li++) {
-          F.draw(ctx, lines[li], x + cw / 2, yy + 44 + li * 10,
-                 { color: '#ffffff', align: 'center' });
-        }
+        // Der Name steht gross unter der Reihe — bei zehn Karten ist
+        // hier kein Platz mehr dafuer, da lief er frueher ueber den Rand.
         var b = save.best[i];
         if (b) {
-          P.draw(ctx, 'honig', x + 8, yy + 92);
-          F.draw(ctx, 'x' + b.honey, x + 22, yy + 97, { color: '#ffe9a8' });
-          F.draw(ctx, 'BEST ' + b.score, x + cw / 2, yy + 112,
+          P.draw(ctx, 'honig', x + cw / 2 - 16, yy + 48);
+          F.draw(ctx, 'x' + b.honey, x + cw / 2 - 2, yy + 53, { color: '#ffe9a8' });
+          F.draw(ctx, '' + b.score, x + cw / 2, yy + 72,
                  { color: '#a094b8', align: 'center' });
+          F.draw(ctx, fmtTime(b.time), x + cw / 2, yy + 86,
+                 { color: '#6a6280', align: 'center' });
         } else {
-          F.draw(ctx, 'NEU', x + cw / 2, yy + 100, { color: '#8f86a8', align: 'center' });
+          F.draw(ctx, 'NEU', x + cw / 2, yy + 60, { color: '#8f86a8', align: 'center' });
         }
       }
+    }
+
+    // Name und Untertitel des gewaehlten Levels
+    var selLvl = LV.list[Math.min(G.selIdx, sc.n - 1)];
+    var offen = G.selIdx < save.unlocked;
+    F.draw(ctx, offen ? selLvl.name : 'NOCH NICHT FREIGESPIELT',
+           W / 2, sc.y + sc.ch + 14,
+           { color: offen ? '#ffffff' : '#6a6280', align: 'center', scale: 2, shadow: true });
+    if (offen) {
+      F.draw(ctx, selLvl.sub, W / 2, sc.y + sc.ch + 34,
+             { color: '#a094b8', align: 'center' });
     }
 
     F.draw(ctx, G.touch ? 'KARTE ANTIPPEN   -   NOCHMAL TIPPEN STARTET   -   HIER TIPPEN = ZURÜCK'
@@ -2529,18 +2715,18 @@
     F.draw(ctx, 'DEMNÄCHST', W / 2, 46, {
       color: '#8f86a8', align: 'center', scale: 2
     });
-    F.draw(ctx, 'LEVEL 9', W / 2, 74, {
-      color: '#ffd257', align: 'center', scale: 5, shadow: 1,
-      shadowColor: '#5e2a10', wave: G.tick * 0.05, waveAmp: 1
+    F.draw(ctx, 'ESATS', W / 2, 70, {
+      color: '#6fc8e8', align: 'center', scale: 5, shadow: 1,
+      shadowColor: '#10303f', wave: G.tick * 0.05, waveAmp: 1
     });
-    F.draw(ctx, 'DER HUNGER BLEIBT', W / 2, 122, {
-      color: '#ff8aa0', align: 'center', scale: 2, shadow: true
+    F.draw(ctx, "JUMP'N'RUN", W / 2, 116, {
+      color: '#ffd257', align: 'center', scale: 4, shadow: 1, shadowColor: '#5e2a10'
     });
     ctx.globalAlpha = 1;
 
     P.draw(ctx, 'esat', W / 2 - 8, 172);
     if (G.endScroll > 90) {
-      F.draw(ctx, 'UND DANACH: ESATS EIGENES JUMP\'N\'RUN.', W / 2, H - 44,
+      F.draw(ctx, 'ER WEISS NOCH NICHTS DAVON.', W / 2, H - 44,
              { color: '#c8b8e0', align: 'center' });
     }
     if (G.endScroll > 150 && (G.tick >> 4) % 2 === 0) {

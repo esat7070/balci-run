@@ -543,6 +543,125 @@
   `;
 
   /* ---------------------------------------------------------------
+     ALEX — Kollege, Endgegner in Level 9. Helle Locken, weisses Hemd,
+     Silberkette, Ohrstecker. Und immer eine Flasche in Reichweite.
+     --------------------------------------------------------------- */
+
+  palette('alex', {
+    k: '#141018',
+    h: '#c9a05a', H: '#e8c98a',
+    s: '#f0c3a0', d: '#d19a72', r: '#e06a6a',
+    g: '#3a7ab8', w: '#ffffff', W: '#d3d8e2', m: '#8a3a3a',
+    c: '#c8ced8', b: '#2a3242', B: '#1a2030',
+    n: '#e8e8ee', N: '#9a9aa4'
+  });
+
+  var A_HEAD = `
+    ...hhhhhhhh...
+    ..hHhhhHhhhh..
+    .hhhhhhhhhhhh.
+    khhHhhhhhhHhhk
+    khssssssssssdk
+    khssssssssssdk
+    .ksgwssswgsdk.
+    .kssssdssssbk.
+    .ksssmmmmsssk.
+    .kssssssssssk.
+    ..kssssssssk..
+    ...kddddddk...
+    ...kssssssk...
+  `;
+
+  // Wenn er sich aufregt: Augenbrauen runter, Mund auf.
+  var A_HEAD_ANGRY = `
+    ...hhhhhhhh...
+    ..hHhhhHhhhh..
+    .hhhhhhhhhhhh.
+    khhHhhhhhhHhhk
+    khssssssssssdk
+    khkkssssskksdk
+    .ksgwssswgsdk.
+    .kssssdssssbk.
+    .ksskmmmmkssk.
+    .kssmmmmmmssk.
+    ..kssssssssk..
+    ...kddddddk...
+    ...kssssssk...
+  `;
+
+  // Nach der halben Energie: Ultrapenner. Augen halb zu, rote Backen.
+  var A_HEAD_DRUNK = `
+    ...hhhhhhhh...
+    ..hHhhhhhhhh..
+    .hhhhhhhhhhhh.
+    khhhhhhhhhhhhk
+    khssssssssssdk
+    khssssssssssdk
+    .kskkssskksdk.
+    .krsssdsssrbk.
+    .kssmmmmmmssk.
+    .ksssmmmmsssk.
+    ..kssssssssk..
+    ...kddddddk...
+    ...kssssssk...
+  `;
+
+  var A_HEAD_HURT = `
+    ...hhhhhhhh...
+    ..hHhhhHhhhh..
+    .hhhhhhhhhhhh.
+    khhHhhhhhhHhhk
+    khssssssssssdk
+    khssssssssssdk
+    .kskkssskksdk.
+    .kssssdssssbk.
+    .ksmsmsmsmssk.
+    .kssssssssssk.
+    ..kssssssssk..
+    ...kddddddk...
+    ...kssssssk...
+  `;
+
+  var A_TORSO = `
+    ..kkkkkkkkkk..
+    .kwwwwccwwwwk.
+    kwwwwwsswwwwwk
+    kwwwwwsswwwwwk
+    kwwwwwwwwwwwwk
+    kwwwwwwwwwwwwk
+    kWwwwwwwwwwWk.
+    kWwwwwwwwwwWk.
+    kWWwwwwwwWWWk.
+    .kWWWWWWWWWWk.
+    .kbbbbbbbbbbk.
+    ..kkkkkkkkkk..
+  `;
+
+  var A_ARM = `
+    .kkk.
+    kwwwk
+    kwwwk
+    kWWWk
+    .kk..
+    .ksk.
+    kssdk
+    kssdk
+    .kkk.
+  `;
+
+  var A_LEG = `
+    .kkk.
+    kbbbk
+    kbbbk
+    kbBbk
+    kbbbk
+    .kbk.
+    .kbk.
+    knnnk
+    kNNNk
+  `;
+
+  /* ---------------------------------------------------------------
      RÜMPFE
      --------------------------------------------------------------- */
 
@@ -651,6 +770,14 @@
   def('e_arm_buff', E_ARM_BUFF, 'esat');
   def('e_leg_buff', E_LEG_BUFF, 'esat');
 
+  def('a_head', A_HEAD, 'alex');
+  def('a_head_angry', A_HEAD_ANGRY, 'alex');
+  def('a_head_drunk', A_HEAD_DRUNK, 'alex');
+  def('a_head_hurt', A_HEAD_HURT, 'alex');
+  def('a_torso', A_TORSO, 'alex');
+  def('a_arm', A_ARM, 'alex');
+  def('a_leg', A_LEG, 'alex');
+
   def('h_head', H_HEAD, 'huseyin');
   def('h_head_angry', H_HEAD_ANGRY, 'huseyin');
   def('h_head_hurt', H_HEAD_HURT, 'huseyin');
@@ -694,6 +821,17 @@
       legLOX: 1, legROX: 6, legOY: 10,
       footY: 19,
       height: 30, width: 12
+    },
+    alex: {
+      heads: { normal: 'a_head', laugh: 'a_head_angry', hurt: 'a_head_hurt',
+               sleep: 'a_head_drunk', eat: 'a_head_drunk', growl: 'a_head_angry',
+               rage: 'a_head_angry', drunk: 'a_head_drunk' },
+      torso: 'a_torso', arm: 'a_arm', leg: 'a_leg',
+      headOX: 0, headOY: -12,
+      armBackOX: -3, armFrontOX: 12, armOY: 2,
+      legLOX: 2, legROX: 7, legOY: 10,
+      footY: 19,
+      height: 31, width: 14
     },
     // Esat nach dem Snus: breiter, dickere Arme, immer wuetend
     esat_buff: {

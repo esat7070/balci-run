@@ -54,7 +54,7 @@ Gamepad wird ebenfalls erkannt.
 
 Steh mal zu lange still. Yusuf schläft dann einfach ein. Und knurren tut er sowieso.
 
-## Die acht Level
+## Die zehn Level
 
 | # | Level | Wo |
 |---|---|---|
@@ -66,6 +66,8 @@ Steh mal zu lange still. Yusuf schläft dann einfach ein. Und knurren tut er sow
 | 6 | Mustang nach Stilbruch | Siegerfahrt, 2 Uhr nachts |
 | 7 | Der letzte Kampf | Esat hat es zu weit getrieben |
 | 8 | Der Morgen danach | Sonntag, 13:40 Uhr, auf der Couch |
+| 9 | Sparmarkt | Gemüse, Snacks, Fleisch, Alkohol |
+| 10 | Der Heimweg | Sechs Tüten, achthundert Meter |
 
 ### Jedes Level hat seinen eigenen Boss
 
@@ -78,6 +80,9 @@ Steh mal zu lange still. Yusuf schläft dann einfach ein. Und knurren tut er sow
 | 5 | **Huseyin** | 13 | Salatblätter, Protein-Shaker, Hopser, Sturmlauf | **Salat-Berserker:** Tornado, Blätterregen, Liegestütze |
 | 6 | — | | Fahren — mit Polizei, roten Ampeln und Kolonne | |
 | 7 | **Esat** | 15 | Shisha-Wolken, KI-Agenten, türkische Jets mit Bomben | **Snus:** wird größer, muskulöser und schneller, stampft den Boden weg |
+| 8 | — | | Essen, kein Springen | |
+| 9 | **Alex** | 16 | Wodkaflaschen, Kotze-Pfützen, klettert aufs Regal und trinkt dort Bier, hält Vorträge über Platin-Trophäen | **Ultrapenner:** kippt Yusuf Alkohol über — ab da wackelt das Bild — und lässt Dosen regnen |
+| 10 | — | | Nur heimkommen | |
 
 Die Level ziehen von Stufe zu Stufe an — Gegner werden schneller und
 angriffslustiger. **Level 7 ist bewusst brutal.**
@@ -115,8 +120,31 @@ Krümeln auf der Couch, **Erfan ruft an** und brüllt ihn wach. Danach steht er
 am Schreibtisch, und du **ziehst ihm das Essen mit der Maus** (am Handy mit dem
 Finger) **in den Mund** — oder wählst es mit den Pfeiltasten und drückst Sprung.
 Über jedem Teil stehen die Kalorien: Beefy, Rippen-Burger, Chips, Döner,
-Pommes, Schokolade, Nuggets. Ziel: **10.000 Kalorien**. Danach steht Yusuf auf,
-sagt, er habe immer noch Hunger — und **Level 9** wird angekündigt.
+Pommes, Schokolade, Nuggets. Ziel: **10.000 Kalorien**. Vorsicht: Ab und zu
+legt jemand etwas **Gesundes** dazwischen (Salat, Brokkoli, Apfel) — das
+kostet ein Herz und bringt null Kalorien. Danach steht Yusuf auf, sagt, er
+habe immer noch Hunger, und der Kühlschrank ist leer.
+
+### Level 9: Sparmarkt
+
+Vier Abteilungen: **Obst & Gemüse, Snacks, Fleisch, Getränke**. Unterwegs
+rollen **Einkaufswagen** los, sobald sie dich sehen, wütende **Tomaten**
+hüpfen und **Würste** laufen (irgendwie). In der Getränkeabteilung steht
+**Alex** und will wissen, wie viele Spiele du auf Platin hast. Antwort:
+keine. Danach eskaliert es.
+
+Alex wirft **Wodkaflaschen** und **kotzt Pfützen** auf den Boden — auf denen
+rutscht man aus, statt Schaden zu nehmen. Er ist der einzige Boss, der auf
+die **Regale klettert** und dort oben in Ruhe ein Bier trinkt. Bei halber
+Energie kippt er Yusuf die Flasche über den Kopf: **ab da ist Yusuf besoffen**,
+das Bild wackelt, man sieht doppelt und rutscht beim Laufen weiter als man
+will. Alex selbst wird zum **Ultrapenner**. Ist er besiegt, wird Yusuf wieder
+nüchtern — und Alex kassiert ihn an der Kasse ab, weil er dort Schicht hat.
+
+### Level 10: Der Heimweg
+
+Sechs Tüten, achthundert Meter, nachts. Mehr ist es nicht. Am Ende sitzt
+Yusuf wieder auf der Couch, und das Handy klingelt.
 
 Während aller Gespräche steht die Welt still: Gegner, Würfe und Bosse
 bewegen sich nicht, der Hintergrund wird abgedunkelt und rechts oben im
@@ -139,9 +167,9 @@ Die besten fünf stehen **immer auf dem Titelbild** (antippen oder im Menü
 **BESTENLISTE** für die ganze Liste). Sortierbar nach **Punkten, Honig, Zeit
 oder Toden**.
 
-Wer Esat besiegt und danach Level 8 leer isst, trägt sich in einem normalen
+Wer nach Level 10 wieder zu Hause auf der Couch sitzt, trägt sich in einem normalen
 Textfeld ein — ohne Zeitdruck, bis zu 10 Zeichen, erst **EINTRAGEN** speichert.
-Gezählt wird der **ganze Durchgang** über alle acht Level (die Kalorien aus
+Gezählt wird der **ganze Durchgang** über alle zehn Level (die Kalorien aus
 Level 8 geben auch Punkte). In die Liste kommen nur Durchgänge, die bei
 **Level 1** begonnen haben (auch wenn sie zwischendurch mit WEITER fortgesetzt
 wurden) — sonst könnte man mit Level 7 allein die Zeitwertung gewinnen.
@@ -189,7 +217,7 @@ Alles selbst gebaut, **kein einziges externes Asset**:
   Kein Webfont, keine Schriftdatei.
 - **Musik & Sound** — komplett in der Web Audio API synthetisiert (`src/audio.js`):
   Pulswellen über Fourier-Koeffizienten für den NES-Klang, Dreieck für den Bass,
-  gefiltertes Rauschen für die Drums. Sieben Stücke, ein Step-Sequencer.
+  gefiltertes Rauschen für die Drums. Zehn Stücke, ein Step-Sequencer.
   Auch Yusufs Lachen ist synthetisiert.
 - **Level** — kleiner Baukasten mit `g()`, `p()`, `q()`, `e()` usw. (`src/levels.js`),
   damit die Layouts lesbar bleiben.
@@ -201,7 +229,7 @@ index.html          Einstieg
 style.css           Rahmen, Touch-Knöpfe, Startknopf, Namensfeld
 manifest.webmanifest + icon.svg   "Zum Home-Bildschirm" als Vollbild-App
 smoketest.html      Automatischer Testlauf (siehe unten)
-bosstest.html       Bot spielt einen Bosskampf durch (?lvl=1..6)
+bosstest.html       Bot spielt einen Bosskampf durch (?lvl=1..8)
 kippentest.html     Prueft das Kippen-Power-up Schritt fuer Schritt
 supabase-setup.sql  Regeln fuer die weltweite Bestenliste (optional)
 src/font.js         Pixel-Font
@@ -209,9 +237,9 @@ src/pixel.js        Sprite-Engine + Yusuf, Huseyin, Esat
 src/sprites.js      Gegner, Items, Autos, Blöcke, Tiles
 src/audio.js        Chiptune-Engine
 src/input.js        Tastatur / Gamepad / Touch
-src/levels.js       Die sieben Level + alle Dialoge
+src/levels.js       Alle zehn Level + alle Dialoge
 src/entities.js     Physik, Gegner-KI, alle Bosse
-src/eat.js          Level 8: Couch, Anruf, 10.000 Kalorien
+src/eat.js          Level 8 (Essen) und die Kassen-Szene aus Level 9
 src/online.js       Weltweite Bestenliste (aus, bis eingerichtet)
 src/game.js         Spielschleife, Kamera, Menüs, HUD
 ```
@@ -238,15 +266,16 @@ python -m http.server 8000
 `qatest.html` prüft die Abläufe drumherum: ganzer Durchgang mit Speichern
 und WEITER, Namenseingabe (inklusive „Sprung-Taste schickt nicht versehentlich
 ab“), Teil-Durchgänge ohne Bestenliste, bereinigte Serverdaten, Menüs per
-Antippen, Handy-Ansicht, Mustang-Level (Kolonne, Ampel, Polizei), jede
-Boss-Verwandlung samt Tod mitten darin, Sprungangriffe mit Bodenwelle und
-einen Zufalls-Stresstest in allen Leveln. Er schickt nie etwas an die echte
+Antippen, Handy-Ansicht, Mustang-Level (Kolonne, Ampel, Polizei), Level 8
+(Levelname verschwindet, gesundes Essen kostet ein Herz, ist aber nie
+tödlich), jede Boss-Verwandlung samt Tod mitten darin, Sprungangriffe mit
+Bodenwelle und einen Zufalls-Stresstest in allen Leveln. Er schickt nie etwas an die echte
 Bestenliste. Alle Testseiten sichern den Spielstand vorher und schreiben ihn
 danach zurück — auch wer sie versehentlich auf der echten Seite öffnet,
 verliert nichts.
 
 `bosstest.html?lvl=N` lässt einen Bot gegen einen Boss antreten
-(1 = Mirkan, 2 = Lennart, 3 = Erfan, 4 = Huseyin, 6 = Esat) und protokolliert
+(1 = Mirkan, 2 = Lennart, 3 = Erfan, 4 = Huseyin, 6 = Esat, 8 = Alex) und protokolliert
 jeden Treffer, jede Schadensquelle und jeden Zustandswechsel. Mit `&easy=1`
 wird der Boss geschwächt, um die ganze Siegeskette bis zur Bestenliste zu
 prüfen. Beides hat echte Fehler gefunden — unter anderem einen Absturz

@@ -687,6 +687,12 @@
       { spr: 'food_pommes',  name: 'POMMES',    kcal: 520 },
       { spr: 'food_schoko',  name: 'SCHOKO',    kcal: 550 },
       { spr: 'food_nuggets', name: 'NUGGETS',   kcal: 430 }
+    ],
+    // Dazwischen liegt manchmal etwas Gesundes. Das kostet ein Herz.
+    bad: [
+      { spr: 'salat', name: 'SALAT', kcal: 0, bad: true, line: 'SALAT? IN MEINER WOHNUNG?' },
+      { spr: 'broki', name: 'BROKKOLI', kcal: 0, bad: true, line: 'DAS IST EIN BAUM!' },
+      { spr: 'food_apfel', name: 'APFEL', kcal: 0, bad: true, line: 'DAS SIND NULL KALORIEN!' }
     ]
   };
 
@@ -715,8 +721,130 @@
     ['yusuf', 'ICH HAB IMMER NOCH HUNGER.'],
     ['erfan', 'ICH WEISS. DARUM KOMME ICH JETZT VORBEI.'],
     ['', 'YUSUF STEHT AUF. ZUM ZWEITEN MAL HEUTE.'],
-    ['', 'LEVEL 9 KOMMT BALD.']
+    ['yusuf', 'IM KÜHLSCHRANK IST NICHTS MEHR.'],
+    ['erfan', 'DANN GEH EINKAUFEN.'],
+    ['yusuf', 'ICH NEHM DEN GROSSEN WAGEN.'],
+    ['', 'SPARMARKT. NOCH 40 MINUTEN BIS LADENSCHLUSS.']
   ];
+
+  /* ---------------------------------------------------------------
+     LEVEL 9 — Sparmarkt. Gemuese, Snacks, Fleisch, und in der
+     Getraenkeabteilung steht Alex.
+     --------------------------------------------------------------- */
+
+  var lvl9 = L({
+    id: 9, name: 'SPARMARKT', sub: 'ER WOLLTE NUR EIN PAAR SACHEN',
+    theme: 'markt', music: 'l4', w: 236, h: 18, spawn: [3, 15], par: 170,
+    goal: [232, 15], diff: 1.35,
+    intro: [
+      ['', 'SPARMARKT. 14:20 UHR.'],
+      ['yusuf', 'ICH BRAUCHE NUR EIN PAAR SACHEN.'],
+      ['yusuf', 'EIN PAAR SACHEN HEISST HEUTE: ALLES.'],
+      ['yusuf', 'ERFAN HAT GESAGT, ICH SOLL AUFHÖREN.'],
+      ['yusuf', 'ERFAN IST NICHT HIER.'],
+      ['', 'EIN EINKAUFSWAGEN ROLLT VORBEI. VON ALLEIN.'],
+      ['yusuf', 'DAS IST EIN ZEICHEN. ICH NEHM ZWEI WAGEN.']
+    ],
+    outro: []
+  });
+
+  // Vier Abteilungen, dazwischen jeweils eine Luecke
+  lvl9.g(0, 58, 15).g(63, 118, 15).g(123, 178, 15).g(183, 235, 15);
+  lvl9.p(59, 13, 4).p(119, 13, 4).p(179, 13, 4);
+
+  // Regale zum Draufspringen
+  lvl9.p(8, 11, 6).p(20, 11, 6).p(32, 11, 6).p(44, 11, 6)
+      .p(14, 8, 5).p(38, 8, 5);
+  lvl9.p(68, 11, 6).p(80, 11, 6).p(92, 11, 6).p(104, 11, 6)
+      .p(74, 8, 5).p(98, 8, 5);
+  lvl9.p(128, 11, 6).p(140, 11, 6).p(152, 11, 6).p(164, 11, 6)
+      .p(134, 8, 5).p(158, 8, 5);
+
+  // ALEX' ARENA: die Getraenkeabteilung. Er klettert auf die Regale
+  // und trinkt dort oben weiter, also stehen sie dichter.
+  lvl9.p(190, 11, 5).p(200, 8, 6).p(212, 11, 5).p(222, 8, 5);
+  lvl9.bossAt(216, 15);
+  lvl9.d.bossType = 'alex';
+  lvl9.d.arena = { x: 183, w: 53 };
+
+  // Umgekipptes Zeug auf dem Boden
+  lvl9.hz(36, 38, 14, 'oel').hz(88, 90, 14, 'oel').hz(148, 150, 14, 'oel');
+
+  lvl9.q(28, 11, 'honig', 5).q(52, 11, 'doener').q(86, 11, 'honig', 5)
+      .q(110, 11, 'kippen').q(146, 11, 'doener').q(170, 11, 'honig', 5)
+      .q(196, 11, 'gold');
+
+  lvl9.k(12, 14).k(24, 14).k(48, 14).k(72, 14).k(96, 14)
+      .k(130, 14).k(154, 14).k(172, 14);
+
+  lvl9.trail(4, 13, 6, 2).trail(64, 13, 6, 2, 2).trail(124, 13, 6, 2, 2)
+      .trail(184, 13, 5, 2, 2);
+
+  lvl9.it('herz', 30, 10).it('herz', 94, 10).it('herz', 168, 10)
+      .it('kubide', 56, 10).it('doener', 112, 10);
+
+  // Gemuese rollt, Wuerste laufen, Einkaufswagen sind ueberall
+  lvl9.row('wagen', 15, [10, 26, 42, 70, 92, 104, 130, 144, 166, 188])
+      .row('tomate', 15, [18, 34, 50, 78, 100])
+      .row('broki', 15, [22, 46])
+      .row('wurst', 15, [126, 138, 158, 174])
+      .row('salat', 15, [14, 82, 128, 154])
+      .row('drohne', 9, [36, 84, 132, 170]);
+
+  lvl9.cp(64, 15).cp(124, 15).cp(186, 15);
+
+  lvl9.sign(6, 15, 'SPARMARKT. SPAREN BIS ES WEHTUT.')
+      .sign(30, 15, 'OBST & GEMÜSE. YUSUF GEHT HIER SCHNELLER.')
+      .sign(70, 15, 'SNACKS. HIER WIRD ER LANGSAMER.')
+      .sign(126, 15, 'FLEISCH & WURST. HEIMATGEFÜHL.')
+      .sign(187, 15, 'GETRÄNKE. HIER STEHT IMMER JEMAND.');
+
+  /* ---------------------------------------------------------------
+     LEVEL 10 — Der Heimweg. Sechs Tueten, achthundert Meter.
+     --------------------------------------------------------------- */
+
+  var lvl10 = L({
+    id: 10, name: 'DER HEIMWEG', sub: 'SECHS TÜTEN, ACHTHUNDERT METER',
+    theme: 'strasse', music: 'l6', w: 132, h: 18, spawn: [3, 15], par: 110,
+    goal: [128, 15], diff: 1.25,
+    intro: [
+      ['', 'DRAUSSEN. 15:05 UHR. SECHS TÜTEN.'],
+      ['yusuf', 'DER WEG IST NICHT WEIT. ACHTHUNDERT METER.'],
+      ['yusuf', 'ICH SCHAFF DAS. ICH BIN IM GRUNDE EIN ATHLET.'],
+      ['', 'DIE TÜTEN WIEGEN MEHR ALS YUSUF.']
+    ],
+    outro: [
+      ['', 'ZUHAUSE. DIE TÜTEN STEHEN IN DER KÜCHE.'],
+      ['yusuf', 'ICH RÄUM DAS MORGEN EIN.'],
+      ['yusuf', 'ICH ESS JETZT ERSTMAL WAS.'],
+      ['', 'ER SETZT SICH AUF DIE COUCH.'],
+      ['', 'DAS HANDY KLINGELT.'],
+      ['erfan', 'YUSUF! WACH AUF!'],
+      ['yusuf', 'ICH BIN WACH!'],
+      ['', 'ENDE. FÜR HEUTE.']
+    ]
+  });
+
+  lvl10.g(0, 30, 15).g(35, 64, 15).g(69, 96, 15).g(101, 131, 15);
+  lvl10.p(31, 13, 4).p(65, 13, 4).p(97, 13, 4);
+  lvl10.p(14, 11, 5).p(46, 11, 5).p(80, 11, 5).p(112, 11, 5);
+  lvl10.d.bags = true;          // er schleppt die Tueten mit
+
+  lvl10.q(20, 11, 'honig', 5).q(60, 11, 'doener').q(92, 11, 'honig', 5);
+  lvl10.k(26, 14).k(52, 14).k(86, 14).k(118, 14);
+  lvl10.trail(4, 13, 6, 2, 2).trail(40, 13, 6, 2, 2)
+       .trail(74, 13, 6, 2, 2).trail(106, 13, 6, 2, 2);
+  lvl10.it('herz', 50, 10).it('doener', 90, 10);
+
+  lvl10.row('broki', 15, [12, 44, 78, 110])
+       .row('wecker', 15, [22, 56, 88])
+       .row('salat', 15, [38, 84, 120])
+       .row('drohne', 9, [30, 70, 104]);
+
+  lvl10.cp(36, 15).cp(70, 15);
+  lvl10.sign(6, 15, 'ACHTHUNDERT METER. MIT SECHS TÜTEN.')
+       .sign(50, 15, 'EINE TÜTE REISST IMMER. IMMER DIE SCHWERSTE.')
+       .sign(104, 15, 'ER SIEHT SCHON SEIN HAUS. FAST.');
 
   /* ---------------------------------------------------------------
      Dialoge für den Bosskampf & das Ende
@@ -844,6 +972,93 @@
       ['', 'ENDE.']
     ]
   };
+
+  /* ALEX — Kollege, Endgegner in der Getraenkeabteilung.
+     Streitthema: Yusuf hat kein einziges Spiel auf Platin. */
+  var ALEX_DIALOG = {
+    start: [
+      ['alex', 'YUSUF? WAS MACHST DU HIER?'],
+      ['yusuf', 'ALEX. ICH KAUFE EIN.'],
+      ['alex', 'DU HAST VIER EINKAUFSWAGEN.'],
+      ['yusuf', 'DREI. DER VIERTE IST MIR GEFOLGT.'],
+      ['alex', 'EGAL. SAG MAL...'],
+      ['alex', 'WIE VIELE SPIELE HAST DU AUF PLATIN?'],
+      ['yusuf', 'WAS?'],
+      ['alex', 'PLATIN. TROPHÄEN. WIE VIELE.'],
+      ['yusuf', 'KEINE.'],
+      ['alex', 'KEINE?!'],
+      ['yusuf', 'ICH SPIELE ZUM SPASS.'],
+      ['alex', 'ZUM SPASS! DER MANN SPIELT ZUM SPASS!'],
+      ['yusuf', 'UND DU STEHST UM ZWEI IN DER GETRÄNKEABTEILUNG.'],
+      ['alex', '...'],
+      ['yusuf', 'WIE VIELE WAREN DAS DIESE WOCHE, ALEX?'],
+      ['alex', 'DAS-DAS-DAS IST WAS GANZ ANDERES!'],
+      ['alex', 'ICHSAGDIRWARUMDASANDERSIST WEIL PLATIN DISZIPLIN IST'],
+      ['alex', 'UND DISZIPLIN HAST DU NICHT UND ICH HAB SIEBENUNDVIERZIG'],
+      ['', 'ALEX REDET JETZT DOPPELT SO SCHNELL.'],
+      ['yusuf', 'OKAY. DANN ZEIG MIR MAL DISZIPLIN.']
+    ],
+    phase2: [
+      ['alex', 'WEISST DU WAS? TRINK MIT.'],
+      ['', 'ALEX SCHÜTTET YUSUF DIE FLASCHE ÜBER DEN KOPF.'],
+      ['yusuf', 'DAS WAR MEIN HEMD.'],
+      ['alex', 'DAS WAR MEIN WODKA!'],
+      ['', 'DIE REGALE FANGEN AN ZU SCHWANKEN.'],
+      ['yusuf', 'WARUM SIND DA JETZT ZWEI ALEX.'],
+      ['alex', 'WEIL ICH JETZT ULTRAPENNER BIN!']
+    ],
+    phase3: [
+      ['alex', 'ICH HAB SIEBENUNDVIERZIG PLATIN!'],
+      ['yusuf', 'DU HAST SIEBENUNDVIERZIG FLASCHEN.'],
+      ['alex', 'DAS IST DASSELBE IN BLAU!']
+    ],
+    end: [
+      ['alex', 'OKAY. OKAY! ICH HÖR AUF.'],
+      ['yusuf', 'GUT.'],
+      ['', 'YUSUF WIRD WIEDER NÜCHTERN. LEIDER AUCH WIEDER HUNGRIG.'],
+      ['alex', 'ICH MUSS SOWIESO GLEICH AN DIE KASSE.'],
+      ['yusuf', 'DU ARBEITEST HIER?'],
+      ['alex', 'SCHICHT SEIT ZWEI. KOMM, ICH KASSIER DICH AB.']
+    ],
+    // An der Kasse. Yusuf laedt auf, Alex zieht durch.
+    kasse: [
+      ['', 'YUSUF LEGT AUF. UND LEGT AUF. UND LEGT AUF.'],
+      ['alex', 'DAS SIND VIERUNDSIEBZIG TIEFKÜHLPIZZEN.'],
+      ['yusuf', 'DIE WAREN IM ANGEBOT.'],
+      ['alex', 'DAS WAREN SIE NICHT.'],
+      ['alex', 'HAST DU EINE KUNDENKARTE?'],
+      ['yusuf', 'ICH HABE EINE SEELE.'],
+      ['alex', 'DAFÜR GIBT ES KEINE PUNKTE.'],
+      ['alex', 'WILLST DU DIE TÜTEN ODER TRÄGST DU DAS SO?'],
+      ['yusuf', 'ICH NEHM SECHS TÜTEN.'],
+      ['alex', 'DAS SIND ZEHN CENT PRO TÜTE.'],
+      ['yusuf', 'DANN NEHM ICH VIER.'],
+      ['', 'SUMME: 412,90 EURO.'],
+      ['yusuf', 'KANN ICH IN RATEN ZAHLEN?'],
+      ['alex', 'NEIN.'],
+      ['yusuf', 'KANN ICH IN KALORIEN ZAHLEN?'],
+      ['alex', 'NEIN!'],
+      ['', 'YUSUF ZAHLT. IN MÜNZEN. ALLEN.'],
+      ['alex', 'GEH NACH HAUSE, YUSUF.'],
+      ['yusuf', 'ICH GEH JA SCHON.'],
+      ['alex', 'UND MACH MAL EIN SPIEL AUF PLATIN!'],
+      ['yusuf', 'ICH MACH MIR ERSTMAL WAS ZU ESSEN.']
+    ]
+  };
+
+  /* Was Alex im Vortrag durcheinander bruellt. */
+  var ALEX_LINES = [
+    'PLATIN!',
+    'DISZIPLIN!',
+    'ALLE TROPHÄEN!',
+    'HUNDERT PROZENT!',
+    'DAS IST EINFACH!',
+    'MIT EINER HAND!',
+    'DU SPIELST ZUM SPASS!',
+    'SPASS!',
+    'SIEBENUNDVIERZIG!',
+    'HAST DU NICHT!'
+  ];
 
   /* Die Level-Bosse. Jeder nervt auf seine eigene Art. */
   var MINI_DIALOG = {
@@ -1115,9 +1330,12 @@
   }
 
   var LEVELS = [lvl1.out(), lvl2.out(), lvl3.out(), lvl4.out(),
-                lvl5.out(), lvl6.out(), lvl7.out(), lvl8.out()].map(tidyItems);
+                lvl5.out(), lvl6.out(), lvl7.out(), lvl8.out(),
+                lvl9.out(), lvl10.out()].map(tidyItems);
 
   global.Levels = {
+    alex: ALEX_DIALOG,
+    alexLines: ALEX_LINES,
     convoy: CONVOY_DIALOG,
     polizeiLines: POLIZEI_LINES,
     list: LEVELS,

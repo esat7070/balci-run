@@ -22,6 +22,7 @@
       phase: 'ring', t: 0, ringT: 0,
       goal: d.goal || 10000, kcal: 0, eaten: 0,
       foods: d.foods || [],
+      bad: d.bad || [],
       order: [], next: 0,
       slots: [], drag: null, sel: 0,
       chew: 0, walk: 0, hintT: 0,
@@ -83,6 +84,9 @@
     var L = layout(g, W, H);
     e.t++;
     if (e.chew > 0) e.chew--;
+    // Der Levelname muss auch hier wieder verschwinden. Vorher stand er
+    // die ganze Szene lang im Bild, weil die Schleife hier frueher endet.
+    if (g.banner > 0) g.banner--;
 
     if (!g.frozen) {
       switch (e.phase) {
@@ -146,8 +150,15 @@
       var s = e.slots[i];
       if (s.food) continue;
       if (s.wait > 0) { s.wait--; continue; }
-      var def = e.foods[e.order[e.next % e.order.length]];
-      e.next++;
+      var def;
+      // Ab und zu legt jemand etwas Gesundes dazwischen. Wer das isst,
+      // verliert ein Herz — Yusuf verzeiht so etwas nicht.
+      if (e.bad.length && e.eaten > 1 && Math.random() < 0.22) {
+        def = e.bad[(Math.random() * e.bad.length) | 0];
+      } else {
+        def = e.foods[e.order[e.next % e.order.length]];
+        e.next++;
+      }
       s.food = def;
       s.pop = 10;
       s.dx = 0; s.dy = 0;
@@ -214,6 +225,27 @@
     if (!s || !s.food) return;
     var def = s.food, m = mouth(e, L);
     s.food = null; s.dx = 0; s.dy = 0; s.wait = REFILL;
+
+    // Gesundes Essen: kostet ein Herz und bringt keine einzige Kalorie.
+    if (def.bad) {
+      e.chew = CHEW;
+      e.badEaten = (e.badEaten || 0) + 1;
+      var p = g.player;
+      S.play('hurt');
+      g.shake(5, 14);
+      g.floats.add(m.x, m.y - 26, def.line || 'IGITT! GESUND!', '#8cd85a', 90);
+      // Nie toedlich — sonst faengt die ganze Szene von vorne an.
+      if (p.hp > 1) { p.hp--; p.hurtTimer = 24; p.invuln = 40; }
+      for (var b = 0; b < 12; b++) {
+        g.particles.spawn({
+          x: m.x, y: m.y + 4,
+          vx: (Math.random() - 0.5) * 3, vy: -1 - Math.random() * 1.6,
+          life: 30, col: '#8cd85a', size: 2, grav: 0.22
+        });
+      }
+      return;
+    }
+
     e.kcal += def.kcal;
     e.lastKcal = def.kcal;
     e.eaten++;
@@ -330,8 +362,8 @@
         ctx.scale(FSC, FSC);
         P.draw(ctx, s.food.spr, 0, 0);
         ctx.restore();
-        F.draw(ctx, s.food.kcal + ' KCAL', pos.x + s.dx, fy - 13,
-               { color: '#ffe9a8', align: 'center', shadow: true });
+        F.draw(ctx, s.food.bad ? 'GESUND!' : s.food.kcal + ' KCAL', pos.x + s.dx, fy - 13,
+               { color: s.food.bad ? '#8cd85a' : '#ffe9a8', align: 'center', shadow: true });
         F.draw(ctx, s.food.name, pos.x + s.dx, fy + dh + 5,
                { color: '#c8b8e0', align: 'center', shadow: true });
         // Die Hand haelt, was gerade gezogen wird
@@ -384,6 +416,15 @@
     rect(ctx, x, y, Math.round(w * p), 3, 'rgba(255,255,255,0.35)');
     F.draw(ctx, fmt(e.kcal) + ' / ' + fmt(e.goal) + ' KCAL', L.W / 2, y + 4,
            { color: '#ffffff', align: 'center', shadow: true });
+
+    // Herzen: hier kann man welche verlieren (gesundes Essen)
+    var p = g.player;
+    for (var i = 0; i < p.maxHp; i++) {
+      var hx = x + w + 8 + i * 13;
+      if (i >= p.hp) ctx.globalAlpha = 0.28;
+      P.draw(ctx, 'herz', hx, y + 1);
+      ctx.globalAlpha = 1;
+    }
   }
 
   function fmt(n) {
@@ -417,6 +458,133 @@
     }
   }
 
+  /* =====================================================================
+     DIE KASSE — Schlussszene von Level 9.
+     Yusuf wirft seinen halben Einkauf aufs Band, Alex zieht alles durch.
+     Gespielt wird hier nichts, geredet schon (Dialog laeuft darueber).
+     ===================================================================== */
+
+  var KASSE_SPR = ['food_beefy', 'food_rippen', 'food_chips', 'doener',
+                   'food_pommes', 'food_schoko', 'food_nuggets', 'honig',
+                   'baklava', 'kubide'];
+
+  function kasseInit() {
+    return { t: 0, items: [], total: 0, next: 10, beep: 0, spawned: 0 };
+  }
+
+  function kasseLayout(W, H) {
+    // Alles sitzt oberhalb des Textkastens — sonst sieht man von der
+    // Szene nichts, weil der Dialog die unteren 84 Pixel belegt.
+    var floorY = H - 96;
+    return {
+      W: W, H: H, floorY: floorY,
+      beltX: Math.round(W * 0.26), beltW: Math.round(W * 0.46),
+      beltY: floorY - 40,
+      yusufX: Math.round(W * 0.16),
+      alexX: Math.round(W * 0.84)
+    };
+  }
+
+  function kasseUpdate(g, W, H) {
+    var k = g.kasse, L = kasseLayout(W, H), i;
+    k.t++;
+    if (g.banner > 0) g.banner--;
+
+    // Yusuf legt nach — es hoert einfach nicht auf
+    k.next--;
+    if (k.next <= 0 && k.items.length < 16) {
+      k.next = 24;
+      k.spawned++;
+      k.items.push({
+        x: L.beltX + 6,
+        spr: KASSE_SPR[(Math.random() * KASSE_SPR.length) | 0],
+        price: 1 + Math.round(Math.random() * 900) / 100,
+        scanned: false,
+        hop: 8
+      });
+      S.play('select');
+    }
+
+    var scanX = L.beltX + L.beltW - 16;
+    for (i = k.items.length - 1; i >= 0; i--) {
+      var it = k.items[i];
+      it.x += 0.8;
+      if (it.hop > 0) it.hop--;
+      if (!it.scanned && it.x > scanX) {
+        it.scanned = true;
+        k.total = Math.min(412.9, k.total + it.price);
+        k.beep = 12;
+        S.play('coinBlock');
+        g.floats.add(L.alexX - 30, L.beltY - 24, '+' + it.price.toFixed(2).replace('.', ',') + ' EURO',
+                     '#ffd257', 50);
+      }
+      if (it.x > L.beltX + L.beltW + 20) k.items.splice(i, 1);
+    }
+    if (k.beep > 0) k.beep--;
+
+    g.particles.update();
+    g.floats.update();
+  }
+
+  function kasseDraw(ctx, g, W, H) {
+    var k = g.kasse, L = kasseLayout(W, H), i;
+
+    // Markt-Hintergrund
+    var grd = ctx.createLinearGradient(0, 0, 0, H);
+    grd.addColorStop(0, '#f4f7fb');
+    grd.addColorStop(1, '#b0bccc');
+    ctx.fillStyle = grd;
+    ctx.fillRect(0, 0, W, H);
+    for (var x = 0; x < W; x += 64) rect(ctx, x, 0, 34, 5, '#ffffff');
+    rect(ctx, 0, L.floorY, W, H - L.floorY, '#c8ccd6');
+    rect(ctx, 0, L.floorY, W, 3, '#9aa0ac');
+    // Kassenschild
+    F.draw(ctx, 'KASSE 3', L.alexX, 42, { color: '#3c4048', align: 'center', scale: 2 });
+    F.draw(ctx, 'ALEX HAT SCHICHT', L.alexX, 62, { color: '#787c86', align: 'center' });
+
+    // Kassenband
+    rect(ctx, L.beltX, L.beltY, L.beltW, 10, '#3c4048');
+    rect(ctx, L.beltX, L.beltY, L.beltW, 3, '#5c6068');
+    for (i = 0; i < L.beltW; i += 10) {
+      rect(ctx, L.beltX + ((i + (k.t * 0.8)) % L.beltW), L.beltY + 4, 4, 3, '#787c86');
+    }
+    rect(ctx, L.beltX - 6, L.beltY + 10, L.beltW + 12, L.floorY - L.beltY - 10, '#98a0ae');
+
+    // Alex an der Kasse
+    P.draw(ctx, 'kasse', L.alexX - 4, L.beltY - 26);
+    if (k.beep > 0) {
+      F.draw(ctx, 'PIEP', L.alexX + 16, L.beltY - 36, { color: '#ff3a30', align: 'center' });
+    }
+    P.drawChar(ctx, 'alex', L.alexX + 30, L.floorY, {
+      pose: 'idle', face: k.beep > 0 ? 'laugh' : 'normal', frame: (g.tick >> 3), flip: true, scale: 2
+    });
+
+    // Yusuf legt auf
+    var legt = (k.next > 16);
+    P.drawChar(ctx, 'yusuf', L.yusufX, L.floorY, {
+      pose: legt ? 'cheer' : 'idle', face: 'laugh', frame: (g.tick >> 3), scale: 2
+    });
+
+    // Das Band voller Zeug
+    for (i = 0; i < k.items.length; i++) {
+      var it = k.items[i];
+      var sp = P.get(it.spr);
+      P.draw(ctx, it.spr, it.x - sp.w / 2, L.beltY - sp.h + 1 - (it.hop > 0 ? it.hop : 0));
+    }
+
+    drawParticles(ctx, g);
+    drawFloats(ctx, g);
+
+    // Anzeige der Kasse
+    var tw = 120, tx = Math.round(L.alexX - tw / 2), ty = 16;
+    rect(ctx, tx - 2, ty - 2, tw + 4, 20, 'rgba(6,4,10,0.85)');
+    rect(ctx, tx, ty, tw, 16, '#1a2a1a');
+    F.draw(ctx, 'SUMME', tx + 5, ty + 5, { color: '#8cd85a' });
+    F.draw(ctx, k.total.toFixed(2).replace('.', ',') + ' EURO', tx + tw - 5, ty + 5,
+           { color: '#8cd85a', align: 'right' });
+  }
+
   global.Eat = { init: init, update: update, draw: draw };
+  global.Kasse = { init: kasseInit, update: kasseUpdate, draw: kasseDraw };
 
 })(window);

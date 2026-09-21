@@ -294,6 +294,7 @@
     this.snore = 0;
     this.eatTimer = 0;
     this.laughTimer = 0;
+    this.slip = 0;           // auf einer Pfuetze ausgerutscht
     this.smoke = false;      // Kippen-Power-Up aktiv
     this.smokeCool = 0;
     this.growlTimer = 0;
@@ -382,13 +383,21 @@
     var maxS = running ? MAX_RUN : MAX_WALK;
     if (this.power > 0) maxS += 0.5;
     if (driving) maxS = running ? 4.8 : 3.8;   // der Mustang zieht
+    // Auf einer Pfuetze: kaum Grip, er rutscht weiter.
+    if (this.slip > 0) {
+      this.slip--;
+      ax *= 0.35;
+      if (this.grounded) this.vx *= 0.995;
+    }
     if (ax !== 0) {
       this.vx += ACC * ax;
       this.facing = ax > 0 ? 1 : -1;
     } else {
-      this.vx *= this.grounded ? FRIC_GROUND : FRIC_AIR;
+      // Besoffen rutscht er nach: Alex hat ihm eine Flasche uebergekippt.
+      this.vx *= this.grounded ? (g.drunk ? 0.9 : FRIC_GROUND) : FRIC_AIR;
       if (Math.abs(this.vx) < 0.05) this.vx = 0;
     }
+    if (g.drunk && !this.dead) this.vx += Math.sin(g.tick * 0.043) * 0.085;
     if (this.vx > maxS) this.vx = maxS;
     if (this.vx < -maxS) this.vx = -maxS;
 
@@ -725,7 +734,11 @@
     lennart: { w: 20, h: 22, spr: ['lennart', 'lennart2'], score: 320, hp: 2 },
     drohne:  { w: 16, h: 12, spr: ['drohne', 'drohne2'], score: 200, hp: 1, fly: true },
     agent:   { w: 14, h: 12, spr: ['agent', 'agent2'], score: 180, hp: 1, fly: true },
-    polizei: { w: 14, h: 24, spr: ['polizei', 'polizei2'], score: 250, hp: 1 }
+    polizei: { w: 14, h: 24, spr: ['polizei', 'polizei2'], score: 250, hp: 1 },
+    // Level 9, Sparmarkt
+    wagen:   { w: 21, h: 14, spr: ['wagen', 'wagen2'], score: 170, hp: 1 },
+    tomate:  { w: 10, h: 10, spr: ['tomate', 'tomate2'], score: 130, hp: 1 },
+    wurst:   { w: 14, h: 9, spr: ['wurst', 'wurst2'], score: 150, hp: 1 }
   };
 
   function Enemy(type, tx, ty) {
@@ -747,6 +760,7 @@
     this.deadTimer = 0;
     this.stun = 0;
     this.charge = 0;
+    this.roll = 0;
     this.flash = 0;
     this.grounded = false;
     this.active = false;
@@ -778,6 +792,9 @@
       case 'drohne': this.upDrohne(g, p, dx); break;
       case 'agent': this.upAgent(g, p); break;
       case 'polizei': this.upPolizei(g, p, dx, dist); break;
+      case 'wagen': this.upWagen(g, dx, dist); break;
+      case 'tomate': this.upSalat(g); break;
+      case 'wurst': this.upWalker(g, 0.9 * DIFF); break;
     }
 
     this.animT += 1;
@@ -877,6 +894,27 @@
     if (this.t0 % Math.round(120 / DIFF) === 0 && Math.abs(dx) < 170) {
       g.addProjectile('sellerie', this.cx() - 3, this.y + this.h, 0, 1.2);
       global.Sound.play('shoot');
+    }
+  };
+
+  /** Einkaufswagen: rollt gemuetlich — bis Yusuf vor ihm steht. */
+  Enemy.prototype.upWagen = function (g, dx, dist) {
+    var rollt = (dist < 150 && (dx > 0) === (this.facing > 0));
+    if (rollt && this.roll < 60) this.roll = 60;
+    if (this.roll > 0) this.roll--;
+    var spd = (this.roll > 0 ? 2.7 : 0.9) * DIFF;
+    this.vx = this.facing * spd;
+    this.vy += GRAV;
+    if (moveX(this, g.world, this.vx) !== 0) { this.facing = -this.facing; this.roll = 0; }
+    var aheadX = this.facing > 0 ? this.x + this.w + 2 : this.x - 2;
+    var below = Math.floor((this.y + this.h + 4) / T);
+    if (this.grounded && !g.world.solid(Math.floor(aheadX / T), below)) {
+      this.facing = -this.facing; this.roll = 0;
+    }
+    this.grounded = (moveY(this, g.world, this.vy) === 1);
+    if (this.roll > 0 && this.t0 % 6 === 0) {
+      g.particles.spawn({ x: this.cx(), y: this.y + this.h, vx: -this.facing * 0.8,
+                          vy: -0.3, life: 14, col: '#c8ccd6', size: 2, grav: 0.1 });
     }
   };
 
@@ -1101,6 +1139,14 @@
       this.ghost = true; this.harmless = true; this.dropAt = 20; this.bombs = 3;
     }
     else if (type === 'zettel') { this.w = 10; this.h = 7; this.spr = 'zettel'; this.grav = 0.2; }
+    else if (type === 'wodka') { this.w = 7; this.h = 13; this.spr = 'wodka'; this.grav = 0.24; }
+    else if (type === 'bier') { this.w = 7; this.h = 8; this.spr = 'bier'; this.grav = 0.16; }
+    else if (type === 'kotze') { this.w = 10; this.h = 5; this.spr = 'kotze'; this.grav = 0.3; }
+    else if (type === 'pfuetze') {
+      // Was liegen bleibt: Kotze oder zerdepperter Wodka. Nicht reintreten.
+      this.w = 20; this.h = 5; this.spr = null; this.grav = 0;
+      this.life = 200; this.col = '#7fc24a';
+    }
     else if (type === 'welle') {
       // Bodenwelle nach einem Einschlag: flach, schnell, drueberspringen.
       this.w = 14; this.h = 10; this.spr = null; this.grav = 0;
@@ -1159,6 +1205,51 @@
         }
       }
       return;
+    }
+
+    // Pfuetze: klebt am Boden. Sie tut nicht weh — man rutscht darauf
+    // aus. Schaden waere hier unfair, weil Alex sie sich direkt vor die
+    // Fuesse wirft, also genau dahin, wo man angreifen muss.
+    if (this.t === 'pfuetze') {
+      if (--this.life <= 0) { this.dead = true; return; }
+      var pl = g.player;
+      if (!pl.dead && overlap(this, pl) && pl.slip <= 0 && pl.grounded) {
+        pl.slip = 50;
+        global.Sound.play('move');
+        g.floats.add(pl.cx(), pl.y - 14, 'AUSGERUTSCHT!', '#bfe6ff', 50);
+      }
+      return;
+    }
+
+    // Flasche und Kotze hinterlassen eine Pfuetze, wenn sie aufschlagen.
+    if (this.t === 'wodka' || this.t === 'kotze') {
+      var lty = Math.floor((this.y + this.h) / T);
+      if (this.vy > 0 && this.solidAt(g, cxT, lty)) {
+        this.dead = true;
+        var glas = (this.t === 'wodka');
+        // Hoechstens drei Pfuetzen gleichzeitig — sonst ist der ganze
+        // Boden belegt und der Kampf nicht mehr fair.
+        var pfn = 0, aeltest = null;
+        for (var pi = 0; pi < g.projectiles.length; pi++) {
+          var q = g.projectiles[pi];
+          if (q && q.t === 'pfuetze' && !q.dead) {
+            pfn++;
+            if (!aeltest || q.life < aeltest.life) aeltest = q;
+          }
+        }
+        if (pfn >= 3 && aeltest) aeltest.dead = true;
+
+        var pf = g.addProjectile('pfuetze', this.x - 6, lty * T - 5, 0, 0);
+        if (pf) {
+          pf.col = glas ? '#bfe6ff' : '#7fc24a';
+          pf.life = glas ? 90 : 130;
+          pf.bossShot = this.bossShot;
+        }
+        global.Sound.play(glas ? 'brk' : 'hurt');
+        g.particles.burst(this.x + this.w / 2, lty * T - 4, glas ? 12 : 8,
+          { col: glas ? '#cfe8ff' : '#8fd85a', spread: 2.6, up: 0.9, life: 26 });
+        return;
+      }
     }
 
     if (this.t === 'rauch' || this.t === 'safran') {
@@ -2315,6 +2406,297 @@
     }
   };
 
+  /* ================= ALEX — Endgegner in der Alkoholabteilung =========
+     Yusufs Kollege. Wirft Wodkaflaschen, kotzt Pfuetzen auf den Boden und
+     klettert als einziger Boss auf die Regale, um dort in Ruhe ein Bier
+     zu trinken. Ab der Haelfte kippt er Yusuf Alkohol ueber — ab da
+     wackelt das Bild (siehe g.drunk in game.js).
+     ================================================================= */
+
+  function BossAlex(tx, ty) {
+    this.w = 20; this.h = 58;
+    this.x = tx * T; this.y = ty * T - this.h;
+    this.floorRow = ty;
+    this.vx = 0; this.vy = 0;
+    this.facing = -1;
+    this.hp = 16; this.maxHp = 16;
+    this.phase = 1;
+    this.rage = false;
+    this.t0 = 0; this.anim = 0; this.animT = 0;
+    this.state = 'idle'; this.timer = 60;
+    this.invuln = 0; this.flash = 0;
+    this.dead = false; this.deadTimer = 0;
+    this.grounded = false;
+    this.open = true;
+    this.stompY = 32;
+    this.landed = true;
+    this.sip = 0;              // trinkt gerade einen Schluck
+    this.stuckT = 0;
+    this.ranted = false;
+    this.rageName = 'ULTRAPENNER';
+    this.rageCol = '#ff8a2a';
+  }
+
+  BossAlex.prototype.cx = function () { return this.x + this.w / 2; };
+  BossAlex.prototype.go = function (s, t) { this.state = s; this.timer = t; };
+
+  /** Alex benutzt die echte Welt: er soll auf die Regale klettern.
+      Damit er nicht wie frueher an Kanten klebt, springt er, wenn er
+      zweimal gegen dasselbe Hindernis laeuft. */
+  function alexMove(b, g) {
+    b.vy += GRAV;
+    if (b.vy > MAX_FALL) b.vy = MAX_FALL;
+    var hit = moveX(b, g.world, b.vx);
+    b.grounded = (moveY(b, g.world, b.vy) === 1);
+    if (b.grounded) {
+      if (hit !== 0 && Math.abs(b.vx) > 0.3) {
+        b.stuckT++;
+        if (b.stuckT > 10) { b.vy = -9.6; b.stuckT = 0; }
+      } else b.stuckT = 0;
+    }
+    if (g.arena) {
+      var lo = g.arena.x + 6, hi = g.arena.x + g.arena.w - 6;
+      if (b.x < lo) { b.x = lo; b.facing = 1; }
+      if (b.x + b.w > hi) { b.x = hi - b.w; b.facing = -1; }
+    }
+  }
+
+  /** Steht er oben auf einem Regal? */
+  function alexOben(b) {
+    return (b.y + b.h) < (b.floorRow * T - 8);
+  }
+
+  BossAlex.prototype.onTransform = function (g) {
+    this.rage = true;
+    // Ultrapenner: groesser und breiter
+    var footY = this.y + this.h, mid = this.cx();
+    this.w = 30; this.h = 80; this.stompY = 40;
+    this.y = footY - this.h;
+    this.x = mid - this.w / 2;
+    // Der Kern der zweiten Haelfte: Yusuf bekommt den Rest der Flasche ab.
+    g.drunk = 1;
+    g.drunkT = 0;
+    var p = g.player;
+    g.floats.add(p.cx(), p.y - 30, 'PROST.', '#ff8a2a', 90);
+    g.particles.burst(p.cx(), p.y + 6, 40,
+      { col: '#bfe6ff', spread: 3.4, up: 1.2, life: 50 });
+    global.Sound.play('growl');
+  };
+
+  BossAlex.prototype.update = function (g) {
+    this.t0++;
+    if (this.flash > 0) this.flash--;
+    if (this.invuln > 0) this.invuln--;
+    if (this.sip > 0) this.sip--;
+    if (this.dead) { bossDeath(this, g, '#ff8a2a'); return; }
+
+    var p = g.player;
+    var dx = p.cx() - this.cx();
+    var spd = this.rage ? (this.phase >= 3 ? 1.5 : 1.3) : 1;
+    var i;
+    this.timer--;
+    rageSparks(this, g);
+
+    switch (this.state) {
+      case 'transform':
+        if (tickTransform(this, g, 'ULTRAPENNER!', this.rageCol)) {
+          this.go('idle', 12);
+          this.phase = 2;
+          g.onAlexPhase(2);
+        }
+        break;
+
+      case 'idle':
+        this.vx *= 0.84;
+        this.facing = dx > 0 ? 1 : -1;
+        // Sein Ruhezustand: nochmal kurz ansetzen.
+        if (this.timer === 14 && Math.random() < 0.5) { this.sip = 28; global.Sound.play('select'); }
+        if (this.timer <= 0) this.pick(g, dx);
+        break;
+
+      case 'walk':
+        this.vx = this.facing * 1.5 * spd;
+        if (this.timer <= 0) this.go('idle', this.rage ? 12 : 22);
+        break;
+
+      // Wodkaflaschen im Bogen. Beim Aufschlag bleibt eine Pfuetze.
+      case 'wodka':
+        this.vx *= 0.8;
+        if (this.timer === 18 || (this.rage && this.timer === 6)) {
+          var n = this.rage ? 3 : 2;
+          for (i = 0; i < n; i++) {
+            g.addProjectile('wodka', this.cx() - 3, this.y + 14,
+                            this.facing * (2.0 + i * 0.7) * spd, -4.2 - i * 0.4);
+          }
+          global.Sound.play('shoot');
+          g.floats.add(this.cx(), this.y - 14, 'DIE WAR NOCH HALB VOLL!', '#bfe6ff', 60);
+        }
+        if (this.timer <= 0) this.go('idle', this.rage ? 18 : 30);
+        break;
+
+      // Was rein geht, kommt auch wieder raus.
+      case 'kotze':
+        this.vx *= 0.85;
+        if (this.timer === 20 || this.timer === 8) {
+          g.addProjectile('kotze', this.cx() - 5, this.y + 20,
+                          this.facing * 2.4, -2.6);
+          global.Sound.play('hurt');
+        }
+        if (this.timer === 20) {
+          g.floats.add(this.cx(), this.y - 14, 'MIR IST SCHLECHT.', '#8fd85a', 60);
+        }
+        if (this.timer <= 0) this.go('idle', this.rage ? 18 : 32);
+        break;
+
+      // Er klettert aufs Regal und trinkt dort in Ruhe weiter.
+      case 'bierjump':
+        if (this.timer === 34) {
+          this.vy = -11.2;
+          this.vx = (dx > 0 ? 1 : -1) * 2.2 * spd;
+          global.Sound.play('jump');
+        }
+        if (this.timer < 28 && this.grounded) {
+          if (alexOben(this)) this.go('trinken', 80);
+          else this.go('idle', 20);
+        }
+        if (this.timer <= 0 && this.grounded) this.go('idle', 20);
+        break;
+
+      case 'trinken':
+        this.vx *= 0.7;
+        this.sip = 30;
+        if (this.timer === 60) {
+          g.floats.add(this.cx(), this.y - 16, 'EINS GEHT NOCH.', '#ffd257', 70);
+        }
+        if (this.timer === 44 || this.timer === 24) {
+          g.addProjectile('bier', this.cx() - 3, this.y + 18,
+                          (dx > 0 ? 1 : -1) * 2.6, -1.2);
+          global.Sound.play('shoot');
+        }
+        if (this.timer <= 0) this.go('runter', 40);
+        break;
+
+      // Und dann kommt er von oben runter.
+      case 'runter':
+        if (this.timer === 34) {
+          this.vy = -5.5;
+          this.vx = (dx > 0 ? 1 : -1) * 3.0 * spd;
+          this.landed = false;
+          global.Sound.play('bossRoar');
+        }
+        if (this.grounded && !this.landed && this.vy >= 0 && this.timer < 30) {
+          this.landed = true;
+          groundWaves(this, g, '#ff8a2a', 3.2, this.rage ? 2 : 1);
+          this.go('idle', this.rage ? 16 : 28);
+        }
+        if (this.timer <= 0 && (this.grounded || this.timer < -90)) this.go('idle', 22);
+        break;
+
+      case 'dashprep':
+        this.vx *= 0.7;
+        if (this.timer <= 0) {
+          this.go('dash', 30);
+          global.Sound.play('bossRoar');
+          g.shake(3, 8);
+        }
+        break;
+
+      case 'dash':
+        // Torkeln: er laeuft nicht gerade.
+        this.vx = this.facing * 3.8 * spd + Math.sin(this.t0 * 0.3) * 0.8;
+        if (this.timer <= 0) this.go('idle', this.rage ? 18 : 34);
+        break;
+
+      // Der Vortrag ueber Platin-Trophaeen. Sehr schnell, sehr laut.
+      case 'stotter':
+        this.vx *= 0.8;
+        if (this.timer % 14 === 0) {
+          var rl = global.Levels.alexLines;
+          g.floats.add(this.cx() + (Math.random() - 0.5) * 40, this.y - 10 - (this.timer % 40),
+                       rl[(Math.random() * rl.length) | 0], '#ffd257', 55);
+          global.Sound.play('move');
+        }
+        if (this.timer % 20 === 10) {
+          g.addProjectile('wodka', this.cx() - 3, this.y + 14,
+                          this.facing * 2.6, -3.6);
+        }
+        if (this.timer <= 0) this.go('idle', 20);
+        break;
+
+      // ULTRAPENNER: Dosen vom Himmel.
+      case 'bierregen':
+        this.vx *= 0.8;
+        if (this.timer === 70) {
+          g.floats.add(this.cx(), this.y - 16, 'RUNDE FÜR ALLE!', '#ff8a2a', 70);
+        }
+        if (this.timer % 11 === 0) rainFromSky(g, 'bier', 1.4);
+        if (this.timer <= 0) this.go('idle', 18);
+        break;
+    }
+
+    alexMove(this, g);
+
+    this.animT++;
+    if (this.animT > (this.state === 'dash' ? 3 : 7)) { this.animT = 0; this.anim++; }
+
+    this.open = !(this.state === 'dash' || this.state === 'runter');
+    bossContact(this, g);
+  };
+
+  BossAlex.prototype.pick = function (g, dx) {
+    var r = Math.random();
+    this.facing = dx > 0 ? 1 : -1;
+    this.landed = true;
+
+    // Einmal pro Kampf haelt er seinen Vortrag.
+    if (!this.ranted && this.hp <= this.maxHp - 3) {
+      this.ranted = true;
+      this.go('stotter', 84);
+      return;
+    }
+    if (!this.rage) {
+      if (r < 0.26) this.go('wodka', 38);
+      else if (r < 0.46) this.go('kotze', 40);
+      else if (r < 0.64) this.go('bierjump', 44);
+      else if (r < 0.80) this.go('dashprep', 24);
+      else this.go('walk', 42);
+    } else if (this.phase === 2) {
+      if (r < 0.22) this.go('wodka', 32);
+      else if (r < 0.40) this.go('bierregen', 76);
+      else if (r < 0.58) this.go('bierjump', 44);
+      else if (r < 0.74) this.go('kotze', 34);
+      else if (r < 0.90) this.go('dashprep', 18);
+      else this.go('walk', 36);
+    } else {
+      if (r < 0.24) this.go('bierregen', 80);
+      else if (r < 0.44) this.go('wodka', 28);
+      else if (r < 0.62) this.go('dashprep', 15);
+      else if (r < 0.80) this.go('kotze', 30);
+      else this.go('bierjump', 44);
+    }
+  };
+
+  BossAlex.prototype.hit = function (g, dmg, p) {
+    if (this.invuln > 0 || this.dead || this.state === 'transform') return;
+    this.hp -= dmg;
+    bossBounce(this, g, p, '#ff8a2a', dmg);
+    if (this.hp <= 0) {
+      this.dead = true; this.deadTimer = 0; this.vy = -7;
+      g.shake(10, 42);
+      global.Sound.play('bossRoar');
+      g.onAlexDead();
+      return;
+    }
+    if (!this.rage && this.hp <= Math.floor(this.maxHp / 2)) {
+      startTransform(this, g);
+      return;
+    }
+    if (this.rage && this.phase < 3 && this.hp <= Math.ceil(this.maxHp / 4)) {
+      this.phase = 3;
+      g.onAlexPhase(3);
+    }
+  };
+
   /* ================= Export ================= */
 
   global.Ent = {
@@ -2326,6 +2708,7 @@
     Projectile: Projectile,
     Boss: Boss,
     BossEsat: BossEsat,
+    BossAlex: BossAlex,
     MiniBoss: MiniBoss,
     MINIBOSS: MINIBOSS,
     Particles: Particles,

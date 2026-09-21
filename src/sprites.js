@@ -1383,6 +1383,22 @@
     ..kkkkkkkkkkkk..
   `, 'food');
 
+  /* Ein Apfel. In diesem Spiel eine Bedrohung. */
+  P.def('food_apfel', `
+    .....kz.....
+    ....kzlk....
+    ..kkrrrrkk..
+    .krrrrrrrrk.
+    krrrrrrrrrrk
+    krrwrrrrrrrk
+    krwrrrrrrrrk
+    krrrrrrrrrrk
+    krrrrrrrrrrk
+    .krrrrrrrrk.
+    ..kkrrrrkk..
+    ....kkkk....
+  `, 'food');
+
   /* Das Handy. Erfan ruft an, und zwar hartnaeckig. */
   P.def('handy', `
     kkkkkkkkkk
@@ -1413,6 +1429,185 @@
     ..kssssssskk
     ...kkkkkkkk.
   `, 'food');
+
+  /* ---------------------------------------------------------------
+     LEVEL 9 — Sparmarkt: Einkaufswagen, Gemuese, Wurst, Alkohol
+     --------------------------------------------------------------- */
+
+  P.palette('markt', {
+    k: '#2a2a34',
+    m: '#c8ccd6', M: '#8a8e98', f: '#f2f4f8',
+    r: '#e0483c', R: '#a72e26', g: '#4aa832', G: '#2d6b1f',
+    y: '#ffd257', Y: '#e0a81e', o: '#ff8a2a',
+    b: '#5c7fd8', B: '#36508f', w: '#ffffff', W: '#b9c2d0',
+    n: '#b07a3a', N: '#7d5224', s: '#f4bd91', d: '#d1946b',
+    p: '#f08aa8', P: '#c05878', z: '#6fbf4a', c: '#a8e0f0',
+    v: '#8fd8ff', x: '#3a5a3a'
+  });
+
+  /* Einkaufswagen. Rollt, wenn er dich sieht. */
+  P.def('wagen', `
+    k......kkkkkkkkkkk...
+    kk....kmmmmmmmmmmk...
+    .kk..kmMmMmMmMmMmk...
+    ..kkkkmmmmmmmmmmmk...
+    ...kmmMmMmMmMmMmMk...
+    ...kmmmmmmmmmmmmmk...
+    ...kMmMmMmMmMmMmMk...
+    ...kmmmmmmmmmmmmk....
+    ...kkkkkkkkkkkkk.....
+    ...k...........k.....
+    ..kkk.........kkk....
+    .kMMMk.......kMMMk...
+    .kMMMk.......kMMMk...
+    ..kkk.........kkk....
+  `, 'markt');
+
+  P.def('wagen2', `
+    k......kkkkkkkkkkk...
+    kk....kmmmmmmmmmmk...
+    .kk..kmMmMmMmMmMmk...
+    ..kkkkmmmmmmmmmmmk...
+    ...kmmMmMmMmMmMmMk...
+    ...kmmmmmmmmmmmmmk...
+    ...kMmMmMmMmMmMmMk...
+    ...kmmmmmmmmmmmmk....
+    ...kkkkkkkkkkkkk.....
+    ...k...........k.....
+    ..kkk.........kkk....
+    .kMkMk.......kMkMk...
+    .kMkMk.......kMkMk...
+    ..kkk.........kkk....
+  `, 'markt');
+
+  /* Wuetende Tomate aus der Gemueseabteilung. */
+  P.def('tomate', `
+    ....xx....
+    ..xxzzxx..
+    ...kkkk...
+    ..krrrrk..
+    .krrrrrrk.
+    krrwrrwrrk
+    krrrkkrrrk
+    krrrrrrrrk
+    .kRRRRRRk.
+    ..kkkkkk..
+  `, 'markt');
+
+  P.def('tomate2', `
+    ....xx....
+    ..xxzzxx..
+    ...kkkk...
+    ..krrrrk..
+    .krrrrrrk.
+    krwrrrrwrk
+    krrkkkkrrk
+    krrrrrrrrk
+    .kRRRRRRk.
+    ..kkkkkk..
+  `, 'markt');
+
+  /* Wurst aus der Fleischtheke. Laeuft. Irgendwie. */
+  P.def('wurst', `
+    ..kkkkkkkkkk..
+    .kRRRRRRRRRRk.
+    krRRwRRRwRRRk.
+    krRRkRRRkRRRk.
+    krRRRRRRRRRRk.
+    .kRRRRRRRRRRk.
+    ..kkkkkkkkkk..
+    ...k......k...
+    ..kkk....kkk..
+  `, 'markt');
+
+  P.def('wurst2', `
+    ..kkkkkkkkkk..
+    .kRRRRRRRRRRk.
+    krRRwRRRwRRRk.
+    krRRkRRRkRRRk.
+    krRRRRRRRRRRk.
+    .kRRRRRRRRRRk.
+    ..kkkkkkkkkk..
+    ..k........k..
+    .kkk......kkk.
+  `, 'markt');
+
+  /* Wodkaflasche — Alex' Lieblingswurfgeschoss. */
+  P.def('wodka', `
+    ..kkk..
+    ..kwk..
+    ..kwk..
+    .kkwkk.
+    .kwwwk.
+    kwvvvwk
+    kwvvvwk
+    kwvvvwk
+    kwfffwk
+    kwvvvwk
+    kwvvvwk
+    .kwwwk.
+    ..kkk..
+  `, 'markt');
+
+  /* Bierdose. */
+  P.def('bier', `
+    kkkkkkk
+    kMMMMMk
+    kyyyyyk
+    kyrrryk
+    kyyyyyk
+    kMMMMMk
+    kMMMMMk
+    kkkkkkk
+  `, 'markt');
+
+  /* Kotze. Wir haben es versucht, schoen zu machen. */
+  P.def('kotze', `
+    ..zzz.....
+    .zzggzz...
+    zzgggggz..
+    .zggzggz..
+    ..zzzzz...
+  `, 'markt');
+
+  /* Preisschild fuer die Regale. */
+  P.def('preis', `
+    kkkkkkkkkk
+    kyyyyyyyyk
+    kyrrrrrryk
+    kyyyyyyyyk
+    kkkkkkkkkk
+  `, 'markt');
+
+  /* Kasse am Ausgang. */
+  P.def('kasse', `
+    ......kkkkkkkk......
+    .....kmmmmmmmmk.....
+    ....kmffffffffmk....
+    ....kmfvvvvvvfmk....
+    ....kmffffffffmk....
+    .....kmmmmmmmmk.....
+    kkkkkkkkkkkkkkkkkkkk
+    kMMMMMMMMMMMMMMMMMMk
+    kMkkkkkkkkkkkkkkkkMk
+    kMkmmmmmmmmmmmmmmkMk
+    kMkkkkkkkkkkkkkkkkMk
+    kMMMMMMMMMMMMMMMMMMk
+    kkkkkkkkkkkkkkkkkkkk
+  `, 'markt');
+
+  /* Einkaufstuete fuer den Heimweg. */
+  P.def('tuete', `
+    .kk....kk.
+    kkkkkkkkkk
+    kyyyyyyyyk
+    kyzzyyzzyk
+    kyyyyyyyyk
+    kyrryyrryk
+    kyyyyyyyyk
+    kyyyyyyyyk
+    kkkkkkkkkk
+  `, 'markt');
 
   /* ---------------------------------------------------------------
      TILES — zwei Masken, sechs Welten
@@ -1496,6 +1691,14 @@
       sky:  ['#140f22', '#2a1a3a', '#4a2250', '#6a2a48'],
       far:  '#2a2038', near: '#1a1426',
       accent: '#9dff6a'
+    },
+    // Supermarkt: heller Boden, Neonlicht, volle Regale
+    markt: {
+      top:  ['#eceef4', '#c8ccd6', '#9aa0ac', '#5c6068'],
+      fill: ['#b8bcc6', '#989ca6', '#787c86', '#3c4048'],
+      sky:  ['#f4f7fb', '#e2e8f0', '#ccd4e0', '#b0bccc'],
+      far:  '#c2cad8', near: '#a6b0c2',
+      accent: '#ff6a3c'
     },
     // Nachtstrasse Richtung Stilbruch
     strasse: {
