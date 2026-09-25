@@ -6,7 +6,7 @@
   'use strict';
 
   var ACTIONS = ['left', 'right', 'up', 'down', 'jump', 'run', 'throw',
-                 'pause', 'mute', 'confirm', 'back'];
+                 'pause', 'mute', 'confirm', 'back', 'puff'];
 
   var KEYMAP = {
     'ArrowLeft': ['left'], 'KeyA': ['left'],
@@ -23,6 +23,7 @@
     'Escape': ['pause', 'back'],
     'KeyP': ['pause'],
     'KeyM': ['mute'],
+    'KeyC': ['puff'],          // Level 14: an der Shisha auspusten
     'Backspace': ['back']
   };
 

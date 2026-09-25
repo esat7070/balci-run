@@ -1,5 +1,5 @@
 /* =====================================================================
-   levels.js — 5 Level, ein Endgegner und viel zu viele Sprüche.
+   levels.js — Alle Level, alle Bosse und viel zu viele Sprüche.
    Koordinaten sind in Tiles (1 Tile = 16 Pixel).
    ===================================================================== */
 (function (global) {
@@ -23,6 +23,11 @@
       par: cfg.par || 120,
       diff: cfg.diff || 1,    // Gegner-Tempo; steigt von Level zu Level
       driving: !!cfg.driving, // Level 6: Yusuf sitzt im Mustang
+      bike: !!cfg.bike,       // Level 12: Yusuf faehrt Fahrrad
+      kickers: [],            // Rampen fuers Fahrrad
+      direct: !!cfg.direct,   // nach dem Outro direkt ins naechste Level
+      buddy: cfg.buddy || null,           // wer hinter Yusuf herlaeuft (Esat)
+      buddyLines: cfg.buddyLines || null, // was er dabei sagt
       rescue: cfg.rescue || null
     };
   }
@@ -103,6 +108,9 @@
       }
       return this;
     },
+    /** Rampe (nur Fahrrad): liegt auf den Kacheln x-1 und x, Boden bei y.
+        An der rechten Kante hebt man ab. */
+    kick: function (x, y) { this.d.kickers.push([x, y]); return this; },
     cp: function (x, y) { this.d.checkpoints.push([x, y]); return this; },
     sign: function (x, y, text) { this.d.signs.push({ x: x, y: y, text: text }); return this; },
     bossAt: function (x, y) { this.d.boss = { x: x, y: y }; return this; },
@@ -805,8 +813,8 @@
 
   var lvl10 = L({
     id: 10, name: 'DER HEIMWEG', sub: 'SECHS TÜTEN, ACHTHUNDERT METER',
-    theme: 'strasse', music: 'l6', w: 132, h: 18, spawn: [3, 15], par: 110,
-    goal: [128, 15], diff: 1.25,
+    theme: 'strasse', music: 'l6', w: 160, h: 18, spawn: [3, 15], par: 130,
+    goal: [156, 15], diff: 1.25, direct: true,
     intro: [
       ['', 'DRAUSSEN. 15:05 UHR. SECHS TÜTEN.'],
       ['yusuf', 'DER WEG IST NICHT WEIT. ACHTHUNDERT METER.'],
@@ -814,37 +822,340 @@
       ['', 'DIE TÜTEN WIEGEN MEHR ALS YUSUF.']
     ],
     outro: [
-      ['', 'ZUHAUSE. DIE TÜTEN STEHEN IN DER KÜCHE.'],
-      ['yusuf', 'ICH RÄUM DAS MORGEN EIN.'],
-      ['yusuf', 'ICH ESS JETZT ERSTMAL WAS.'],
-      ['', 'ER SETZT SICH AUF DIE COUCH.'],
-      ['', 'DAS HANDY KLINGELT.'],
-      ['erfan', 'YUSUF! WACH AUF!'],
-      ['yusuf', 'ICH BIN WACH!'],
-      ['', 'ENDE. FÜR HEUTE.']
+      ['', 'DIE STRASSE. DAS HAUS. DIE HAUSTÜR.'],
+      ['yusuf', 'GESCHAFFT. ACHTHUNDERT METER.'],
+      ['yusuf', 'JETZT NUR NOCH REIN UND AUF DIE COUCH.'],
+      ['', 'VOR DER HAUSTÜR STEHT JEMAND.'],
+      ['', 'LEDERJACKE. HAARE WIE FRISCH AUS DEM WIND.'],
+      ['yusuf', '...BROKE?']
     ]
   });
 
-  lvl10.g(0, 30, 15).g(35, 64, 15).g(69, 96, 15).g(101, 131, 15);
-  lvl10.p(31, 13, 4).p(65, 13, 4).p(97, 13, 4);
-  lvl10.p(14, 11, 5).p(46, 11, 5).p(80, 11, 5).p(112, 11, 5);
+  // Der Heimweg geht nicht mehr geradeaus: Gehweg, Gerueste, Dächer,
+  // Sprungkissen und eine Baustellen-Plattform.
+  lvl10.g(0, 26, 15).g(31, 54, 15).g(59, 86, 15).g(91, 120, 15).g(125, 159, 15);
+  lvl10.p(27, 13, 4).p(55, 13, 4).p(87, 13, 4).p(121, 13, 4);
+  // Geparkte Autos und Mauern zum Draufspringen
+  lvl10.p(8, 12, 6).p(18, 10, 5).p(68, 12, 6).p(78, 10, 5)
+       .p(132, 12, 6).p(144, 10, 6);
+  // Baugeruest: zwei Ebenen uebereinander
+  lvl10.p(36, 11, 10).p(40, 7, 8).p(34, 4, 4);
+  lvl10.st(94, 14, 4, 1, 2).p(100, 10, 7).p(110, 7, 6);
+  lvl10.sp(24, 14).sp(82, 14);                 // Matratzen am Strassenrand
+  lvl10.mv(64, 9, 3, 'x', 4, 0.6).mv(116, 8, 2, 'y', 3, 0.5);
+  lvl10.hz(45, 46, 14, 'oel').hz(106, 107, 14, 'oel');
   lvl10.d.bags = true;          // er schleppt die Tueten mit
 
-  lvl10.q(20, 11, 'honig', 5).q(60, 11, 'doener').q(92, 11, 'honig', 5);
-  lvl10.k(26, 14).k(52, 14).k(86, 14).k(118, 14);
-  lvl10.trail(4, 13, 6, 2, 2).trail(40, 13, 6, 2, 2)
-       .trail(74, 13, 6, 2, 2).trail(106, 13, 6, 2, 2);
-  lvl10.it('herz', 50, 10).it('doener', 90, 10);
+  lvl10.q(14, 10, 'honig', 5).q(44, 6, 'doener').q(72, 10, 'honig', 5)
+       .q(104, 6, 'kippen').q(140, 9, 'honig', 5);
+  lvl10.k(22, 14).k(62, 14).k(76, 14).k(128, 14).k(129, 14);
+  lvl10.trail(3, 13, 5, 2).trail(37, 10, 5, 2, 2).trail(60, 13, 5, 2, 2)
+       .trail(92, 13, 4, 2).trail(101, 9, 6, 2, 2).trail(126, 13, 6, 2, 2);
+  lvl10.it('herz', 42, 6).it('doener', 113, 6).it('herz', 146, 9).it('kubide', 35, 3);
 
-  lvl10.row('broki', 15, [12, 44, 78, 110])
-       .row('wecker', 15, [22, 56, 88])
-       .row('salat', 15, [38, 84, 120])
-       .row('drohne', 9, [30, 70, 104]);
+  // Aus dem Markt rollt ihm die halbe Gemueseabteilung hinterher
+  lvl10.row('wagen', 15, [16, 50, 78, 112, 140])
+       .row('tomate', 15, [34, 66, 98, 130])
+       .row('broki', 15, [24, 84, 134])
+       .row('salat', 15, [40, 100])
+       .row('polizei', 15, [52, 118])
+       .row('drohne', 9, [30, 72, 116])
+       .row('biene', 10, [46, 92, 148])
+       .e('wecker', 38, 11).e('salat', 42, 7).e('tomate', 102, 10).e('broki', 146, 10);
 
-  lvl10.cp(36, 15).cp(70, 15);
+  lvl10.cp(32, 15).cp(92, 15).cp(127, 15);
   lvl10.sign(6, 15, 'ACHTHUNDERT METER. MIT SECHS TÜTEN.')
-       .sign(50, 15, 'EINE TÜTE REISST IMMER. IMMER DIE SCHWERSTE.')
-       .sign(104, 15, 'ER SIEHT SCHON SEIN HAUS. FAST.');
+       .sign(33, 15, 'BAUSTELLE. SEIT ZWEI JAHREN.')
+       .sign(60, 15, 'EINE TÜTE REISST IMMER. IMMER DIE SCHWERSTE.')
+       .sign(126, 15, 'ER SIEHT SCHON SEIN HAUS. FAST.');
+
+  /* ---------------------------------------------------------------
+     LEVEL 11 — Vor der Haustuer. Broke wartet schon und will kaempfen.
+     Nur zum Testen, sagt er. Und er hat die Mikas mitgebracht.
+     --------------------------------------------------------------- */
+
+  var lvl11 = L({
+    id: 11, name: 'VOR DER HAUSTÜR', sub: 'BROKE WARTET SCHON',
+    theme: 'siedlung', music: 'boss2', w: 60, h: 18, spawn: [5, 15], par: 150,
+    goal: [56, 15], diff: 1.35,
+    intro: [
+      ['', 'VOR YUSUFS HAUS. 15:40 UHR.'],
+      ['broke', 'YUSUF! DA BIST DU JA ENDLICH.'],
+      ['yusuf', 'BROKE. WAS MACHST DU VOR MEINER TÜR?'],
+      ['broke', 'ICH WARTE. SEIT ZWEI STUNDEN.'],
+      ['yusuf', 'ICH WAR EINKAUFEN.'],
+      ['broke', 'SEH ICH. STELL DIE TÜTEN AB. WIR KÄMPFEN.'],
+      ['yusuf', 'WARUM DAS DENN?'],
+      ['broke', 'NUR ZUM TESTEN. OB DU NOCH IN FORM BIST.'],
+      ['yusuf', 'ICH WAR NIE IN FORM.'],
+      ['broke', 'DANN WIRD ES EIN KURZER TEST.'],
+      ['broke', 'ACH JA. ICH HAB DIE MIKAS MITGEBRACHT.'],
+      ['yusuf', 'WER SIND DIE MIKAS?'],
+      ['broke', 'MEINE KLEINEN KOLLEGEN. SIE HEISSEN ALLE MIKA.'],
+      ['mika', 'HALLO.'],
+      ['mika', 'HALLO.'],
+      ['yusuf', 'DAS WAR ZWEIMAL DERSELBE.'],
+      ['broke', 'NEIN. DAS WAREN ZWEI MIKAS. UND ES WERDEN MEHR.'],
+      ['', 'YUSUF STELLT DIE TÜTEN AB. VORSICHTIG. EINE NACH DER ANDEREN.']
+    ],
+    outro: []
+  });
+
+  lvl11.g(0, 59, 15);
+  lvl11.p(10, 11, 6).p(24, 8, 7).p(40, 11, 6).p(17, 5, 5).p(34, 4, 6).p(49, 8, 6);
+  lvl11.q(13, 7, 'doener', 3).q(43, 7, 'doener', 3).q(30, 11, 'kippen');
+  lvl11.it('herz', 11, 9).it('herz', 45, 9).it('kubide', 36, 2);
+  lvl11.trail(8, 13, 5, 2, 2).trail(46, 13, 5, 2, 2);
+  // Broke steht schon vor der Tuer, zwei Mikas daneben — die sagen HALLO
+  lvl11.e('mika', 24, 15).e('mika', 27, 15);
+  lvl11.bossAt(20, 15);
+  lvl11.d.bossType = 'broke';
+  lvl11.d.arena = { x: 0, w: 60 };
+  lvl11.d.deko = 'haus';          // Yusufs Haus mit den Tueten vor der Tuer
+
+  /* ---------------------------------------------------------------
+     LEVEL 12 — Downhill mit Esat. Der Hausberg, von oben nach unten.
+     Rampen, Rueckwaertssaltos, Honig in der Luft. Und auf halber
+     Strecke hat Lennart seinen grossen Auftritt.
+     --------------------------------------------------------------- */
+
+  var lvl12 = L({
+    id: 12, name: 'DOWNHILL', sub: 'MIT ESAT AM HAUSBERG',
+    theme: 'berg', music: 'l2', w: 312, h: 42, spawn: [4, 8], par: 120,
+    goal: [304, 39], diff: 1.2, bike: true, direct: true,
+    buddy: 'esat', buddyLines: 'esatRideLines',
+    intro: [
+      ['', 'DER HAUSBERG. 9:10 UHR.'],
+      ['esat', 'DAS IST MEIN HAUSBERG. ICH FAHR HIER JEDEN SONNTAG.'],
+      ['yusuf', 'ES IST MONTAG.'],
+      ['esat', 'DANN HALT AUCH MONTAGS.'],
+      ['yusuf', 'WO IST DER LIFT?'],
+      ['esat', 'ES GIBT KEINEN LIFT. WIR SIND OBEN. ES GEHT NUR NOCH RUNTER.'],
+      ['yusuf', 'NUR RUNTER. DAS IST MEIN SPORT.'],
+      ['esat', 'AUF DEN RAMPEN HEBST DU AB. IN DER LUFT: RÜCKWÄRTSSALTO.'],
+      ['yusuf', 'EIN SALTO. MIT MIR DRAUF.'],
+      ['esat', 'GIBT PUNKTE. UND UNTERWEGS LIEGT HONIG.'],
+      ['yusuf', 'WARUM LIEGT HIER HONIG?'],
+      ['esat', 'DAS FRAGST DU SEIT ELF LEVELN.'],
+      ['', 'RECHTS = TRETEN. LINKS = BREMSEN. SPRUNG = HÜPFEN.'],
+      ['', 'IN DER LUFT NOCHMAL SPRUNG = RÜCKWÄRTSSALTO. GERADE LANDEN!']
+    ],
+    outro: [
+      ['', 'UNTEN. DIE BREMSEN QUALMEN. YUSUF AUCH.'],
+      ['esat', 'NICHT SCHLECHT, YUSUF. WIRKLICH NICHT SCHLECHT.'],
+      ['yusuf', 'ICH HAB EINEN RÜCKWÄRTSSALTO GEMACHT.'],
+      ['esat', 'DU HAST DABEI GESCHRIEN.'],
+      ['yusuf', 'VOR FREUDE.'],
+      ['esat', 'UND LENNART?'],
+      ['yusuf', 'WELCHER LENNART?'],
+      ['esat', 'GENAU.'],
+      ['esat', 'ICH MUSS KURZ HEIM. DUSCHEN.'],
+      ['yusuf', 'UND ICH GEH SHAWARMA ESSEN.'],
+      ['esat', 'DU HAST DOCH GAR KEINEN HUNGER.'],
+      ['yusuf', 'NEIN. ABER HAMZA WARTET.']
+    ]
+  });
+
+  // Von oben nach unten: jede Stufe ein Stueck tiefer. Das lange flache
+  // Stueck (137-200) gehoert Lennart — da hat er seinen Auftritt.
+  lvl12.g(0, 24, 8).g(25, 36, 10).g(37, 48, 12)
+       .g(53, 70, 14).g(71, 84, 16).g(85, 104, 20)
+       .g(105, 118, 22).g(124, 136, 23).g(137, 200, 24)
+       .g(201, 212, 26).g(213, 234, 36).g(235, 252, 37)
+       .g(258, 274, 38).g(275, 311, 39);
+
+  // Rampen. Hinter jeder geht es weit runter oder ueber eine Luecke.
+  lvl12.kick(46, 12).kick(80, 16).kick(116, 22).kick(210, 26).kick(250, 37);
+
+  // Dornbuesche: nur mit einem Hopser drueber
+  lvl12.hz(66, 66, 13, 'dornen').hz(112, 112, 21, 'dornen')
+       .hz(244, 244, 36, 'dornen').hz(268, 269, 37, 'dornen');
+
+  // Honig auf dem Weg — und in der Luft genau da, wo man hinfliegt
+  lvl12.trail(6, 7, 7, 2).trail(26, 9, 5, 2).trail(38, 11, 4, 2)
+       .trail(48, 10, 6, 2, 6).trail(60, 13, 3, 2)
+       .trail(82, 14, 6, 2, 6).trail(96, 19, 4, 2)
+       .trail(118, 20, 6, 2, 6).trail(142, 23, 5, 3)
+       .trail(202, 25, 4, 2).trail(212, 24, 5, 2, 7)
+       .it('honig', 222, 24).it('honig', 224, 29)
+       .trail(236, 36, 4, 2).trail(252, 35, 6, 2, 6)
+       .trail(276, 38, 8, 3);
+  lvl12.q(92, 16, 'honig', 5).q(240, 33, 'herz').q(282, 35, 'honig', 5);
+  lvl12.it('herz', 110, 19).it('kubide', 262, 35).it('doener', 180, 21);
+
+  // Bienen verteidigen den Berg. Das Fahrrad faehrt einfach durch.
+  lvl12.e('biene', 98, 17).e('biene', 128, 20).e('biene', 226, 32)
+       .e('biene', 264, 34).e('biene', 292, 35);
+
+  lvl12.cp(132, 23).cp(198, 24).cp(265, 38);
+
+  lvl12.sign(8, 8, 'RECHTS = TRETEN. LINKS = BREMSEN.')
+       .sign(40, 12, 'RAMPE = ABHEBEN. IN DER LUFT SPRUNG = SALTO.')
+       .sign(58, 14, 'SCHIEF LANDEN TUT WEH. GERADE LANDEN.')
+       .sign(204, 26, 'GROSSER SPRUNG. ZWEI SALTOS SCHAFFT NUR ESAT.')
+       .sign(280, 39, 'FAST UNTEN. BREMSEN NICHT VERGESSEN.');
+
+  // Lennarts Auftritt: ausgeloest ab Kachel 'at'. Er kommt von hinten,
+  // springt ueber die beiden, macht einen Salto — und beim dritten
+  // Sprung geht es schief.
+  lvl12.d.lennart = { at: 138 };
+
+  /* ---------------------------------------------------------------
+     LEVEL 13 — Shawarma bei Hamza. Libanesisch. Der Spiess dreht sich,
+     die Falafel rollen, und hinten wartet Hamza mit Hummus und Ball.
+     --------------------------------------------------------------- */
+
+  var lvl13 = L({
+    id: 13, name: 'SHAWARMA BEI HAMZA', sub: 'LIBANESISCH. SEIT IMMER.',
+    theme: 'imbiss', music: 'l4', w: 190, h: 18, spawn: [3, 15], par: 150,
+    goal: [186, 15], diff: 1.35,
+    intro: [
+      ['', 'HAMZAS RESTAURANT. 12:40 UHR.'],
+      ['', 'DER SPIESS DREHT SICH SEIT HEUTE MORGEN.'],
+      ['yusuf', 'ES RIECHT NACH SHAWARMA.'],
+      ['yusuf', 'UND NACH KNOBLAUCHSOSSE. AUF DEM BODEN.'],
+      ['', 'AUS DER KÜCHE ROLLT EINE FALAFEL. SIE SIEHT WÜTEND AUS.'],
+      ['yusuf', 'DAS IST MIR NOCH NIE PASSIERT. UND ICH ESSE VIEL FALAFEL.']
+    ],
+    outro: []
+  });
+
+  lvl13.g(0, 46, 15).g(51, 98, 15).g(103, 142, 15).g(147, 189, 15);
+  lvl13.p(47, 13, 4).p(99, 13, 4).p(143, 13, 4);
+  // Theke, Kueche, Gastraum: Tische und Tresen zum Draufspringen
+  lvl13.p(10, 11, 5).p(22, 10, 8).p(36, 11, 5).p(26, 7, 4);
+  lvl13.p(58, 11, 6).p(70, 9, 6).p(84, 11, 6).p(76, 6, 4);
+  lvl13.p(108, 11, 5).p(118, 11, 5).p(128, 11, 5).p(113, 8, 4).p(123, 8, 4);
+  // Hamzas Ecke: hinten im Laden, vor dem grossen Spiess
+  lvl13.p(152, 11, 5).p(162, 8, 6).p(174, 11, 5).p(183, 8, 4);
+  lvl13.bossAt(178, 15);
+  lvl13.d.bossType = 'hamza';
+  lvl13.d.arena = { x: 147, w: 43 };
+
+  // Knoblauchsosse auf dem Boden
+  lvl13.hz(29, 31, 14, 'toum').hz(64, 66, 14, 'toum')
+       .hz(90, 92, 14, 'toum').hz(115, 117, 14, 'toum');
+
+  lvl13.q(16, 11, 'honig', 5).q(62, 7, 'shawarma').q(100, 10, 'honig', 5)
+       .q(125, 11, 'kippen').q(154, 7, 'honig', 4);
+  lvl13.k(6, 14).k(44, 14).k(86, 14).k(138, 14);
+  lvl13.trail(3, 13, 5, 2).trail(52, 13, 5, 2, 2).trail(104, 13, 5, 2, 2)
+       .trail(148, 13, 4, 2, 2);
+  lvl13.it('herz', 24, 8).it('shawarma', 78, 4).it('herz', 115, 6).it('shawarma', 186, 6);
+
+  lvl13.row('falafel', 15, [12, 40, 60, 80, 110, 132])
+       .row('peperoni', 15, [18, 34, 72, 96, 122])
+       .row('pita', 9, [26, 66, 104, 128]);
+
+  lvl13.cp(56, 15).cp(106, 15);
+  lvl13.sign(5, 15, 'HAMZAS. LIBANESISCH. SEIT IMMER.')
+       .sign(26, 15, 'KNOBLAUCHSOSSE AUF DEM BODEN. NICHT REINTRETEN.')
+       .sign(54, 15, 'KÜCHE. DIE FALAFEL ROLLEN HIER FREI HERUM.')
+       .sign(110, 15, 'GASTRAUM. BITTE NICHT AUF DIE TISCHE SPRINGEN.')
+       .sign(150, 15, 'HAMZA. SEIN LADEN. SEIN HUMMUS.');
+
+  /* ---------------------------------------------------------------
+     LEVEL 14 — Stilbruch. Eine Shisha nach dem Essen, ganz entspannt.
+     Dann ruelpst Yusuf. Esat geht die ganze Zeit mit.
+     --------------------------------------------------------------- */
+
+  var lvl14 = L({
+    id: 14, name: 'STILBRUCH', sub: 'EINE SHISHA. GANZ ENTSPANNT.',
+    theme: 'bar', music: 'l6', w: 200, h: 18, spawn: [3, 15], par: 160,
+    goal: [196, 15], diff: 1.3, buddy: 'esat', buddyLines: 'esatBarLines',
+    intro: [
+      ['', 'SHISHA-BAR STILBRUCH. 21:10 UHR.'],
+      ['esat', 'SO. JETZT GANZ ENTSPANNT. EINE SHISHA, DANN NACH HAUSE.'],
+      ['yusuf', 'ICH HAB DREI SHAWARMA IM BAUCH.'],
+      ['esat', 'VIER. ICH HAB MITGEZÄHLT.'],
+      ['', 'YUSUF RÜLPST. SEHR LAUT. SEHR LANGE.'],
+      ['', 'DIE GANZE BAR DREHT SICH UM.'],
+      ['', 'AM NEBENTISCH STEHT JEMAND AUF. DANN NOCH JEMAND. DANN ALLE.'],
+      ['typ', 'WAS WAR DAS, BRUDER?'],
+      ['yusuf', 'EIN KOMPLIMENT AN DEN KOCH.'],
+      ['typ', 'HIER GIBT ES KEINEN KOCH.'],
+      ['esat', 'EY YUSUF. CHILL.'],
+      ['yusuf', 'ICH BIN GECHILLT. DIE NICHT.'],
+      ['', 'SIE GREIFEN ZU DEN ZANGEN. UND ZUR HEISSEN KOHLE.'],
+      ['esat', 'OKAY. HINTEN IST UNSER TISCH RESERVIERT. DA WOLLEN WIR HIN.'],
+      ['yusuf', 'DANN GEHEN WIR DA HIN.']
+    ],
+    outro: []
+  });
+
+  lvl14.g(0, 58, 15).g(59, 74, 13).g(75, 130, 15).g(131, 146, 12).g(147, 199, 15);
+  // Sofas, Tische, die Lounge
+  lvl14.p(10, 11, 6).p(24, 11, 6).p(38, 10, 6).p(50, 11, 5)
+       .p(80, 11, 6).p(94, 10, 6).p(108, 11, 6).p(120, 9, 5)
+       .p(152, 11, 6).p(166, 10, 6).p(180, 11, 6);
+  // Umgekippte Kohle
+  lvl14.hz(33, 34, 14, 'kohle').hz(88, 89, 14, 'kohle')
+       .hz(160, 161, 14, 'kohle').hz(174, 175, 14, 'kohle');
+
+  lvl14.q(18, 8, 'honig', 5).q(70, 9, 'doener').q(115, 6, 'kippen').q(160, 8, 'honig', 5);
+  lvl14.trail(4, 13, 5, 2).trail(76, 13, 5, 2, 2).trail(132, 11, 6, 2).trail(148, 13, 5, 2, 2);
+  lvl14.it('herz', 26, 9).it('herz', 122, 7).it('doener', 140, 10).it('herz', 182, 9);
+
+  // Die Typen vom Nebentisch. Es sind viele.
+  lvl14.row('typ1', 15, [16, 44, 84, 112, 156, 186])
+       .row('typ2', 15, [28, 100, 170])
+       .row('typ3', 15, [52, 124, 192])
+       .e('typ2', 66, 13).e('typ1', 138, 12)
+       .e('typ3', 40, 10).e('typ1', 96, 10).e('typ2', 168, 10);
+
+  lvl14.cp(56, 15).cp(104, 15).cp(150, 15);
+  lvl14.sign(6, 15, 'STILBRUCH. RAUCHEN ERLAUBT. RÜLPSEN NICHT.')
+       .sign(62, 13, 'LOUNGE. BITTE NICHT STRESSEN.')
+       .sign(134, 12, 'THEKE. HIER WIRD DIE KOHLE GEMACHT.')
+       .sign(188, 15, 'RESERVIERT: ESAT UND BEGLEITUNG.');
+
+  /* ---------------------------------------------------------------
+     LEVEL 15 — Bei Georgios. Griechisch, kurz vor Kuechenschluss.
+     Die Meeresfruechte sind frisch. Sehr frisch. Und Georgios ist schnell.
+     --------------------------------------------------------------- */
+
+  var lvl15 = L({
+    id: 15, name: 'BEI GEORGIOS', sub: 'TAVERNE. KÜCHE BIS ELF.',
+    theme: 'taverne', music: 'l3', w: 190, h: 18, spawn: [3, 15], par: 150,
+    goal: [186, 15], diff: 1.45, buddy: 'esat', buddyLines: 'esatTaverneLines',
+    intro: [
+      ['', 'TAVERNE GEORGIOS. 22:45 UHR.'],
+      ['esat', 'DIE KÜCHE MACHT UM ELF ZU. WIR HABEN FÜNFZEHN MINUTEN.'],
+      ['yusuf', 'DAS REICHT FÜR EINE VORSPEISE.'],
+      ['', 'IM AQUARIUM BEWEGT SICH ETWAS. ES KOMMT RAUS.'],
+      ['esat', 'WARUM LAUFEN HIER KRABBEN RUM?'],
+      ['yusuf', 'FRISCHER GEHT ES NICHT.']
+    ],
+    outro: []
+  });
+
+  lvl15.g(0, 44, 15).g(49, 96, 15).g(101, 142, 15).g(147, 189, 15);
+  lvl15.p(45, 13, 4).p(97, 13, 4).p(143, 13, 4);
+  lvl15.p(8, 11, 5).p(18, 9, 6).p(30, 11, 6).p(56, 11, 5).p(66, 8, 6).p(80, 11, 6)
+       .p(106, 11, 5).p(116, 9, 5).p(128, 11, 6);
+  // Georgios' Ecke
+  lvl15.p(152, 11, 5).p(162, 8, 6).p(174, 11, 5).p(183, 8, 4);
+  lvl15.bossAt(178, 15);
+  lvl15.d.bossType = 'georgios';
+  lvl15.d.arena = { x: 147, w: 43 };
+
+  // Olivenoel auf dem Boden
+  lvl15.hz(24, 26, 14, 'oel').hz(72, 74, 14, 'oel');
+
+  lvl15.q(12, 7, 'honig', 5).q(60, 7, 'souvlaki').q(112, 6, 'honig', 5).q(154, 7, 'herz');
+  lvl15.trail(3, 13, 5, 2).trail(50, 13, 5, 2, 2).trail(102, 13, 5, 2, 2).trail(148, 13, 4, 2, 2);
+  lvl15.it('herz', 20, 7).it('souvlaki', 68, 6).it('herz', 118, 7).it('souvlaki', 186, 6);
+
+  // Meeresfruechte. Frisch aus dem Aquarium, und sie wehren sich.
+  lvl15.row('krabbe', 15, [12, 38, 60, 86, 114, 136])
+       .row('krake', 15, [34, 78, 120])
+       .e('fisch', 26, 7).e('fisch', 70, 6).e('fisch', 108, 8).e('fisch', 132, 8);
+
+  lvl15.cp(54, 15).cp(104, 15);
+  lvl15.sign(5, 15, 'TAVERNE GEORGIOS. KÜCHE BIS ELF.')
+       .sign(52, 15, 'FRISCHER FISCH. SEHR FRISCH. ER WEHRT SICH.')
+       .sign(108, 15, 'TELLER ZERSCHLAGEN ERLAUBT. SAGT GEORGIOS.')
+       .sign(150, 15, 'GEORGIOS. SEHR SCHNELL. SAGT ER.');
 
   /* ---------------------------------------------------------------
      Dialoge für den Bosskampf & das Ende
@@ -1033,12 +1344,21 @@
       ['yusuf', 'ICH NEHM SECHS TÜTEN.'],
       ['alex', 'DAS SIND ZEHN CENT PRO TÜTE.'],
       ['yusuf', 'DANN NEHM ICH VIER.'],
-      ['', 'SUMME: 412,90 EURO.'],
+      ['', 'SUMME: 205,40 EURO.'],
       ['yusuf', 'KANN ICH IN RATEN ZAHLEN?'],
       ['alex', 'NEIN.'],
       ['yusuf', 'KANN ICH IN KALORIEN ZAHLEN?'],
       ['alex', 'NEIN!'],
-      ['', 'YUSUF ZAHLT. IN MÜNZEN. ALLEN.'],
+      ['', 'YUSUF ZAHLT. IN MÜNZEN. ES DAUERT.'],
+      ['yusuf', 'SAG MAL, ALEX.'],
+      ['yusuf', 'KOMM DOCH MAL WIEDER RAUS. MAN SIEHT DICH NIE.'],
+      ['alex', 'JA JA. DIESMAL KOMM ICH.'],
+      ['yusuf', 'DU KOMMST SOWIESO NICHT.'],
+      ['alex', 'DOCH, DOCH. DIESMAL SCHON.'],
+      ['yusuf', 'NEE. ICH GLAUB, DICH SEHEN WIR NICHT MEHR.'],
+      ['alex', 'ICH SCHREIB DIR!'],
+      ['yusuf', 'DU SCHREIBST AUCH NICHT.'],
+      ['alex', '...'],
       ['alex', 'GEH NACH HAUSE, YUSUF.'],
       ['yusuf', 'ICH GEH JA SCHON.'],
       ['alex', 'UND MACH MAL EIN SPIEL AUF PLATIN!'],
@@ -1059,6 +1379,223 @@
     'SIEBENUNDVIERZIG!',
     'HAST DU NICHT!'
   ];
+
+  /* BROKE — Kollege, wartet vor Yusufs Haus. Kein Streit, nur ein Test.
+     (Was vor dem Kampf gesagt wird, steht im Intro von Level 11.) */
+  var BROKE_DIALOG = {
+    phase2: [
+      ['broke', 'OKAY. DU BIST BESSER ALS GEDACHT.'],
+      ['broke', 'ZEIT FÜR DIE GANZE MIKA-ARMEE.'],
+      ['yusuf', 'WIE VIELE MIKAS GIBT ES DENN?'],
+      ['broke', 'WEISS KEINER. NICHT MAL MIKA.'],
+      ['mika', 'HALLO.']
+    ],
+    phase3: [
+      ['broke', 'NOCH SCHNELLER! MIKAS, VOLLGAS!'],
+      ['yusuf', 'ICH HAB SEIT DER KASSE NICHTS GEGESSEN.'],
+      ['broke', 'DAS IST TEIL DES TESTS.']
+    ],
+    end: [
+      ['broke', 'OKAY! OKAY! TEST BESTANDEN!'],
+      ['yusuf', 'WAS WAR DAS ÜBERHAUPT FÜR EIN TEST?'],
+      ['broke', 'OB DU NACH SECHS TÜTEN NOCH KÄMPFEN KANNST.'],
+      ['yusuf', 'UND?'],
+      ['broke', 'KANNST DU. RESPEKT, BRUDER.'],
+      ['mika', 'RESPEKT.'],
+      ['mika', 'RESPEKT.'],
+      ['broke', 'KOMMT, JUNGS. WIR GEHEN.'],
+      ['', 'BROKE GEHT. DIE MIKAS AUCH. ALLE.'],
+      ['', 'DAS DAUERT EIN BISSCHEN.'],
+      ['yusuf', 'ICH GEH JETZT SCHLAFEN.'],
+      ['yusuf', 'NACH DEM ESSEN.']
+    ]
+  };
+
+  /* Was die Mikas so sagen. Viel ist es nicht. */
+  var MIKA_LINES = [
+    'MIKA!', 'HALLO.', 'ICH BIN MIKA.', 'ICH BIN AUCH MIKA.',
+    'WIR SIND ALLE MIKA.', 'NOCH EIN MIKA.', 'MIKA IST DA.', 'SERVUS.'
+  ];
+
+  /* Am naechsten Morgen: Esat ruft an. */
+  var SCHLAF_DIALOG = [
+    ['', 'AM NÄCHSTEN MORGEN. 7:30 UHR.'],
+    ['esat', 'YUSUF! BIST DU WACH?'],
+    ['yusuf', 'NEIN.'],
+    ['esat', 'ZIEH DICH AN. WIR FAHREN DOWNHILL.'],
+    ['yusuf', 'DOWNHILL?'],
+    ['esat', 'MIT DEM FAHRRAD. DEN BERG RUNTER.'],
+    ['yusuf', 'BERGAB?'],
+    ['esat', 'NUR BERGAB.'],
+    ['yusuf', 'BERGAB KANN ICH.'],
+    ['', 'YUSUF STEHT AUF. FREIWILLIG. DAS GAB ES NOCH NIE.']
+  ];
+
+  /* Esat faehrt mit und hat zu allem eine Meinung. */
+  var ESAT_RIDE_LINES = [
+    'SCHNELLER, YUSUF!', 'BREMSEN IST FÜR LEUTE MIT ANGST.',
+    'RAMPE! SALTO! JETZT!', 'DAS IST MEIN HAUSBERG.',
+    'NICHT NACH UNTEN SCHAUEN.', 'LOCKER IN DEN KNIEN.',
+    'ICH HAB HIER MAL EIN REH ÜBERHOLT.', 'DU FÄHRST WIE DU ISST. VIEL.'
+  ];
+  var ESAT_FLIP_LINES = [
+    'SAUBER!', 'OKAY, RESPEKT.', 'NOCH EINEN!', 'WER HAT DIR DAS BEIGEBRACHT?',
+    'DAS WAR KEIN SALTO. DAS WAR KUNST.'
+  ];
+
+  /* HAMZA — libanesischer Freund. Streitpunkt: sein Hummus. */
+  var HAMZA_DIALOG = {
+    start: [
+      ['hamza', 'YUSUF! HABIBI! DA BIST DU JA!'],
+      ['yusuf', 'HAMZA. EIN SHAWARMA. BITTE.'],
+      ['hamza', 'EINS? DU WILLST EINS?'],
+      ['yusuf', 'FÜR DEN ANFANG.'],
+      ['hamza', 'WEISST DU NOCH, WAS DU LETZTES MAL GESAGT HAST?'],
+      ['yusuf', 'NEIN.'],
+      ['hamza', 'DU HAST GESAGT, MEIN HUMMUS IST ZU FLÜSSIG.'],
+      ['yusuf', 'ER WAR ZU FLÜSSIG.'],
+      ['hamza', '...'],
+      ['hamza', 'YALLA. DANN PROBIER IHN JETZT.']
+    ],
+    phase2: [
+      ['hamza', 'OKAY. JETZT WIRD ES ERNST.'],
+      ['hamza', 'ICH HAB STRASSENFUSSBALL GESPIELT, HABIBI.'],
+      ['yusuf', 'DU HAST AUF DEM SCHULHOF GESPIELT.'],
+      ['hamza', 'DAS IST AUCH EINE STRASSE!']
+    ],
+    phase3: [
+      ['hamza', 'NOCH NIE HAT JEMAND SO LANGE GEGEN MEINEN HUMMUS GEKÄMPFT.'],
+      ['yusuf', 'ICH HAB HUNGER. DAS IST MEIN ANTRIEB.']
+    ],
+    end: [
+      ['hamza', 'OKAY! OKAY! DU HAST GEWONNEN!'],
+      ['hamza', 'SETZ DICH. ICH MACH DIR EIN SHAWARMA. AUFS HAUS.']
+    ],
+    // Am Tisch: Hamza bringt Shawarma, und dann kommt Esat
+    essen: [
+      ['', 'HAMZA BRINGT SHAWARMA. MIT EXTRA KNOBLAUCHSOSSE.'],
+      ['yusuf', 'ICH HAB EIGENTLICH GAR KEINEN HUNGER.'],
+      ['hamza', '...'],
+      ['yusuf', 'MACH DREI.'],
+      ['', 'DIE TÜR GEHT AUF. ESAT KOMMT REIN.'],
+      ['esat', 'ICH HAB MIR GEDACHT, DASS DU HIER BIST.'],
+      ['hamza', 'ESAT! HABIBI! AUCH EINS?'],
+      ['esat', 'NUR EINS. ICH BIN IM DEFIZIT.'],
+      ['', 'ESAT ISST EIN SHAWARMA. DANN NOCH EINS.'],
+      ['esat', 'DAS ZWEITE ZÄHLT NICHT.'],
+      ['esat', 'SO. JETZT STILBRUCH. EINE SHISHA ZUM VERDAUEN.'],
+      ['yusuf', 'GANZ ENTSPANNT.'],
+      ['hamza', 'UND KEINEN STRESS MACHEN, IHR ZWEI!'],
+      ['yusuf', 'WANN HAB ICH JE STRESS GEMACHT?']
+    ]
+  };
+
+  /* Stilbruch: der reservierte Tisch, endlich. Und dann die Shisha. */
+  var SHISHA_DIALOG = {
+    vorher: [
+      ['', 'DIE TYPEN SETZEN SICH WIEDER HIN. ALS WÄRE NICHTS GEWESEN.'],
+      ['esat', 'SO. JETZT ABER WIRKLICH: EINE SHISHA.'],
+      ['', 'DER KELLNER BRINGT ZWEI PFEIFEN.'],
+      ['esat', 'FÜR MICH TRAUBE-MINZE.'],
+      ['yusuf', 'DOPPELAPFEL. WIE IMMER.'],
+      ['esat', 'DU NIMMST SEIT ZEHN JAHREN DOPPELAPFEL.'],
+      ['yusuf', 'NEVER CHANGE A WINNING TEAM.'],
+      ['', 'ZIEHEN GEHT VON ALLEIN. C DRÜCKEN = AUSPUSTEN. DREIMAL.']
+    ],
+    nachher: [
+      ['yusuf', 'HÖ HÖ HÖÖÖ.'],
+      ['esat', 'UND? ENTSPANNT?'],
+      ['yusuf', 'ICH HAB HUNGER.'],
+      ['esat', 'DU HAST VOR ACHT STUNDEN VIER SHAWARMA GEGESSEN.'],
+      ['yusuf', 'EBEN. VOR ACHT STUNDEN.'],
+      ['esat', 'LASS ZU GEORGIOS.'],
+      ['yusuf', 'GEORGIOS. JA. OKAY. LASS ZUM GRIECHEN.'],
+      ['esat', 'DIE KÜCHE MACHT UM ELF ZU.'],
+      ['yusuf', 'DANN RENNEN WIR.']
+    ]
+  };
+
+  /* GEORGIOS — griechischer Freund. Schnell. Und oben ohne ziemlich breit. */
+  var GEORGIOS_DIALOG = {
+    start: [
+      ['georgios', 'YUSUF! ESAT! KALISPERA!'],
+      ['yusuf', 'GEORGIOS. WIR HABEN HUNGER.'],
+      ['esat', 'ER HAT HUNGER. ICH BIN NUR DABEI.'],
+      ['georgios', 'DIE KÜCHE MACHT GLEICH ZU.'],
+      ['yusuf', 'ICH HAB HEUTE EINEN BERG BEZWUNGEN.'],
+      ['yusuf', 'UND HAMZA. UND DIE HALBE SHISHA-BAR.'],
+      ['georgios', 'DANN BEZWING MICH AUCH. DANN GIBT ES SOUVLAKI.'],
+      ['georgios', 'ICH BIN SCHNELL, YUSUF. SEHR SCHNELL.'],
+      ['yusuf', 'DAS SAGEN ALLE.']
+    ],
+    phase2: [
+      ['georgios', 'OKAY. JETZT WIRD ES ERNST.'],
+      ['', 'GEORGIOS ZIEHT SEIN HEMD AUS.'],
+      ['yusuf', 'WARUM HAT ER EIN SIXPACK?'],
+      ['esat', 'ER TRAINIERT. ANDERS ALS DU.'],
+      ['', 'ER ZIEHT BOXHANDSCHUHE AN. WOHER AUCH IMMER.'],
+      ['georgios', 'OPA!']
+    ],
+    phase3: [
+      ['georgios', 'NIEMAND HÄLT SO LANGE DURCH GEGEN MICH!'],
+      ['yusuf', 'ICH HAB NICHTS ANDERES VOR.']
+    ],
+    end: [
+      ['georgios', 'OKAY! OKAY! DU HAST GEWONNEN!'],
+      ['georgios', 'SETZ DICH. DIE KÜCHE MACHT NOCHMAL AUF.'],
+      ['yusuf', 'NUR FÜR MICH?'],
+      ['georgios', 'NUR FÜR DICH, FILE.']
+    ],
+    essen: [
+      ['', 'EIN TELLER SOUVLAKI. DAZU EIN BERG TZATZIKI.'],
+      ['georgios', 'DAS TZATZIKI IST VON MEINER OMA.'],
+      ['yusuf', 'ICH HAB EIGENTLICH GAR KEINEN HUNGER.'],
+      ['esat', '...'],
+      ['georgios', '...'],
+      ['yusuf', 'ABER ICH ESS DAS JETZT KOMPLETT.'],
+      ['', 'YUSUF ISST ALLES AUF. DEN TELLER FAST AUCH.'],
+      ['esat', 'HEUTE: 10.000 KALORIEN, VIER SHAWARMA, EINE SHISHA, SOUVLAKI.'],
+      ['yusuf', 'EIN GANZ NORMALER TAG.'],
+      ['yusuf', 'ICH GEH JETZT PENNEN.'],
+      ['esat', 'MORGEN GYM?'],
+      ['yusuf', 'KRRRRR.']
+    ]
+  };
+
+  /* Was die Typen vom Nebentisch so rufen. */
+  var TYP_LINES = [
+    'WAS GUCKST DU?', 'BRUDER, WAS WAR DAS?', 'RÜLPS NOCHMAL!', 'ICH KENN DEINEN COUSIN!',
+    'WILLST DU STRESS?', 'CHILL MAL!', 'MEINE SHISHA IST AUSGEGANGEN!', 'NICHT IN MEINE RICHTUNG!'
+  ];
+
+  /* Esat geht mit und kommentiert. */
+  var ESAT_BAR_LINES = [
+    'YUSUF, CHILL!', 'DAS WAR NUR EIN RÜLPSER, JUNGS!', 'NICHT DIE KOHLE ANFASSEN!',
+    'ICH KENN DEN. ...NEIN, DOCH NICHT.', 'WIR WOLLTEN NUR RAUCHEN.',
+    'WARUM WERFEN DIE MIT ZANGEN?', 'UNSER TISCH IST GANZ HINTEN.'
+  ];
+  var ESAT_TAVERNE_LINES = [
+    'NOCH ZEHN MINUTEN BIS KÜCHENSCHLUSS!', 'DIE KRABBE HAT MICH ANGESCHAUT.',
+    'ICH ESS NUR EINEN SALAT. VIELLEICHT.', 'DAS IST DER SCHNELLSTE GRIECHE DER STADT.',
+    'OPA!', 'NICHT AUF DAS ÖL TRETEN!'
+  ];
+
+  /* Lennarts grosser Auftritt in Level 12 (Zwischensequenz). */
+  var LENNART_CUT = {
+    esatHear: 'HÖRST DU DAS?',
+    yusufHear: 'IST DAS EIN MOTORRAD?',
+    card: 'LENNART',
+    cardSub: 'BEINTAG. JEDEN TAG.',
+    jump1: 'PLATZ DA! PUMP IM BEIN!',
+    jump2: 'ZU EASY, BRO!',
+    jump3: 'UND JETZT DER DREIFACHE—',
+    crash: 'AUA.',
+    lying: 'ALLES GUT! DAS WAR GEPLANT!',
+    esatPass: 'HAST DU WAS GESEHEN?',
+    yusufPass: 'NÖ.',
+    lennartPass: 'HAT JEMAND MEIN VORDERRAD GESEHEN?',
+    esatAfter: 'SCHÖNES WETTER HEUTE.'
+  };
 
   /* Die Level-Bosse. Jeder nervt auf seine eigene Art. */
   var MINI_DIALOG = {
@@ -1331,11 +1868,24 @@
 
   var LEVELS = [lvl1.out(), lvl2.out(), lvl3.out(), lvl4.out(),
                 lvl5.out(), lvl6.out(), lvl7.out(), lvl8.out(),
-                lvl9.out(), lvl10.out()].map(tidyItems);
+                lvl9.out(), lvl10.out(), lvl11.out(), lvl12.out(),
+                lvl13.out(), lvl14.out(), lvl15.out()].map(tidyItems);
 
   global.Levels = {
     alex: ALEX_DIALOG,
     alexLines: ALEX_LINES,
+    broke: BROKE_DIALOG,
+    mikaLines: MIKA_LINES,
+    schlaf: SCHLAF_DIALOG,
+    esatRideLines: ESAT_RIDE_LINES,
+    esatFlipLines: ESAT_FLIP_LINES,
+    esatBarLines: ESAT_BAR_LINES,
+    esatTaverneLines: ESAT_TAVERNE_LINES,
+    lennartCut: LENNART_CUT,
+    hamza: HAMZA_DIALOG,
+    georgios: GEORGIOS_DIALOG,
+    shisha: SHISHA_DIALOG,
+    typLines: TYP_LINES,
     convoy: CONVOY_DIALOG,
     polizeiLines: POLIZEI_LINES,
     list: LEVELS,

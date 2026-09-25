@@ -131,10 +131,81 @@ function playLevel9() {
   return until(function () { return G.state === 'play' && G.lvlIndex === 9; }, 4000, true);
 }
 
-/** Level 10: bis zur Haustuer laufen. */
+/** Level 10: bis zur Haustuer laufen — dort wartet Broke (Level 11). */
 function playLevel10() {
   until(function () { return G.state === 'play' && G.lvlIndex === 9; }, 1500, true);
   toGoal();
+  return until(function () { return G.state === 'play' && G.lvlIndex === 10; }, 3000, true);
+}
+
+/** Level 11: Broke erledigen, schlafen gehen, aufwachen — Level 12 beginnt. */
+function playLevel11() {
+  until(function () { return G.state === 'play' && G.lvlIndex === 10; }, 1500, true);
+  if (!until(function () { return !!G.boss && G.state === 'play'; }, 600, true)) return false;
+  var guard = 0;
+  while (G.boss && !G.boss.dead && guard++ < 300) {
+    if (G.state === 'dialog') { until(function () { return G.state === 'play'; }, 400, true); }
+    if (G.boss && G.boss.state !== 'transform') {
+      G.boss.invuln = 0;
+      G.boss.hit(G, 1, P());
+    }
+    tick(8);
+  }
+  if (!until(function () { return !!G.scene; }, 2000, true)) return false;
+  return until(function () { return G.state === 'play' && G.lvlIndex === 11; }, 3000, true);
+}
+
+/** Boss so lange treffen, bis er liegt. */
+function killBossLoop() {
+  var guard = 0;
+  while (G.boss && !G.boss.dead && guard++ < 400) {
+    if (G.state === 'dialog') until(function () { return G.state === 'play'; }, 400, true);
+    if (G.boss && G.boss.state !== 'transform') {
+      G.boss.invuln = 0;
+      G.boss.hit(G, 1, P());
+    }
+    tick(8);
+  }
+  return !!(G.boss && G.boss.dead);
+}
+
+/** Level 12: den Berg runter. Danach: Shawarma bei Hamza. */
+function playLevel12() {
+  until(function () { return G.state === 'play' && G.lvlIndex === 11; }, 1500, true);
+  toGoal();
+  return until(function () { return G.state === 'play' && G.lvlIndex === 12; }, 3000, true);
+}
+
+/** Level 13: Hamza besiegen, essen, weiter in den Stilbruch. */
+function playLevel13() {
+  until(function () { return G.state === 'play' && G.lvlIndex === 12; }, 1500, true);
+  if (!triggerBoss()) return false;
+  killBossLoop();
+  if (!until(function () { return !!G.scene && G.scene.type === 'mahl'; }, 2500, true)) return false;
+  return until(function () { return G.state === 'play' && G.lvlIndex === 13; }, 4000, true);
+}
+
+/** Level 14: bis zum reservierten Tisch, dann dreimal auspusten. */
+function playLevel14() {
+  until(function () { return G.state === 'play' && G.lvlIndex === 13; }, 1500, true);
+  toGoal();
+  if (!until(function () { return !!G.scene && G.scene.type === 'shisha'; }, 2500, true)) return false;
+  until(function () { return G.scene && G.scene.phase === 'rauchen'; }, 1500, true);
+  var guard = 0;
+  while (G.scene && G.scene.type === 'shisha' && G.scene.phase === 'rauchen' && guard++ < 20) {
+    until(function () { return !G.scene || G.scene.zug >= 0.6; }, 200, false);
+    press('puff');
+  }
+  return until(function () { return G.state === 'play' && G.lvlIndex === 14; }, 4000, true);
+}
+
+/** Level 15: Georgios besiegen, essen, schlafen — dann Namenseingabe. */
+function playLevel15() {
+  until(function () { return G.state === 'play' && G.lvlIndex === 14; }, 1500, true);
+  if (!triggerBoss()) return false;
+  killBossLoop();
+  if (!until(function () { return !!G.scene && G.scene.type === 'mahl'; }, 2500, true)) return false;
+  if (!until(function () { return !!G.scene && G.scene.type === 'schlaf'; }, 4000, true)) return false;
   return until(function () { return G.state === 'nameentry'; }, 3000, true);
 }
 
@@ -248,7 +319,13 @@ setTimeout(function () {
     ok(playLevel8(), 'Level 8 geschafft, weiter in den Sparmarkt');
     ok(playLevel9(), 'Level 9: Alex besiegt, abkassiert, weiter zum Heimweg');
     ok(G.drunk === 0, 'Nach Alex ist Yusuf wieder nuechtern', G.drunk);
-    ok(playLevel10(), 'Level 10 geschafft, dann Namenseingabe');
+    ok(playLevel10(), 'Level 10 geschafft, vor der Tuer wartet Broke');
+    ok(playLevel11(), 'Level 11: Broke besiegt, geschlafen, weiter zum Downhill');
+    ok(save().run && save().run.next === 11, 'Durchgang vor Level 12 gespeichert', JSON.stringify(save().run));
+    ok(playLevel12(), 'Level 12 geschafft, weiter zum Shawarma');
+    ok(playLevel13(), 'Level 13: Hamza besiegt, gegessen, weiter in den Stilbruch');
+    ok(playLevel14(), 'Level 14: durchgekaempft und dreimal ausgepustet');
+    ok(playLevel15(), 'Level 15: Georgios besiegt, gegessen, geschlafen');
 
     var nf = document.getElementById('nameform');
     var ok0 = document.getElementById('nfok');
@@ -275,7 +352,9 @@ setTimeout(function () {
     ok(until(function () { return G.state === 'play' && G.lvlIndex === 6; }, 400, true), 'Level 7 ueber Levelauswahl');
     ok(triggerBoss(), 'Esat erscheint');
     killBoss();
-    ok(playLevel8() && playLevel9() && playLevel10(), 'Level 8-10 und dann der Siegerbildschirm');
+    ok(playLevel8() && playLevel9() && playLevel10() && playLevel11() && playLevel12() &&
+       playLevel13() && playLevel14() && playLevel15(),
+       'Level 8-15 und dann der Siegerbildschirm');
     ok(nf.hidden, 'Kein Namensfeld bei Teil-Durchgang');
     for (q = 0; q < 60; q++) tick(1);
     press('confirm');
@@ -322,6 +401,236 @@ setTimeout(function () {
        'Danach geht es in den Sparmarkt (Level 9)', G.lvlIndex + 1);
     ok(save().unlocked >= 9, 'Level 9 ist freigeschaltet', save().unlocked);
 
+    /* ============ E3. Level 11: Broke und die Mikas ============ */
+    section('E3. Level 11 (Broke)');
+    G._loadLevel(10, false); G.state = 'play'; G.frozen = false; G.banner = 0;
+    tick(2);
+    ok(!!G.boss && G.boss.barName === 'BROKE', 'Broke steht sofort vor der Tuer',
+       G.boss ? G.boss.barName : 'kein Boss');
+    function mikas(st) {
+      return G.enemies.filter(function (e) {
+        return e.t === 'mika' && !e.dead && (st === undefined || !!e.stampede === st);
+      });
+    }
+    ok(mikas(false).length === 2, 'Zwei Mikas sind schon da', mikas(false).length);
+    // Er ruft von allein Mikas nach — aber nie mehr als vier auf einmal
+    P().lives = 50;
+    var maxM = 0;
+    for (var qq = 0; qq < 900; qq++) {
+      P().invuln = 5;
+      if (G.state === 'dialog') hits.confirm = true;
+      tick(1);
+      maxM = Math.max(maxM, mikas(false).length);
+    }
+    ok(maxM >= 3 && maxM <= 4, 'Broke ruft Mikas nach, hoechstens vier', maxM);
+    // Mika-Armee: eine ganze Reihe rennt quer durch und ist am Rand weg
+    var bk = G.boss;
+    bk.onTransform(G); bk.phase = 2; bk.state = 'ansturm'; bk.timer = 70; bk.invuln = 0;
+    for (qq = 0; qq < 70; qq++) { P().invuln = 5; tick(1); }
+    var stamp = mikas(true);
+    ok(stamp.length >= 5, 'Mika-Ansturm: eine ganze Reihe Mikas', stamp.length);
+    for (qq = 0; qq < 600; qq++) {
+      P().invuln = 5;
+      if (G.state === 'dialog') hits.confirm = true;
+      tick(1);
+    }
+    ok(stamp.every(function (e) { return e.dead; }), 'Die Ansturm-Mikas verschwinden am Rand',
+       stamp.filter(function (e) { return !e.dead; }).length + ' noch da');
+    ok(window.__err.length === 0, 'Broke-Kampf ohne Laufzeitfehler', window.__err.join(' | '));
+
+    /* ============ E4. Level 12: Downhill ============ */
+    section('E4. Level 12 (Fahrrad)');
+    G._loadLevel(11, false); G.state = 'play'; G.frozen = false; G.banner = 0;
+    var pb = P(); pb.lives = 50;
+    ok(pb.w === 20 && G.lvl.bike, 'Fahrrad-Trefferbox', pb.w);
+    keys.right = true; tick(60);
+    var rp = G.rider && G.rider.pos;
+    ok(rp && rp.x < P().cx() - 20, 'Esat faehrt hinterher', rp ? Math.round(P().cx() - rp.x) + ' px' : '-');
+    ok(until(function () { return P().kicked; }, 900, false), 'Rampe: Yusuf hebt ab', P().vy.toFixed(1));
+    var sc12 = P().score, fl12 = P().flipCount || 0;
+    press('jump');
+    ok(P().flipping, 'In der Luft Sprung = Rueckwaertssalto');
+    until(function () { return P().grounded; }, 300, false);
+    ok((P().flipCount || 0) === fl12 + 1 && P().score >= sc12 + 300, 'Salto sauber gelandet: gezaehlt, Punkte',
+       (P().flipCount || 0) + ' Saltos, +' + (P().score - sc12));
+    // Schief landen: halb gedreht aufs Gesicht
+    keys = {};
+    pb = P(); pb.invuln = 0;
+    var hp12 = pb.hp;
+    pb.y -= 40; pb.vy = 2; pb.grounded = false; pb.flipping = true; pb.flipA = 2;
+    until(function () { return P().grounded || P().hp < hp12; }, 200, false);
+    ok(P().hp === hp12 - 1, 'Halber Salto bei der Landung kostet ein Herz', hp12 + ' -> ' + P().hp);
+
+    // Lennarts Auftritt
+    G._loadLevel(11, false); G.state = 'play'; G.frozen = false; G.banner = 0;
+    pb = P(); pb.lives = 50; pb.x = 134 * 16; pb.y = 23 * 16 - pb.h;
+    keys.right = true;
+    ok(until(function () { return !!G.cut; }, 300, false), 'Lennarts Auftritt beginnt');
+    ok(until(function () { return G.cut && G.cut.phase === 'karte'; }, 600, false), 'Standbild mit Namen');
+    ok(until(function () { return G.cut && G.cut.phase === 'crash'; }, 900, false),
+       'Beim dritten Sprung fliegt er auf die Nase');
+    ok(until(function () { return !G.cut; }, 1500, false), 'Die beiden fahren einfach vorbei');
+    ok(!!G.lennartLie && P().cx() > G.lennartLie.x, 'Lennart liegt hinter ihnen',
+       G.lennartLie ? Math.round(P().cx() - G.lennartLie.x) + ' px' : '-');
+    ok(!P().dead && G.autoAx === null, 'Steuerung ist wieder da');
+    P().kill(G);
+    until(function () { return G.state === 'play' && !P().dead && P().invuln > 0; }, 400, false);
+    tick(30);
+    ok(!!G.lennartLie && !G.cut, 'Nach einem Tod: Lennart liegt noch da, keine zweite Szene',
+       'Checkpoint ' + JSON.stringify(G.checkpoint));
+    keys = {};
+    ok(window.__err.length === 0, 'Downhill ohne Laufzeitfehler', window.__err.join(' | '));
+
+    /* ============ E5. Eingesammeltes, Puste, gesundes Essen ============ */
+    section('E5. Neue Regeln');
+
+    // Honig, den man schon hatte, liegt nach einem Tod nicht wieder da
+    G._loadLevel(0, false); G.state = 'play'; G.frozen = false; G.banner = 0;
+    var ph = P(); ph.lives = 9;
+    function frisch() {
+      for (var i = 0; i < G.items.length; i++) if (!G.items[i].dead) return G.items[i];
+      return null;
+    }
+    var altA = frisch(); altA.collect(G);
+    var altB = frisch(); altB.collect(G);
+    ph.x = 70 * 16; ph.y = 15 * 16 - ph.h; ph.vy = 0;
+    tick(4);
+    ok(G.checkpoint && G.checkpoint[0] === 70, 'Checkpoint erreicht', JSON.stringify(G.checkpoint));
+    var standAmCp = P().honey;
+    var neu = frisch(); neu.collect(G);
+    P().kill(G);
+    until(function () { return G.state === 'play' && !P().dead && P().invuln > 0; }, 600, false);
+    tick(2);
+    function liegtDa(idx) {
+      return G.items.some(function (i) { return i.idx === idx && !i.dead; });
+    }
+    ok(!liegtDa(altA.idx) && !liegtDa(altB.idx),
+       'Eingesammelter Honig liegt nach dem Tod nicht wieder da');
+    ok(liegtDa(neu.idx), 'Was nach dem Checkpoint kam, liegt wieder da');
+    ok(P().honey === standAmCp, 'Honigstand faellt auf den Checkpoint zurueck',
+       P().honey + ' statt ' + standAmCp);
+
+    // Ausdauer: die Arschbombe kostet Puste
+    G._loadLevel(0, false); G.state = 'play'; G.frozen = false; G.banner = 0;
+    var pp = P(); pp.lives = 9; pp.stamina = pp.stamMax;
+    pp.y -= 40; pp.grounded = false; pp.vy = 1;
+    keys.down = true; tick(1); keys.down = false;
+    ok(pp.pound !== 0 && pp.stamina < pp.stamMax, 'Arschbombe kostet Puste', Math.round(pp.stamina));
+    pp.pound = 0; pp.stamina = 5; pp.grounded = false; pp.vy = 1;
+    keys.down = true; tick(1); keys.down = false;
+    ok(pp.pound === 0, 'Ohne Puste kein Stampfer', Math.round(pp.stamina));
+    for (qq = 0; qq < 220; qq++) tick(1);
+    ok(P().stamina > 50, 'Die Puste kommt wieder', Math.round(P().stamina));
+
+    // Level 8: es liegt immer etwas Ungesundes dabei, und nur drei Gesunde
+    G._loadLevel(7, false); G.state = 'play'; G.frozen = false; G.banner = 0;
+    press('confirm');
+    until(function () { return G.eat && G.eat.phase === 'eat'; }, 900, true);
+    var maxGesund = 0, gE = 0;
+    while (G.eat && G.eat.kcal < G.eat.goal && gE++ < 900) {
+      var offen = G.eat.slots.filter(function (s) { return s.food && s.food.bad; }).length;
+      maxGesund = Math.max(maxGesund, offen);
+      press('jump'); tick(3);
+    }
+    ok(maxGesund <= 2, 'Nie drei gesunde Sachen gleichzeitig auf dem Tisch', maxGesund);
+    ok((G.eat.badSpawned || 0) <= 3, 'Hoechstens drei gesunde Sachen im ganzen Level',
+       G.eat.badSpawned || 0);
+
+    // Kasse: nur die Haelfte der Artikel, Summe rund 200 Euro
+    G._loadLevel(8, false); G.state = 'play'; G.frozen = false; G.banner = 0;
+    G.kasse = window.Kasse.init();
+    G.frozen = true;
+    for (qq = 0; qq < 900; qq++) tick(1);
+    ok(G.kasse.spawned <= 8, 'An der Kasse laeuft nur die Haelfte ueber das Band', G.kasse.spawned);
+    ok(G.kasse.total > 90 && G.kasse.total <= 205.4, 'Summe landet bei rund 200 Euro',
+       G.kasse.total.toFixed(2));
+    G.kasse = null; G.frozen = false;
+
+    /* ============ E6. Alex: der zweite Alex ============ */
+    section('E6. Alex im Rausch');
+    G._loadLevel(8, false); G.state = 'play'; G.frozen = false; G.banner = 0;
+    P().lives = 20;
+    ok(triggerBoss(), 'Alex erscheint');
+    var ab = G.boss;
+    ab.hp = Math.floor(ab.maxHp / 2) + 1; ab.invuln = 0; ab.state = 'idle';
+    ab.hit(G, 1, P());
+    until(function () { return G.state === 'play' && G.boss && G.boss.rage; }, 900, true);
+    tick(20);
+    ok(!!G.drunk, 'Nach der Flasche ist Yusuf besoffen', G.drunk);
+    ok(!!G.boss.schatten, 'Es steht ein zweiter Alex da');
+    var sh = G.boss.schatten, hpS = P().hp;
+    P().invuln = 0;
+    P().x = sh.x + 4; P().y = sh.y + 20; P().vy = 0;
+    for (qq = 0; qq < 8; qq++) { P().x = sh.x + 4; P().y = sh.y + 20; tick(1); }
+    ok(P().hp === hpS, 'Der zweite Alex macht keinen Schaden', hpS + ' -> ' + P().hp);
+    P().kill(G);
+    until(function () { return G.state === 'play' && !P().dead; }, 800, true);
+    tick(10);
+    ok(!G.drunk, 'Nach dem Tod ist Yusuf wieder nuechtern', G.drunk);
+
+    /* ============ E7. Level 13-15 ============ */
+    section('E7. Hamza, Stilbruch, Georgios');
+    G._loadLevel(12, false); G.state = 'play'; G.frozen = false; G.banner = 0;
+    P().lives = 20;
+    ok(triggerBoss() && G.boss.barName === 'HAMZA', 'Hamza erscheint',
+       G.boss ? G.boss.barName : 'kein Boss');
+    var ph2 = P();
+    ph2.stick = 0; ph2.invuln = 999;
+    // Neben Yusuf werfen, sonst faengt er ihn mit dem Kopf
+    G.addProjectile('humus', ph2.cx() + 40, ph2.y - 40, 0, 1);
+    until(function () {
+      return G.projectiles.some(function (pr) { return pr.t === 'humusfleck' && !pr.dead; });
+    }, 200, false);
+    var fleck = null;
+    G.projectiles.forEach(function (pr) { if (pr.t === 'humusfleck' && !pr.dead) fleck = pr; });
+    ok(!!fleck, 'Der Hummus hinterlaesst einen Fleck');
+    if (fleck) {
+      P().x = fleck.x + 4; P().y = fleck.y - P().h - 2; P().vy = 0;
+      tick(6);
+    }
+    ok(P().stick > 0, 'Im Hummus bleibt man kleben', P().stick);
+    G.dizzy = 0; P().invuln = 0;
+    var hw = G.addProjectile('hhc', P().cx() - 12, P().y + 4, 0, 0);
+    hw.baseY = hw.y; hw.amp = 0;
+    tick(3);
+    ok(G.dizzy > 0, 'Die HHC-Welle dreht Yusuf das Bild', G.dizzy);
+
+    // Level 14: Esat laeuft mit, die Typen werfen
+    G._loadLevel(13, false); G.state = 'play'; G.frozen = false; G.banner = 0;
+    P().lives = 20;
+    ok(!!G.rider, 'Esat kommt mit in den Stilbruch');
+    keys.right = true; tick(120); keys.right = false;
+    ok(G.rider.pos && G.rider.pos.x < P().cx(), 'Esat bleibt hinter Yusuf',
+       G.rider.pos ? Math.round(P().cx() - G.rider.pos.x) + ' px' : '-');
+    var wurf = false;
+    for (qq = 0; qq < 500 && !wurf; qq++) {
+      P().invuln = 99;
+      tick(1);
+      wurf = G.projectiles.some(function (pr) { return pr.t === 'zange' || pr.t === 'kohle'; });
+    }
+    ok(wurf, 'Die Typen werfen mit Zangen und heisser Kohle');
+    keys = {};
+
+    // Level 15: Georgios zieht das Hemd aus und boxt
+    G._loadLevel(14, false); G.state = 'play'; G.frozen = false; G.banner = 0;
+    P().lives = 20;
+    ok(triggerBoss() && G.boss.barName === 'GEORGIOS', 'Georgios erscheint',
+       G.boss ? G.boss.barName : 'kein Boss');
+    var gb = G.boss;
+    gb.hp = Math.floor(gb.maxHp / 2) + 1; gb.invuln = 0; gb.state = 'idle';
+    gb.hit(G, 1, P());
+    until(function () { return G.state === 'play' && G.boss && G.boss.boxer; }, 900, true);
+    ok(!!G.boss.boxer, 'Ab der Haelfte: Hemd aus, Boxhandschuhe an');
+    G.boss.state = 'jab'; G.boss.timer = 30;
+    var faust = false;
+    for (qq = 0; qq < 40 && !faust; qq++) {
+      P().invuln = 99;
+      tick(1);
+      faust = G.projectiles.some(function (pr) { return pr.t === 'faust'; });
+    }
+    ok(faust, 'Er boxt schnelle Geraden');
+    ok(window.__err.length === 0, 'Level 13-15 ohne Laufzeitfehler', window.__err.join(' | '));
+
     /* ============ E. Level 6 ============ */
     section('E. Mustang-Level');
     G._loadLevel(5, false); G.state = 'play'; G.frozen = false; G.banner = 0;
@@ -364,7 +673,7 @@ setTimeout(function () {
 
     /* ============ F. Boss-Sonderfaelle ============ */
     section('F. Bosse: Verwandlung & Sonderfaelle');
-    [1, 2, 3, 4, 6, 8].forEach(function (idx) {
+    [1, 2, 3, 4, 6, 8, 10, 12, 14].forEach(function (idx) {
       G._loadLevel(idx, false); G.state = 'play'; G.frozen = false; G.banner = 0;
       P().lives = 50;
       var name = LV_NAMES[idx];
@@ -384,7 +693,8 @@ setTimeout(function () {
          nb ? ('hp' + nb.hp + ' rage=' + nb.rage) : 'kein Boss');
       // Sprungangriffe muessen mit der Bodenwelle landen
       var JUMPS = { 1: ['carjump', 50], 2: ['slam', 48], 3: ['pfanne', 56], 6: ['stampf', 50],
-                    8: ['runter', 40] };
+                    8: ['runter', 40], 10: ['sprung', 50], 12: ['fallrueck', 50],
+                    14: ['sprung', 50] };
       if (JUMPS[idx] && nb) {
         G.projectiles.length = 0;
         P().x = nb.cx() - 150; P().invuln = 999;
@@ -473,6 +783,7 @@ setTimeout(function () {
   document.getElementById('R').textContent = R.join('\n');
 }, 400);
 
-var LV_NAMES = { 1: 'Mirkan', 2: 'Lennart', 3: 'Erfan', 4: 'Huseyin', 6: 'Esat', 8: 'Alex' };
+var LV_NAMES = { 1: 'Mirkan', 2: 'Lennart', 3: 'Erfan', 4: 'Huseyin', 6: 'Esat', 8: 'Alex',
+                 10: 'Broke', 12: 'Hamza', 14: 'Georgios' };
 </script>
 </body></html>

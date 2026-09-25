@@ -662,6 +662,379 @@
   `;
 
   /* ---------------------------------------------------------------
+     BROKE — Kollege, Boss in Level 11. Hellbraune, wellige Haare nach
+     oben gestylt, schwarze Lederjacke ueber schwarzem Shirt. Schnell.
+     --------------------------------------------------------------- */
+
+  palette('broke', {
+    k: '#141018',
+    h: '#8a6440', H: '#c49a64',          // Haare, blonde Straehnen
+    s: '#f2c8a8', d: '#d6a482',
+    w: '#ffffff', g: '#4a6a8a', m: '#9a4a44',
+    r: '#26242c', R: '#121116', l: '#58555f', // Lederjacke mit Glanz
+    y: '#0e0e12',                          // schwarzes Shirt
+    b: '#2c2e3a', B: '#1c1d26',
+    n: '#dcdce4', N: '#9a9aa6'
+  });
+
+  var B_HEAD = `
+    ....hHhhHh....
+    ..hhHhhhhHhh..
+    .hhHhhhHhhhHh.
+    khhhhhhhhhhhhk
+    khhHsssssshhhk
+    khssssssssshdk
+    khsgwssssgwsdk
+    .ksssssdsssdk.
+    .kssssssssssk.
+    .ksssmmmmsssk.
+    ..kssssssssk..
+    ...kddddddk...
+    ....kssssk....
+  `;
+
+  // Grinst, wenn die Mikas kommen.
+  var B_HEAD_GRIN = `
+    ....hHhhHh....
+    ..hhHhhhhHhh..
+    .hhHhhhHhhhHh.
+    khhhhhhhhhhhhk
+    khhHsssssshhhk
+    khssssssssshdk
+    khskkssssskksk
+    .ksssssdsssdk.
+    .kssmwwwwmssk.
+    .ksskmmmmkssk.
+    ..kssssssssk..
+    ...kddddddk...
+    ....kssssk....
+  `;
+
+  var B_HEAD_HURT = `
+    ....hHhhHh....
+    ..hhHhhhhHhh..
+    .hhHhhhHhhhHh.
+    khhhhhhhhhhhhk
+    khhHsssssshhhk
+    khssssssssshdk
+    khskskssksksdk
+    .ksssssdsssdk.
+    .kssssssssssk.
+    .kssskmmksssk.
+    ..kssssssssk..
+    ...kddddddk...
+    ....kssssk....
+  `;
+
+  // Voll konzentriert: Augenbrauen runter, Zaehne zusammen.
+  var B_HEAD_RAGE = `
+    ....hHhhHh....
+    ..hhHhhhhHhh..
+    .hhHhhhHhhhHh.
+    khhhhhhhhhhhhk
+    khhHsssssshhhk
+    khkkssssskkhdk
+    khsgwssssgwsdk
+    .ksssssdsssdk.
+    .kssssssssssk.
+    .kskwwwwwwksk.
+    ..kssssssssk..
+    ...kddddddk...
+    ....kssssk....
+  `;
+
+  var B_TORSO = `
+    ..kkkkkkkk..
+    .krrlrrlrrk.
+    krrlryyrlrrk
+    krrryyyyrrrk
+    krlryyyyrlrk
+    krrryyyyrrrk
+    krrryyyyrrrk
+    kRrryyyyrrRk
+    kRRRyyyyRRRk
+    .kRRRyyRRRk.
+    .kbbbbbbbbk.
+    ..kkkkkkkk..
+  `;
+
+  var B_ARM = `
+    .kkk.
+    krlrk
+    krrrk
+    kRRRk
+    .kk..
+    .ksk.
+    kssdk
+    kssdk
+    .kkk.
+  `;
+
+  var B_LEG = `
+    .kkk.
+    kbbbk
+    kbbbk
+    kbBbk
+    kbbbk
+    .kbk.
+    .kbk.
+    knnnk
+    kNNNk
+  `;
+
+  /* ---------------------------------------------------------------
+     HAMZA — libanesischer Freund, Boss in Level 13. Kurze dunkle Haare,
+     Bart, rotes Fussballtrikot mit gruener Zeder auf der Brust.
+     --------------------------------------------------------------- */
+
+  palette('hamza', {
+    k: '#140f14',
+    h: '#1a1210', H: '#3a2a20', j: '#24180f',
+    s: '#dca77e', d: '#b8845c',
+    w: '#ffffff', g: '#3a2616', m: '#7d2724',
+    r: '#d8282e', R: '#9a1a1e', y: '#f4f2ec', c: '#2a9a4a',
+    b: '#20202a', B: '#121218',
+    n: '#e8e8ee', N: '#9a9aa4'
+  });
+
+  var HA_HEAD = `
+    ....kkkkkk....
+    ..kkhHhhHhkk..
+    .khHhhHhhHhhk.
+    khhhhhhhhhhhhk
+    khssssssssssdk
+    khssssssssssdk
+    khsgwssssgwsdk
+    kjssssdssssjdk
+    kjjsssssssjjdk
+    kjjjkmmmmkjjdk
+    .kjjjjjjjjjjk.
+    ..kjjjjjjjjk..
+    ....kssssk....
+  `;
+  var HA_HEAD_GRIN = `
+    ....kkkkkk....
+    ..kkhHhhHhkk..
+    .khHhhHhhHhhk.
+    khhhhhhhhhhhhk
+    khssssssssssdk
+    khssssssssssdk
+    khskksssskksdk
+    kjssssdssssjdk
+    kjjsssssssjjdk
+    kjjkwwwwwwkjdk
+    .kjjkmmmmkjjk.
+    ..kjjjjjjjjk..
+    ....kssssk....
+  `;
+  var HA_HEAD_HURT = `
+    ....kkkkkk....
+    ..kkhHhhHhkk..
+    .khHhhHhhHhhk.
+    khhhhhhhhhhhhk
+    khssssssssssdk
+    khssssssssssdk
+    khskskssksksdk
+    kjssssdssssjdk
+    kjjsssssssjjdk
+    kjjjkmmkjjjjdk
+    .kjjjjjjjjjjk.
+    ..kjjjjjjjjk..
+    ....kssssk....
+  `;
+  var HA_HEAD_RAGE = `
+    ....kkkkkk....
+    ..kkhHhhHhkk..
+    .khHhhHhhHhhk.
+    khhhhhhhhhhhhk
+    khssssssssssdk
+    khkkssssskkhdk
+    khsgwssssgwsdk
+    kjssssdssssjdk
+    kjjsssssssjjdk
+    kjjkwwwwwwkjdk
+    .kjjjjjjjjjjk.
+    ..kjjjjjjjjk..
+    ....kssssk....
+  `;
+  var HA_TORSO = `
+    ..kkkkkkkk..
+    .krrryyrrrk.
+    krrrryyrrrrk
+    krrrrrrrrrrk
+    krrrcrrrrrrk
+    krrcccrrrrrk
+    krrrcrrrrrrk
+    kRrrrrrrrrRk
+    kRRRRRRRRRRk
+    .kRRRRRRRRk.
+    .kbbbbbbbbk.
+    ..kkkkkkkk..
+  `;
+  var HA_ARM = `
+    .kkk.
+    krrrk
+    kRRRk
+    .ksk.
+    kssdk
+    kssdk
+    kssdk
+    .kkk.
+  `;
+  var HA_LEG = `
+    .kkk.
+    kbbbk
+    kbBbk
+    .ksk.
+    .ksk.
+    .knk.
+    .knk.
+    knnnk
+    kNNNk
+  `;
+
+  /* ---------------------------------------------------------------
+     GEORGIOS — griechischer Freund, Boss in Level 15. Dunkle Wellen,
+     Stoppelbart, weisses Hemd mit blauen Streifen. Sehr schnell.
+     Ab der Haelfte: Hemd aus, Sixpack, rote Boxhandschuhe.
+     --------------------------------------------------------------- */
+
+  palette('georgios', {
+    k: '#120e14',
+    h: '#2a1a10', H: '#4a3220', j: '#6a5040',
+    s: '#e2b088', d: '#c08a60',
+    w: '#ffffff', g: '#3a2616', m: '#7d2724',
+    r: '#f4f6fa', R: '#c8d0e0', y: '#2a5ab8',
+    b: '#24304a', B: '#161e30',
+    n: '#1c1c24', N: '#3a3a44',
+    G: '#d8282e', L: '#ff7a6a'
+  });
+
+  var GE_HEAD = `
+    ...kkkkkkk....
+    ..khhHhhHhhk..
+    .khHhhhhHhhhk.
+    khhhhhhhhhhhhk
+    khhsssssssshhk
+    khssssssssssdk
+    khsgwssssgwsdk
+    .kssssdssssjk.
+    .kjssssssssjk.
+    .kjjsmmmmsjjk.
+    ..kjjjjjjjjk..
+    ...kddddddk...
+    ....kssssk....
+  `;
+  var GE_HEAD_GRIN = `
+    ...kkkkkkk....
+    ..khhHhhHhhk..
+    .khHhhhhHhhhk.
+    khhhhhhhhhhhhk
+    khhsssssssshhk
+    khssssssssssdk
+    khskksssskksdk
+    .kssssdssssjk.
+    .kjssssssssjk.
+    .kjjkwwwwkjjk.
+    ..kjjmmmmjjk..
+    ...kddddddk...
+    ....kssssk....
+  `;
+  var GE_HEAD_HURT = `
+    ...kkkkkkk....
+    ..khhHhhHhhk..
+    .khHhhhhHhhhk.
+    khhhhhhhhhhhhk
+    khhsssssssshhk
+    khssssssssssdk
+    khskskssksksdk
+    .kssssdssssjk.
+    .kjssssssssjk.
+    .kjjskmmksjjk.
+    ..kjjjjjjjjk..
+    ...kddddddk...
+    ....kssssk....
+  `;
+  var GE_HEAD_RAGE = `
+    ...kkkkkkk....
+    ..khhHhhHhhk..
+    .khHhhhhHhhhk.
+    khhhhhhhhhhhhk
+    khhsssssssshhk
+    khkksssssskkdk
+    khsgwssssgwsdk
+    .kssssdssssjk.
+    .kjssssssssjk.
+    .kjkwwwwwwkjk.
+    ..kjjjjjjjjk..
+    ...kddddddk...
+    ....kssssk....
+  `;
+  var GE_TORSO = `
+    ..kkkkkkkk..
+    .krrrkkrrrk.
+    krrrrrrrrrrk
+    kyyyyyyyyyyk
+    krrrrrrrrrrk
+    kyyyyyyyyyyk
+    krrrrrrrrrrk
+    kyyyyyyyyyyk
+    kRrrrrrrrrRk
+    .kRRRRRRRRk.
+    .kbbbbbbbbk.
+    ..kkkkkkkk..
+  `;
+  var GE_ARM = `
+    .kkk.
+    krrrk
+    kyyyk
+    kRRRk
+    .kk..
+    .ksk.
+    kssdk
+    kssdk
+    .kkk.
+  `;
+  var GE_LEG = `
+    .kkk.
+    kbbbk
+    kbbbk
+    kbBbk
+    kbbbk
+    .kbk.
+    .kbk.
+    knnnk
+    kNNNk
+  `;
+  // Oberkoerper frei: Brust, Sixpack
+  var GE_TORSO_BOX = `
+    ..kkkkkkkk..
+    .kssssssssk.
+    kssssssssssk
+    ksdddssdddsk
+    kssssssdsssk
+    ksssdddddssk
+    kssssssdsssk
+    ksssdddddssk
+    kssssssdsssk
+    .kssssdsssk.
+    .kbbbbbbbbk.
+    ..kkkkkkkk..
+  `;
+  // Nackter Arm mit rotem Boxhandschuh
+  var GE_ARM_BOX = `
+    .kkk..
+    kssdk.
+    kssdk.
+    kssdk.
+    .kkkk.
+    kGLGGk
+    kGGGGk
+    kGGGGk
+    .kkkk.
+  `;
+
+  /* ---------------------------------------------------------------
      RÜMPFE
      --------------------------------------------------------------- */
 
@@ -778,6 +1151,32 @@
   def('a_arm', A_ARM, 'alex');
   def('a_leg', A_LEG, 'alex');
 
+  def('b_head', B_HEAD, 'broke');
+  def('b_head_grin', B_HEAD_GRIN, 'broke');
+  def('b_head_hurt', B_HEAD_HURT, 'broke');
+  def('b_head_rage', B_HEAD_RAGE, 'broke');
+  def('b_torso', B_TORSO, 'broke');
+  def('b_arm', B_ARM, 'broke');
+  def('b_leg', B_LEG, 'broke');
+
+  def('ha_head', HA_HEAD, 'hamza');
+  def('ha_head_grin', HA_HEAD_GRIN, 'hamza');
+  def('ha_head_hurt', HA_HEAD_HURT, 'hamza');
+  def('ha_head_rage', HA_HEAD_RAGE, 'hamza');
+  def('ha_torso', HA_TORSO, 'hamza');
+  def('ha_arm', HA_ARM, 'hamza');
+  def('ha_leg', HA_LEG, 'hamza');
+
+  def('ge_head', GE_HEAD, 'georgios');
+  def('ge_head_grin', GE_HEAD_GRIN, 'georgios');
+  def('ge_head_hurt', GE_HEAD_HURT, 'georgios');
+  def('ge_head_rage', GE_HEAD_RAGE, 'georgios');
+  def('ge_torso', GE_TORSO, 'georgios');
+  def('ge_arm', GE_ARM, 'georgios');
+  def('ge_leg', GE_LEG, 'georgios');
+  def('ge_torso_box', GE_TORSO_BOX, 'georgios');
+  def('ge_arm_box', GE_ARM_BOX, 'georgios');
+
   def('h_head', H_HEAD, 'huseyin');
   def('h_head_angry', H_HEAD_ANGRY, 'huseyin');
   def('h_head_hurt', H_HEAD_HURT, 'huseyin');
@@ -833,6 +1232,51 @@
       footY: 19,
       height: 31, width: 14
     },
+    broke: {
+      heads: { normal: 'b_head', laugh: 'b_head_grin', hurt: 'b_head_hurt',
+               sleep: 'b_head', eat: 'b_head_grin', growl: 'b_head_rage',
+               rage: 'b_head_rage' },
+      torso: 'b_torso', arm: 'b_arm', leg: 'b_leg',
+      headOX: -1, headOY: -11,
+      armBackOX: -3, armFrontOX: 10, armOY: 2,
+      legLOX: 1, legROX: 6, legOY: 10,
+      footY: 19,
+      height: 30, width: 12
+    },
+    hamza: {
+      heads: { normal: 'ha_head', laugh: 'ha_head_grin', hurt: 'ha_head_hurt',
+               sleep: 'ha_head', eat: 'ha_head_grin', growl: 'ha_head_rage',
+               rage: 'ha_head_rage' },
+      torso: 'ha_torso', arm: 'ha_arm', leg: 'ha_leg',
+      headOX: -1, headOY: -11,
+      armBackOX: -3, armFrontOX: 10, armOY: 2,
+      legLOX: 1, legROX: 6, legOY: 10,
+      footY: 19,
+      height: 30, width: 12
+    },
+    georgios: {
+      heads: { normal: 'ge_head', laugh: 'ge_head_grin', hurt: 'ge_head_hurt',
+               sleep: 'ge_head', eat: 'ge_head_grin', growl: 'ge_head_rage',
+               rage: 'ge_head_rage' },
+      torso: 'ge_torso', arm: 'ge_arm', leg: 'ge_leg',
+      headOX: -1, headOY: -11,
+      armBackOX: -3, armFrontOX: 10, armOY: 2,
+      legLOX: 1, legROX: 6, legOY: 10,
+      footY: 19,
+      height: 30, width: 12
+    },
+    // Georgios ab der Haelfte: oben ohne, Boxhandschuhe
+    georgios_box: {
+      heads: { normal: 'ge_head_rage', laugh: 'ge_head_grin', hurt: 'ge_head_hurt',
+               sleep: 'ge_head', eat: 'ge_head_grin', growl: 'ge_head_rage',
+               rage: 'ge_head_rage' },
+      torso: 'ge_torso_box', arm: 'ge_arm_box', leg: 'ge_leg',
+      headOX: -1, headOY: -11,
+      armBackOX: -4, armFrontOX: 10, armOY: 2,
+      legLOX: 1, legROX: 6, legOY: 10,
+      footY: 19,
+      height: 30, width: 12
+    },
     // Esat nach dem Snus: breiter, dickere Arme, immer wuetend
     esat_buff: {
       heads: { normal: 'e_head_rage', laugh: 'e_head_grin', hurt: 'e_head_hurt',
@@ -874,6 +1318,17 @@
     cheer: [
       { h: -1, t: 0, lL: [0, 0], lR: [0, 0], aB: [2, -6], aF: [-2, -6] },
       { h: 0, t: 1, lL: [0, 0], lR: [0, 0], aB: [1, -4], aF: [-1, -4] }
+    ],
+    // Boxen: Deckung oben, und die Gerade nach vorn
+    guard: [
+      { h: 0, t: 0, lL: [-1, 0], lR: [2, 0], aB: [5, -6], aF: [2, -6] },
+      { h: 0, t: 1, lL: [-1, 0], lR: [2, 0], aB: [5, -5], aF: [2, -5] }
+    ],
+    punch: [{ h: 0, t: 0, lL: [-2, 0], lR: [3, 0], aB: [5, -5], aF: [8, -5] }],
+    // Auf dem Fahrrad: nach vorn gebeugt, Haende am Lenker, Beine treten
+    ride: [
+      { h: 0, t: 1, lL: [1, -4], lR: [4, -2], aB: [7, -2], aF: [-3, -2] },
+      { h: 0, t: 1, lL: [4, -2], lR: [1, -4], aB: [7, -2], aF: [-3, -2] }
     ]
   };
 

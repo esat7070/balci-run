@@ -22,6 +22,8 @@ Handy und Tablet funktionieren auch (Touch-Steuerung blendet sich automatisch ei
 | `Esc` / `P` | Pause |
 | `M` | Ton an / aus |
 | Maus ziehen (Level 8) | Essen zu Yusuf ziehen; alternativ Pfeile + Sprung |
+| Fahrrad (Level 12) | Rechts treten, links bremsen, Sprung hüpft; **in der Luft Sprung = Rückwärtssalto** |
+| `C` (Level 14) | An der Shisha **auspusten** (am Handy: B oder tippen) |
 
 Gamepad wird ebenfalls erkannt.
 
@@ -47,6 +49,11 @@ Gamepad wird ebenfalls erkannt.
   Treffer kostet dich nur das Päckchen statt eines Herzens.
 - **Nicht in die Gabeln treten.** Küchen sind gefährlicher als sie aussehen.
 - **Jeder Boss verwandelt sich** bei halber Energie — und wird schneller und wilder.
+- **Der Bauch-Stampfer kostet Puste.** Links unten läuft ein Ausdauerbalken mit:
+  ist er leer, gibt es keinen Stampfer, bis er sich wieder gefüllt hat.
+- **Eingesammeltes bleibt eingesammelt.** Wer stirbt, findet nur das wieder,
+  was er nach dem letzten Checkpoint geholt hat — der Rest zählt ja weiter
+  auf dem Konto. Dieselbe Honigspur zweimal abfahren geht nicht.
 - **Die Arschbombe macht bei Bossen nur halben Schaden.** Sonst haette man
   jeden Kampf einfach mit Bauch-Stampfern zugespammt.
 - **Boss-Angriffe fliegen durch die Arena-Plattformen.** Unter einer Plattform
@@ -54,7 +61,7 @@ Gamepad wird ebenfalls erkannt.
 
 Steh mal zu lange still. Yusuf schläft dann einfach ein. Und knurren tut er sowieso.
 
-## Die zehn Level
+## Die fünfzehn Level
 
 | # | Level | Wo |
 |---|---|---|
@@ -68,6 +75,11 @@ Steh mal zu lange still. Yusuf schläft dann einfach ein. Und knurren tut er sow
 | 8 | Der Morgen danach | Sonntag, 13:40 Uhr, auf der Couch |
 | 9 | Sparmarkt | Gemüse, Snacks, Fleisch, Alkohol |
 | 10 | Der Heimweg | Sechs Tüten, achthundert Meter |
+| 11 | Vor der Haustür | Broke wartet schon |
+| 12 | Downhill | Mit Esat am Hausberg |
+| 13 | Shawarma bei Hamza | Libanesisch. Seit immer. |
+| 14 | Stilbruch | Eine Shisha. Ganz entspannt. |
+| 15 | Bei Georgios | Taverne, kurz vor Küchenschluss |
 
 ### Jedes Level hat seinen eigenen Boss
 
@@ -83,6 +95,11 @@ Steh mal zu lange still. Yusuf schläft dann einfach ein. Und knurren tut er sow
 | 8 | — | | Essen, kein Springen | |
 | 9 | **Alex** | 16 | Wodkaflaschen, Kotze-Pfützen, klettert aufs Regal und trinkt dort Bier, hält Vorträge über Platin-Trophäen | **Ultrapenner:** kippt Yusuf Alkohol über — ab da wackelt das Bild — und lässt Dosen regnen |
 | 10 | — | | Nur heimkommen | |
+| 11 | **Broke** | 14 | Extrem schnell: Sprint mit Nachbildern, Blitzwechsel hinter Yusuf, Sprung mit Bodenwelle — und er ruft die ganze Zeit **Mikas** | **Mika-Armee:** ganze Reihen Mikas rennen quer über den Gehweg |
+| 12 | — | | Downhill mit Rampen und Saltos | |
+| 13 | **Hamza** | 15 | Hummus (klebt am Boden), HHC-Wellen (danach dreht sich alles), Fußball und Dribbling | **Yalla-Modus:** Fallrückzieher, Hummus-Regen, zwei Wellen auf einmal |
+| 14 | — | | Die Typen vom Nebentisch werfen Zangen und heiße Kohle | |
+| 15 | **Georgios** | 16 | Sehr schnell: Teller (Scherben bleiben liegen), Sirtaki-Wirbel, Oliven, Sprints | **Boxer:** Hemd aus, Sixpack, Boxhandschuhe — schnelle Geraden und ein Aufwärtshaken |
 
 Die Level ziehen von Stufe zu Stufe an — Gegner werden schneller und
 angriffslustiger. **Level 7 ist bewusst brutal.**
@@ -143,8 +160,75 @@ nüchtern — und Alex kassiert ihn an der Kasse ab, weil er dort Schicht hat.
 
 ### Level 10: Der Heimweg
 
-Sechs Tüten, achthundert Meter, nachts. Mehr ist es nicht. Am Ende sitzt
-Yusuf wieder auf der Couch, und das Handy klingelt.
+Sechs Tüten, achthundert Meter. Mehr ist es nicht. Aber vor der Haustür
+steht jemand.
+
+### Level 11: Vor der Haustür
+
+**Broke** wartet seit zwei Stunden und will kämpfen — nur zum Testen, ob
+Yusuf noch in Form ist. Die beiden verstehen sich eigentlich gut. Broke ist
+**sehr schnell**: Er sprintet mit Nachbildern über den Gehweg, zischt in einem
+**Blitzwechsel** an Yusuf vorbei und steht plötzlich hinter ihm (danach muss
+er kurz verschnaufen, das ist die Gelegenheit) und springt mit Bodenwelle.
+Dazu hat er die **Mikas** mitgebracht, seine kleinen Kollegen, die alle Mika
+heißen und alle gleich aussehen. Er ruft ständig neue nach, höchstens vier auf
+einmal. Ab der Hälfte kommt die **Mika-Armee**: Ganze Reihen Mikas rennen
+quer durchs Bild. Drüberspringen oder draufspringen gibt Combo-Punkte.
+
+Danach geht Yusuf schlafen. Die Nacht läuft im Zeitraffer durch (Sprung spult
+vor), um 7:30 ruft Esat an: Downhill.
+
+### Level 12: Downhill
+
+Mit dem Fahrrad den Hausberg runter, **Esat fährt hinterher** und
+kommentiert. An **Rampen** hebt man ab, in der Luft macht Sprung einen
+**Rückwärtssalto**. Sauber gelandet gibt es Punkte (zwei Saltos in einem
+Sprung zählen vierfach), schief gelandet kostet es ein Herz. Honig hängt genau
+dort in der Luft, wo man hinfliegt. **Dornbüsche** tun weh, Bienen fährt man
+einfach um.
+
+Auf halber Strecke hat **Lennart** seinen Auftritt: Er rast von hinten heran,
+springt über die beiden, das Bild friert ein und sein Name steht groß im Bild,
+wie im Kino. Dann ein sauberer Salto und beim dritten Sprung fliegt er auf die
+Nase. Das Rad ist hin. Yusuf und Esat fahren einfach vorbei, als wäre nichts
+gewesen. Unten angekommen will Yusuf erstmal essen: **Shawarma bei Hamza**.
+
+### Level 13: Shawarma bei Hamza
+
+Libanesisch, der Spieß dreht sich seit dem Morgen. Unterwegs rollen wütende
+**Falafel**, **Peperoni** hüpfen, **Fladenbrote** fliegen, und auf dem Boden
+steht die **Knoblauchsoße**. Hinten im Laden steht **Hamza** — und der ist
+immer noch beleidigt, weil Yusuf mal gesagt hat, sein Hummus sei zu flüssig.
+
+Er wirft **Hummus** (wo der landet, bleibt man kleben und wird langsam),
+schickt **HHC-Wellen** durch den Laden (wer sie abbekommt, dem dreht sich eine
+Weile alles) und schießt mit dem **Fußball**, der noch ein paar Mal abspringt.
+Im **Yalla-Modus** kommen Fallrückzieher und Hummus-Regen dazu. Danach gibt es
+Shawarma aufs Haus, Esat kommt dazu, und dann geht es in den Stilbruch.
+
+### Level 14: Stilbruch
+
+Eine Shisha nach dem Essen, ganz entspannt. Dann rülpst Yusuf. Sehr laut.
+Die **Typen vom Nebentisch** stehen auf und werfen mit **Shisha-Zangen** und
+**heißer Kohle** — die bleibt als Glut liegen. **Esat läuft die ganze Zeit
+mit** und redet dazwischen. Ziel ist der reservierte Tisch ganz hinten.
+
+Dort gibt es endlich die Shisha: **Traube-Minze für Esat, Doppelapfel für
+Yusuf**. Gezogen wird von allein, ausgepustet wird mit **C** (am Handy mit B
+oder Tippen) — dreimal, und wer zu früh drückt, hustet. Danach hat Yusuf
+Hunger. Natürlich.
+
+### Level 15: Bei Georgios
+
+Kurz vor Küchenschluss in der Taverne. Die **Meeresfrüchte** sind frisch und
+wehren sich: **Krabben** laufen, **Kraken** spucken Tinte, **Fische** fliegen.
+**Georgios** ist sehr schnell: Er wirft **Teller** (die Scherben bleiben
+liegen), wirbelt **Sirtaki** quer durch den Raum und verteilt Oliven. Bei
+halber Energie zieht er das **Hemd aus**, hat ein Sixpack, zieht
+**Boxhandschuhe** an und boxt schnelle Geraden und einen Aufwärtshaken.
+
+Danach: ein Teller **Souvlaki** und ein Berg **Tzatziki** von seiner Oma.
+Und dann geht Yusuf endlich schlafen. Mit Schuhen.
 
 Während aller Gespräche steht die Welt still: Gegner, Würfe und Bosse
 bewegen sich nicht, der Hintergrund wird abgedunkelt und rechts oben im
@@ -167,9 +251,9 @@ Die besten fünf stehen **immer auf dem Titelbild** (antippen oder im Menü
 **BESTENLISTE** für die ganze Liste). Sortierbar nach **Punkten, Honig, Zeit
 oder Toden**.
 
-Wer nach Level 10 wieder zu Hause auf der Couch sitzt, trägt sich in einem normalen
+Wer am Ende des Tages ins Bett fällt (nach Level 15), trägt sich in einem normalen
 Textfeld ein — ohne Zeitdruck, bis zu 10 Zeichen, erst **EINTRAGEN** speichert.
-Gezählt wird der **ganze Durchgang** über alle zehn Level (die Kalorien aus
+Gezählt wird der **ganze Durchgang** über alle fünfzehn Level (die Kalorien aus
 Level 8 geben auch Punkte). In die Liste kommen nur Durchgänge, die bei
 **Level 1** begonnen haben (auch wenn sie zwischendurch mit WEITER fortgesetzt
 wurden) — sonst könnte man mit Level 7 allein die Zeitwertung gewinnen.
@@ -229,7 +313,7 @@ index.html          Einstieg
 style.css           Rahmen, Touch-Knöpfe, Startknopf, Namensfeld
 manifest.webmanifest + icon.svg   "Zum Home-Bildschirm" als Vollbild-App
 smoketest.html      Automatischer Testlauf (siehe unten)
-bosstest.html       Bot spielt einen Bosskampf durch (?lvl=1..8)
+bosstest.html       Bot spielt einen Bosskampf durch (?lvl=1..14)
 kippentest.html     Prueft das Kippen-Power-up Schritt fuer Schritt
 supabase-setup.sql  Regeln fuer die weltweite Bestenliste (optional)
 src/font.js         Pixel-Font
@@ -237,9 +321,9 @@ src/pixel.js        Sprite-Engine + Yusuf, Huseyin, Esat
 src/sprites.js      Gegner, Items, Autos, Blöcke, Tiles
 src/audio.js        Chiptune-Engine
 src/input.js        Tastatur / Gamepad / Touch
-src/levels.js       Alle zehn Level + alle Dialoge
+src/levels.js       Alle fünfzehn Level + alle Dialoge
 src/entities.js     Physik, Gegner-KI, alle Bosse
-src/eat.js          Level 8 (Essen) und die Kassen-Szene aus Level 9
+src/eat.js          Alle Szenen ohne Hüpfen: Essen, Kasse, Schlafen, Shisha
 src/online.js       Weltweite Bestenliste (aus, bis eingerichtet)
 src/game.js         Spielschleife, Kamera, Menüs, HUD
 ```
@@ -268,14 +352,20 @@ und WEITER, Namenseingabe (inklusive „Sprung-Taste schickt nicht versehentlich
 ab“), Teil-Durchgänge ohne Bestenliste, bereinigte Serverdaten, Menüs per
 Antippen, Handy-Ansicht, Mustang-Level (Kolonne, Ampel, Polizei), Level 8
 (Levelname verschwindet, gesundes Essen kostet ein Herz, ist aber nie
-tödlich), jede Boss-Verwandlung samt Tod mitten darin, Sprungangriffe mit
-Bodenwelle und einen Zufalls-Stresstest in allen Leveln. Er schickt nie etwas an die echte
+tödlich), Level 11 (Broke ruft Mikas nach, höchstens vier; die Mikas vom
+Ansturm verschwinden am Rand), Level 12 (Rampe, Salto, schiefe Landung,
+Lennarts Auftritt samt Tod danach), die neuen Regeln (eingesammelter Honig
+bleibt weg, Puste für den Stampfer, nie drei gesunde Sachen auf dem Tisch,
+Alex' zweiter Alex macht keinen Schaden, Hummus klebt, HHC dreht das Bild),
+jede Boss-Verwandlung samt Tod mitten darin, Sprungangriffe mit Bodenwelle
+und einen Zufalls-Stresstest in allen Leveln. Er schickt nie etwas an die echte
 Bestenliste. Alle Testseiten sichern den Spielstand vorher und schreiben ihn
 danach zurück — auch wer sie versehentlich auf der echten Seite öffnet,
 verliert nichts.
 
 `bosstest.html?lvl=N` lässt einen Bot gegen einen Boss antreten
-(1 = Mirkan, 2 = Lennart, 3 = Erfan, 4 = Huseyin, 6 = Esat, 8 = Alex) und protokolliert
+(1 = Mirkan, 2 = Lennart, 3 = Erfan, 4 = Huseyin, 6 = Esat, 8 = Alex, 10 = Broke,
+12 = Hamza, 14 = Georgios) und protokolliert
 jeden Treffer, jede Schadensquelle und jeden Zustandswechsel. Mit `&easy=1`
 wird der Boss geschwächt, um die ganze Siegeskette bis zur Bestenliste zu
 prüfen. Beides hat echte Fehler gefunden — unter anderem einen Absturz
@@ -291,6 +381,11 @@ direkt nach dem Bosssieg und viel zu viele Fragezeichen bei Mirkan.
 **Erfan** — Kubide, und zwar richtig
 **Mirkan** — Fragen
 **Esat** — bester Kollege, letzter Endgegner, hat immer schon bestellt
+**Alex** — Platin-Trophäen, Schicht an Kasse 3
+**Hamza** — Shawarma, Hummus, linker Fuß
+**Georgios** — Taverne, Sixpack, sehr schnell
+**Broke** — schnell, Lederjacke, wartet vor der Tür
+**Mika** — alle Mikas
 
 Kein Salat wurde bei den Dreharbeiten gegessen.
 

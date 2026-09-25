@@ -1610,7 +1610,498 @@
   `, 'markt');
 
   /* ---------------------------------------------------------------
-     TILES — zwei Masken, sechs Welten
+     LEVEL 11 — Broke und die Mikas
+     --------------------------------------------------------------- */
+
+  /* Ein Mika. Brokes kleiner Kollege — und davon gibt es viele.
+     Schwarze Haare mit Seitenscheitel, duenner Schnurrbart, schwarzes Shirt. */
+  var MIKA_PAL = {
+    k: '#0c0a10', h: '#231c24', H: '#443a46', s: '#e4b088', d: '#c8926a',
+    g: '#1e1614', w: '#ffffff', j: '#2a1e18', m: '#8a3a34',
+    y: '#1c1c24', b: '#2e3448', n: '#e8e8ee'
+  };
+  P.def('mika', `
+    ...kkkkk...
+    ..khhhhhk..
+    .khhhHHhhk.
+    .khhhhhhhk.
+    .ksshhhhsk.
+    .ksgwsgwsk.
+    .ksssdsssk.
+    .kssjjjssk.
+    .ksskmkssk.
+    ..kssssdk..
+    .kyyyyyyyk.
+    kyyyyyyyyyk
+    ksyyyyyyysk
+    .kbbbbbbbk.
+    .kbbk.kbbk.
+    .knnk.knnk.
+  `, MIKA_PAL);
+  P.def('mika2', `
+    ...kkkkk...
+    ..khhhhhk..
+    .khhhHHhhk.
+    .khhhhhhhk.
+    .ksshhhhsk.
+    .ksgwsgwsk.
+    .ksssdsssk.
+    .kssjjjssk.
+    .ksskmkssk.
+    ..kssssdk..
+    .kyyyyyyyk.
+    kyyyyyyyyyk
+    ksyyyyyyysk
+    .kbbbbbbbk.
+    kbbk...kbbk
+    knnk...knnk
+  `, MIKA_PAL);
+
+  /* ---------------------------------------------------------------
+     LEVEL 12 — Downhill. Drei Fahrraeder, ein kaputtes.
+     --------------------------------------------------------------- */
+
+  var BIKE_ART = `
+    .................kkkkk........
+    ...................k..........
+    .........kkkkk.....k..........
+    ...........f.......kF.........
+    .....kkkkk.ffffffffFFkkkk.....
+    ...kktttttFkFFFFFFFFFFtttkk...
+    ..kktt.T.tFkf....kkfFFT.ttkk..
+    ..kt...T.F.tf....kf..FF...tk..
+    .ktt...TF..tfk..fft..FF...ttk.
+    .kt....TF...fk.fkt....FF...tk.
+    .ktTTTTFFFFctff.ktTTTTFFTTTtk.
+    .kt....T...FFc..kt....T....tk.
+    .ktt...T...ttk.cktt...T...ttk.
+    ..kt...T...tk....kt...T...tk..
+    ..kktt.T.ttkk....kktt.T.ttkk..
+    ...kktttttkk......kktttttkk...
+    .....kkkkk..........kkkkk.....
+  `;
+  // Zweites Bild: die Speichen stehen schraeg, das Rad dreht sich
+  var BIKE_ART2 = `
+    .................kkkkk........
+    ...................k..........
+    .........kkkkk.....k..........
+    ...........f.......kF.........
+    .....kkkkk.ffffffffFFkkkk.....
+    ...kktttttFkFFFFFFFFFFtttkk...
+    ..kktt...tFkf....kkfFF..ttkk..
+    ..ktT....FTtf....kfT.FF..Ttk..
+    .ktt.T..FT.tfk..fft.TFF.T.ttk.
+    .kt...T.F...fk.fkt...TFF...tk.
+    .kt....FFFFctff.kt....FF...tk.
+    .kt...T.T..FFc..kt...T.T...tk.
+    .ktt.T...T.ttk.cktt.T...T.ttk.
+    ..ktT.....Ttk....ktT.....Ttk..
+    ..kktt...ttkk....kktt...ttkk..
+    ...kktttttkk......kktttttkk...
+    .....kkkkk..........kkkkk.....
+  `;
+  function bikePal(frame, frameDark) {
+    return { k: '#15121a', t: '#2c2a30', T: '#8a8a96', o: '#c8c8d0',
+             f: frame, F: frameDark, c: '#6a6a74' };
+  }
+  // Yusuf: honiggelb. Esat: tuerkis. Lennart: pink, natuerlich.
+  P.def('bike', BIKE_ART, bikePal('#ffb43c', '#c87a1e'));
+  P.def('bike2', BIKE_ART2, bikePal('#ffb43c', '#c87a1e'));
+  P.def('bike_e', BIKE_ART, bikePal('#4ad8c8', '#1e8a86'));
+  P.def('bike_e2', BIKE_ART2, bikePal('#4ad8c8', '#1e8a86'));
+  P.def('bike_l', BIKE_ART, bikePal('#ff6fa8', '#b83a70'));
+  P.def('bike_l2', BIKE_ART2, bikePal('#ff6fa8', '#b83a70'));
+
+  /* Was von Lennarts Rad uebrig ist. */
+  P.def('bike_kaputt', `
+    ....................kk..
+    ....kkkkk............kkk
+    ......f.............k...
+    .......f...........k....
+    .......f.........ff.F...
+    .......ff......ff...F...
+    ...ffff..FFF.ff......F..
+    .ff.........c........F..
+    .............c........F.
+  `, bikePal('#ff6fa8', '#b83a70'));
+
+  /* Ein einzelnes Rad. Rollt davon. */
+  P.def('rad', `
+    ....kkkkk....
+    ..kktttttkk..
+    .kktt.T.ttkk.
+    .kt...T...tk.
+    ktt...T...ttk
+    kt....T....tk
+    ktTTTToTTTTtk
+    kt....T....tk
+    ktt...T...ttk
+    .kt...T...tk.
+    .kktt.T.ttkk.
+    ..kktttttkk..
+    ....kkkkk....
+  `, bikePal('#ff6fa8', '#b83a70'));
+
+  /* Dornbusch am Wegrand. Nicht reinfahren. */
+  P.def('dornbusch', `
+    ......x..x......
+    ....kkkkkkkk....
+    ..x.kgGgggGk.x..
+    ..kkggglgggGkk..
+    .kgGglgggGglgk..
+    xkggggGgglgggkx.
+    .kgglgggGgggGgk.
+    .kGgggglgggglggk
+    xkggGgggGglggGkx
+    .kgglgggggggGgk.
+    kgggGgglgGgggggk
+    kgGgggggggglgGgk
+    .kkgggGgggGgggk.
+    ..kkkkkkkkkkkk..
+    ....nn....nn....
+    ....nn....nn....
+  `, { k: '#12200c', g: '#2f6a22', G: '#1e4a16', l: '#6aa83c',
+       x: '#e8dcb0', n: '#5a3a1e' });
+
+  /* ---------------------------------------------------------------
+     LEVEL 13 — Shawarma bei Hamza (libanesisch)
+     --------------------------------------------------------------- */
+
+  /* Falafel. Rollt los, sobald sie dich sieht. */
+  var FALAFEL_PAL = { k: '#2a160a', n: '#b07a3a', N: '#8a5a24', c: '#d8a05a',
+                      w: '#ffffff', e: '#1b1220', m: '#5a2a14' };
+  P.def('falafel', `
+    ....kkkk....
+    ..kkcnnckk..
+    .kcnnNnncnk.
+    .knkknnkknk.
+    knnwennwenNk
+    kncnnnnnncnk
+    knnnNnnnNnnk
+    kNnnkmmmknnk
+    .knnnnnnnck.
+    .kNnnNnnnnk.
+    ..kkcnnnkk..
+    ....kkkk....
+  `, FALAFEL_PAL);
+  P.def('falafel2', `
+    ....kkkk....
+    ..kkcnnckk..
+    .knncNnnnck.
+    .knkknnkknk.
+    knnwennwenNk
+    knnnncnnnnck
+    knnnNnnnNnnk
+    kNnnkmmmknnk
+    .knnnnnnnck.
+    .kncnnnNnnk.
+    ..kknnnckk..
+    ....kkkk....
+  `, FALAFEL_PAL);
+
+  /* Peperoni. Scharf und schlecht gelaunt. Huepft. */
+  var PEPERONI_PAL = { k: '#12200a', G: '#3a5a1a', l: '#5ec23a', g: '#3a9a28',
+                       e: '#1b1220', m: '#6a1a14' };
+  P.def('peperoni', `
+    ....kk..
+    ...kGk..
+    ..kkGkk.
+    .kllllk.
+    .klelek.
+    .kllllk.
+    .klmmlk.
+    .kglllk.
+    .kgllgk.
+    ..kgllk.
+    ..kgglk.
+    ...kglk.
+    ...kgk..
+    ....k...
+  `, PEPERONI_PAL);
+  P.def('peperoni2', `
+    ....kk..
+    ...kGk..
+    ..kkGkk.
+    .kllllk.
+    .klelek.
+    .kllllk.
+    .kmmmmk.
+    .kglllk.
+    .kgllgk.
+    ..kgllk.
+    ..kgglk.
+    ...kglk.
+    ...kgk..
+    ....k...
+  `, PEPERONI_PAL);
+
+  /* Fliegendes Fladenbrot. */
+  var PITA_PAL = { k: '#5a3a1a', p: '#f0d8a0', P: '#d8b070', w: '#ffffff',
+                   e: '#1b1220', m: '#8a3a1e' };
+  P.def('pita', `
+    ...kkkkkkkk...
+    .kkppPppPppkk.
+    kppppppppppppk
+    kpPpweppwepPpk
+    kppppppppppppk
+    kpPppkmmkppPpk
+    kppppppppppppk
+    .kkppPppPppkk.
+    ...kkkkkkkk...
+  `, PITA_PAL);
+  P.def('pita2', `
+    ..............
+    ...kkkkkkkk...
+    .kkppPppPppkk.
+    kpPpweppwepPpk
+    kppppppppppppk
+    kpPppkmmkppPpk
+    .kkppPppPppkk.
+    ...kkkkkkkk...
+    ..............
+  `, PITA_PAL);
+
+  /* Shawarma im Papier. Heilt. */
+  P.def('shawarma', `
+    ......kkkk....
+    ....kkmMmmk...
+    ...kmmgmtmk...
+    ..kpppppppmk..
+    .kpppppppppk..
+    kwwwwwwwwwwwk.
+    kwWwwwWwwwwwk.
+    kwwwwwwwwWwwk.
+    .kwwwwwwwwwk..
+    ..kkkkkkkkk...
+  `, { k: '#3a2410', m: '#b8643a', M: '#8a4424', g: '#6ac23a', t: '#e0483c',
+       p: '#f0d8a0', w: '#f4f2ec', W: '#cfcac0' });
+
+  /* Ein Klecks Hummus — Hamzas Wurfgeschoss. */
+  P.def('humus', `
+    ..kkkk..
+    .khhHhk.
+    khhhhhhk
+    khHhohhk
+    .khhhhk.
+    ..kkkk..
+  `, { k: '#6a5030', h: '#e8d4a0', H: '#f8ecc8', o: '#c8a020' });
+
+  /* Hamzas Fussball. */
+  P.def('ball', `
+    ..kkkkkk..
+    .kwwwwwwk.
+    kwwwbbwwwk
+    kwwbbbbwwk
+    kbwwbbwwbk
+    kbbwwwwbbk
+    kwwwwwwwwk
+    kwbwwwwbwk
+    .kwbbbbwk.
+    ..kkkkkk..
+  `, { k: '#1b1220', w: '#f4f4f0', b: '#2a2a34' });
+
+  /* ---------------------------------------------------------------
+     LEVEL 14 — Stilbruch. Die Typen vom Nebentisch.
+     --------------------------------------------------------------- */
+
+  var TYP_ART = `
+    ...kkkkk...
+    ..khhhhhk..
+    .khhHhhhhk.
+    .ksssssssk.
+    .ksweswesk.
+    .ksssdsssk.
+    .kjjkmkjjk.
+    ..kjjjjjk..
+    .krrryrrrk.
+    krrrryrrrrk
+    kyrrryrrryk
+    kyrrryrrryk
+    ksrrryrrrsk
+    .kbbbbbbbk.
+    .kbbk.kbbk.
+    .kbbk.kbbk.
+    .knnk.knnk.
+  `;
+  var TYP_ART2 = TYP_ART.replace(
+    '.kbbk.kbbk.\n    .kbbk.kbbk.\n    .knnk.knnk.',
+    'kbbk...kbbk\n    kbbk...kbbk\n    knnk...knnk');
+  // Mit Kappe statt Haaren, ohne Bart
+  var TYP_CAP = TYP_ART.replace('..khhhhhk..\n    .khhHhhhhk.', '..kcccccck.\n    .kccccccccc')
+                       .replace('.kjjkmkjjk.\n    ..kjjjjjk..', '.ksskmkssk.\n    ..kssssdk..');
+  var TYP_CAP2 = TYP_ART2.replace('..khhhhhk..\n    .khhHhhhhk.', '..kcccccck.\n    .kccccccccc')
+                         .replace('.kjjkmkjjk.\n    ..kjjjjjk..', '.ksskmkssk.\n    ..kssssdk..');
+  var TYP_BASE = { k: '#0c0a10', w: '#ffffff', e: '#1b1220', m: '#6a2a24', n: '#f0f0f4' };
+  function typPal(o) {
+    var p = {}, key;
+    for (key in TYP_BASE) p[key] = TYP_BASE[key];
+    for (key in o) p[key] = o[key];
+    return p;
+  }
+  // Schwarzer Trainingsanzug mit weissen Streifen
+  var TYP1 = typPal({ h: '#1a1412', H: '#3a2e24', s: '#d8a67c', d: '#b8845c', j: '#2a1e16',
+                      r: '#1c1c24', y: '#f4f4f0', b: '#1c1c24' });
+  // Weisser Anzug, blaue Kappe
+  var TYP2 = typPal({ c: '#2a4a8a', s: '#c8946a', d: '#a8744c',
+                      r: '#e8e8ee', y: '#2a4a8a', b: '#d8d8e0', n: '#1c1c24' });
+  // Roter Anzug, Locken
+  var TYP3 = typPal({ h: '#2a1a12', H: '#5a3a24', s: '#e8b890', d: '#c8946c', j: '#3a2418',
+                      r: '#b8282e', y: '#f4f4f0', b: '#1c1c24' });
+  P.def('typ1', TYP_ART, TYP1); P.def('typ1b', TYP_ART2, TYP1);
+  P.def('typ2', TYP_CAP, TYP2); P.def('typ2b', TYP_CAP2, TYP2);
+  P.def('typ3', TYP_ART, TYP3); P.def('typ3b', TYP_ART2, TYP3);
+
+  /* Shisha-Zange. Fliegt sich drehend durch den Raum. */
+  P.def('zange', `
+    kkkkkkkkkk..
+    kmmmmmmmmmkk
+    .kkkkkkkkkmk
+    kmmmmmmmmmkk
+    kkkkkkkkkk..
+  `, { k: '#3a3a44', m: '#c8ccd6' });
+
+  /* Heisses Stueck Shisha-Kohle. */
+  P.def('kohle', `
+    .kkkk.
+    kroork
+    koyyok
+    koyyok
+    kroork
+    .kkkk.
+  `, { k: '#2a1008', r: '#8a2a10', o: '#ff6a1a', y: '#ffd257' });
+
+  /* ---------------------------------------------------------------
+     LEVEL 15 — Bei Georgios (griechisch). Die Meeresfruechte sind frisch.
+     --------------------------------------------------------------- */
+
+  var KRABBE_PAL = { k: '#3a0a08', r: '#e0483c', R: '#a02a20', w: '#ffffff' };
+  P.def('krabbe', `
+    .kk..........kk.
+    krrk........krrk
+    krRk..k..k..kRrk
+    .krk..w..w..krk.
+    ..krkkrrrrkkrk..
+    ...krrrrrrrrk...
+    ..krrRrrrrRrrk..
+    ..kkrrrrrrrrkk..
+    .k.k.k....k.k.k.
+    k.k.k......k.k.k
+  `, KRABBE_PAL);
+  P.def('krabbe2', `
+    kk............kk
+    .krk........krk.
+    krRk..k..k..kRrk
+    .krk..w..w..krk.
+    ..krkkrrrrkkrk..
+    ...krrrrrrrrk...
+    ..krrRrrrrRrrk..
+    ..kkrrrrrrrrkk..
+    k.k.k......k.k.k
+    .k.k.k....k.k.k.
+  `, KRABBE_PAL);
+
+  var KRAKE_PAL = { k: '#2a0a30', p: '#9a4ac8', P: '#c88ae8', w: '#ffffff',
+                    e: '#1b1220', m: '#5a1a3a' };
+  P.def('krake', `
+    ....kkkkkk....
+    ..kkppppppkk..
+    .kppPppppPppk.
+    kppppppppppppk
+    kpppwepppweppk
+    kppppppppppppk
+    .kppppmmppppk.
+    ..kppppppppk..
+    .kpkpkppkpkpk.
+    kpkpkpkkpkpkpk
+    kpkpkp..pkpkpk
+    kk.kpk..kpk.kk
+    ...kk....kk...
+  `, KRAKE_PAL);
+  P.def('krake2', `
+    ....kkkkkk....
+    ..kkppppppkk..
+    .kppPppppPppk.
+    kppppppppppppk
+    kpppwepppweppk
+    kppppppppppppk
+    .kpppmmmmpppk.
+    ..kppppppppk..
+    .kpkpkppkpkpk.
+    .kpkpkkkkpkpk.
+    .kpkpk..kpkpk.
+    ..kk.k..k.kk..
+    ..............
+  `, KRAKE_PAL);
+
+  var FISCH_PAL = { k: '#0a1a3a', b: '#4a8ad8', B: '#8ac0f0', w: '#ffffff',
+                    e: '#1b1220', m: '#1a2a5a' };
+  P.def('fisch', `
+    ....kkkkk.....
+    ..kkbbbbbkk.kk
+    .kbbbBbbbbbkbk
+    kbwebbbbbbbbbk
+    kbmbbbbbbbbkbk
+    .kbbBbbbbbk.kk
+    ..kkbbbbbkk...
+    ....kkkkk.....
+  `, FISCH_PAL);
+  P.def('fisch2', `
+    ....kkkkk.....
+    ..kkbbbbbkk...
+    .kbbbBbbbbbkkk
+    kbwebbbbbbbbbk
+    kbmbbbbbbbbkkk
+    .kbbBbbbbbbk..
+    ..kkbbbbbkk...
+    ....kkkkk.....
+  `, FISCH_PAL);
+
+  /* Tinte. Die Krake spuckt. */
+  P.def('tinte', `
+    .kkkk.
+    kiiIik
+    kiIiik
+    kiiiik
+    .kkkk.
+  `, { k: '#0a0a14', i: '#2a1a4a', I: '#5a4a8a' });
+
+  /* Teller. Georgios wirft sie. Opa. */
+  P.def('teller', `
+    .kkkkkkkkkk.
+    kwwbwwwwbwwk
+    kwwwwwwwwwwk
+    .kkkkkkkkkk.
+  `, { k: '#3a4a6a', w: '#f4f6fa', b: '#2a5ab8' });
+
+  P.def('olive', `
+    .kkk.
+    koOok
+    koook
+    .kkk.
+  `, { k: '#141a08', o: '#3a4a18', O: '#8a9a3a' });
+
+  /* Souvlaki am Spiess. Heilt — und ist Yusufs Belohnung. */
+  P.def('souvlaki', `
+    .kkk.kkk.kkk....
+    kmMmkmMmkgtgkkkk
+    kmmmkmmmkgggyyyy
+    kMmmkMmmktggkkkk
+    .kkk.kkk.kkk....
+  `, { k: '#3a2410', m: '#b8643a', M: '#8a4424', g: '#4aa832', t: '#e0483c', y: '#d8b070' });
+
+  /* Tzatziki. Von Georgios' Oma. */
+  P.def('tzatziki', `
+    ..kkkkkkkk..
+    .kwwgwwwgwk.
+    kwwwwwgwwwwk
+    kbbbbbbbbbbk
+    .kbBbbbbBbk.
+    ..kbbbbbbk..
+    ...kkkkkk...
+  `, { k: '#1a2a5a', w: '#f4f6ee', g: '#8ac860', b: '#2a5ab8', B: '#8ab0f0' });
+
+  /* ---------------------------------------------------------------
+     TILES — zwei Masken, eine Palette pro Welt
      --------------------------------------------------------------- */
 
   var MASK_TOP = P.art(`
@@ -1707,6 +2198,46 @@
       sky:  ['#0c0a18', '#1d1636', '#43215a', '#a8425a'],
       far:  '#241d3a', near: '#171228',
       accent: '#ff8ad8'
+    },
+    // Vor Yusufs Haus: Gehweg, Nachmittagssonne, Reihenhaeuser
+    siedlung: {
+      top:  ['#dedad2', '#b8b4ac', '#8e8a84', '#5a5652'],
+      fill: ['#8e8a84', '#76726c', '#5e5a56', '#3a3834'],
+      sky:  ['#4a86d4', '#7ab0e6', '#c4dcf0', '#f2d8a4'],
+      far:  '#8ea2c2', near: '#6a7c9a',
+      accent: '#ffd257'
+    },
+    // Der Hausberg: Gras oben, Erde darunter, Morgenhimmel
+    berg: {
+      top:  ['#9ada64', '#62a83c', '#7a5634', '#3e2a18'],
+      fill: ['#8a6440', '#6e4e30', '#553a22', '#2e2012'],
+      sky:  ['#58b0ee', '#8accf0', '#c2e6f4', '#eaf6e0'],
+      far:  '#7e9cc0', near: '#2e6a3a',
+      accent: '#ffc23c'
+    },
+    // Hamzas Restaurant: Terrakotta-Boden, warme Waende, der Spiess
+    imbiss: {
+      top:  ['#e8b888', '#c88a5a', '#a0683e', '#5a3a22'],
+      fill: ['#a0683e', '#86542e', '#6a4022', '#3a2414'],
+      sky:  ['#3a2014', '#5a3220', '#7a4a2e', '#946038'],
+      far:  '#4e2c1c', near: '#2e1a10',
+      accent: '#ffd257'
+    },
+    // Stilbruch von innen: dunkler Teppich, Neon, Rauch
+    bar: {
+      top:  ['#7a4a7a', '#5a3060', '#3e2046', '#1e1024'],
+      fill: ['#3e2046', '#30183a', '#24102c', '#12081a'],
+      sky:  ['#0e0816', '#1c1030', '#2e1840', '#44204e'],
+      far:  '#241634', near: '#160c22',
+      accent: '#ff8ad8'
+    },
+    // Taverne Georgios: weiss und blau, Holzboden
+    taverne: {
+      top:  ['#d8b888', '#b08a5a', '#8a6640', '#4a3420'],
+      fill: ['#8a6640', '#70502e', '#58401e', '#302210'],
+      sky:  ['#e8f0f8', '#d0e0f0', '#b8d0ea', '#a0c0e4'],
+      far:  '#f4f6fa', near: '#2a5ab8',
+      accent: '#2a5ab8'
     }
   };
 

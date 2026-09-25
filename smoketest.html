@@ -81,6 +81,14 @@ function run() {
   });
   Levels.sleepLines.concat(Levels.hurtLines, Levels.eatLines, Levels.deathLines)
     .forEach(function (t) { texts.push(t); });
+  // Und alles andere, was irgendwo in levels.js als Text steht (Dialoge der
+  // Bosse, Mikas, Lennarts Auftritt ...). Kleingeschriebenes sind Namen von
+  // Sprites oder Themen, die werden nie angezeigt.
+  (function collect(v) {
+    if (typeof v === 'string') { if (!/^[a-z0-9_]*$/.test(v)) texts.push(v); }
+    else if (Array.isArray(v)) v.forEach(collect);
+    else if (v && typeof v === 'object') for (var k in v) collect(v[k]);
+  })(Levels);
   texts.forEach(function (t) {
     for (var i = 0; i < t.length; i++) {
       if (!Font.has(t.charAt(i))) missing[t.charAt(i)] = true;
@@ -251,7 +259,7 @@ function run() {
     var bossLevels = [
       { idx: 1, name: 'Mirkan' }, { idx: 2, name: 'Lennart' },
       { idx: 3, name: 'Erfan' }, { idx: 4, name: 'Huseyin' },
-      { idx: 6, name: 'Esat' }
+      { idx: 6, name: 'Esat' }, { idx: 8, name: 'Alex' }, { idx: 10, name: 'Broke' }
     ];
     bossLevels.forEach(function (bl) {
       var err = null, hpBefore = null, hpAfter = null;
@@ -386,6 +394,9 @@ function run() {
     var want = false;
     if (p.grounded) {
       want = (wallAhead || gapAhead || foe);
+    } else if (G.lvl.bike) {
+      // Auf dem Fahrrad heisst Sprung in der Luft: Salto. Der Bot laesst das.
+      want = false;
     } else if (p.vy > 2.2 && p.jumpsLeft > 0) {
       // im Fallen: ist unter uns ueberhaupt Boden?
       var bx = Math.floor((p.x + p.w / 2) / T);

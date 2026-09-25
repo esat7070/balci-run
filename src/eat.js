@@ -5,6 +5,11 @@
    auf der Couch, Erfan ruft an und bruellt ihn wach. Danach steht Yusuf
    am Schreibtisch und isst — man zieht ihm das Essen mit der Hand in den
    Mund (Maus, Finger) oder druckt A. Ziel: 10.000 Kalorien.
+
+   Weiter unten stehen die anderen Szenen ohne Huepfen: die Kasse am
+   Ende von Level 9, das Schlafen (nach Level 11 und nach Level 15),
+   das Essen am Tisch (nach Hamza und nach Georgios) und die Shisha
+   am Ende von Level 14.
    ===================================================================== */
 (function (global) {
   'use strict';
@@ -150,11 +155,21 @@
       var s = e.slots[i];
       if (s.food) continue;
       if (s.wait > 0) { s.wait--; continue; }
-      var def;
+      var def, j;
       // Ab und zu legt jemand etwas Gesundes dazwischen. Wer das isst,
       // verliert ein Herz — Yusuf verzeiht so etwas nicht.
-      if (e.bad.length && e.eaten > 1 && Math.random() < 0.22) {
+      // Zwei Regeln: es liegt IMMER etwas Richtiges mit auf dem Tisch
+      // (nie drei Gesunde gleichzeitig), und im ganzen Level kommen
+      // hoechstens drei gesunde Sachen vor.
+      var gesundDa = 0;
+      for (j = 0; j < e.slots.length; j++) {
+        if (e.slots[j].food && e.slots[j].food.bad) gesundDa++;
+      }
+      var darf = e.bad.length && e.eaten > 1 &&
+                 (e.badSpawned || 0) < 3 && gesundDa < SLOTS - 1;
+      if (darf && Math.random() < 0.3) {
         def = e.bad[(Math.random() * e.bad.length) | 0];
+        e.badSpawned = (e.badSpawned || 0) + 1;
       } else {
         def = e.foods[e.order[e.next % e.order.length]];
         e.next++;
@@ -490,15 +505,15 @@
     k.t++;
     if (g.banner > 0) g.banner--;
 
-    // Yusuf legt nach — es hoert einfach nicht auf
+    // Yusuf legt nach. Nicht alles — die Haelfte reicht fuers Bild.
     k.next--;
-    if (k.next <= 0 && k.items.length < 16) {
-      k.next = 24;
+    if (k.next <= 0 && k.spawned < 8) {
+      k.next = 40;
       k.spawned++;
       k.items.push({
         x: L.beltX + 6,
         spr: KASSE_SPR[(Math.random() * KASSE_SPR.length) | 0],
-        price: 1 + Math.round(Math.random() * 900) / 100,
+        price: 15 + Math.round(Math.random() * 2000) / 100,
         scanned: false,
         hop: 8
       });
@@ -512,7 +527,7 @@
       if (it.hop > 0) it.hop--;
       if (!it.scanned && it.x > scanX) {
         it.scanned = true;
-        k.total = Math.min(412.9, k.total + it.price);
+        k.total = Math.min(205.4, k.total + it.price);
         k.beep = 12;
         S.play('coinBlock');
         g.floats.add(L.alexX - 30, L.beltY - 24, '+' + it.price.toFixed(2).replace('.', ',') + ' EURO',
@@ -584,7 +599,576 @@
            { color: '#8cd85a', align: 'right' });
   }
 
+  /* =====================================================================
+     SCHLAFEN — der Uebergang von Level 11 nach Level 12.
+     Yusuf liegt im Bett, die Uhr laeuft im Zeitraffer durch die Nacht,
+     draussen wird es hell. Um 7:30 klingelt das Handy: Esat.
+     ===================================================================== */
+
+  var NACHT = 22 * 60 + 40;           // Minuten seit Mitternacht
+  var WECKEN = 24 * 60 + 7 * 60 + 30; // 7:30 am naechsten Morgen
+  // Am Ende des Tages (nach Georgios) wird erst um 1:20 geschlafen
+  var SPAET = 24 * 60 + 1 * 60 + 20, TIEF = 24 * 60 + 4 * 60;
+
+  /** mode 'morgen': nach Level 11, Esat weckt ihn. mode 'ende': nach
+      Level 15, einfach schlafen. Kein Anruf. */
+  function schlafInit(mode) {
+    var ende = (mode === 'ende');
+    return { type: 'schlaf', mode: ende ? 'ende' : 'morgen', t: 0, phase: 'nacht',
+             min: ende ? SPAET : NACHT, ringT: 0, upT: 0, endT: 0 };
+  }
+
+  function schlafLayout(W, H) {
+    // Alles sitzt ueber dem Textkasten, der spaeter fuer den Anruf kommt
+    var floorY = H - 92;
+    var bedX = Math.round(W * 0.24);
+    return {
+      W: W, H: H, floorY: floorY,
+      bedX: bedX, bedW: 150, bedY: floorY - 24,
+      standX: Math.round(Math.max(40, bedX - 30)),
+      tischX: bedX + 162,
+      winX: Math.round(W * 0.64), winY: 26, winW: 110, winH: 76
+    };
+  }
+
+  /** 0 = tiefe Nacht, 1 = heller Morgen. Hell wird es ab halb sechs. */
+  function hellwert(min) {
+    return Math.max(0, Math.min(1, (min - (24 * 60 + 5 * 60 + 30)) / 120));
+  }
+
+  function mischen(a, b, t) {
+    var pa = [parseInt(a.substr(1, 2), 16), parseInt(a.substr(3, 2), 16), parseInt(a.substr(5, 2), 16)];
+    var pb = [parseInt(b.substr(1, 2), 16), parseInt(b.substr(3, 2), 16), parseInt(b.substr(5, 2), 16)];
+    return 'rgb(' + Math.round(pa[0] + (pb[0] - pa[0]) * t) + ',' +
+           Math.round(pa[1] + (pb[1] - pa[1]) * t) + ',' +
+           Math.round(pa[2] + (pb[2] - pa[2]) * t) + ')';
+  }
+
+  function uhrzeit(min) {
+    var m = Math.floor(min) % (24 * 60);
+    var h = Math.floor(m / 60), mm = m % 60;
+    return (h < 10 ? '0' : '') + h + ':' + (mm < 10 ? '0' : '') + mm;
+  }
+
+  function schlafUpdate(g, W, H) {
+    var k = g.scene;
+    k.t++;
+    if (g.banner > 0) g.banner--;
+    g.particles.update();
+    g.floats.update();
+    if (g.dialog) return;                 // waehrend des Anrufs steht die Szene
+    var In = global.Input;
+
+    if (k.phase === 'nacht' && k.mode === 'ende') {
+      // Tagesende: er schlaeft einfach. Mit Schuhen.
+      if (k.t > 70) k.min += 2;
+      if (k.t % 90 === 30) S.play('snore');
+      if (k.t > 30 && (In.hit('jump') || In.hit('confirm') || In.tap())) k.min = TIEF;
+      if (k.min >= TIEF) { k.min = TIEF; k.phase = 'ende'; k.endT = 0; }
+    } else if (k.phase === 'ende') {
+      k.endT++;
+      if (k.t % 90 === 30) S.play('snore');
+      if (k.endT === 170 && g.onSchlafDone) g.onSchlafDone('ende');
+    } else if (k.phase === 'nacht') {
+      // Erst ein bisschen schlafen, dann rast die Nacht vorbei
+      if (k.t > 70) k.min += 3;
+      if (k.t % 90 === 30) S.play('snore');
+      // Wer nicht warten will: Sprung spult vor
+      if (k.t > 30 && (In.hit('jump') || In.hit('confirm') || In.tap())) {
+        k.min = Math.max(k.min, WECKEN - 12);
+      }
+      if (k.min >= WECKEN) { k.min = WECKEN; k.phase = 'ring'; k.ringT = 0; }
+    } else if (k.phase === 'ring') {
+      k.ringT++;
+      if (k.ringT % 70 === 1) S.play('ring');
+      if (k.ringT === 80) {
+        k.phase = 'anruf';
+        g.showDialog(global.Levels.schlaf || [], function () {
+          k.phase = 'auf'; k.upT = 0;
+          g.state = 'play';
+        });
+      }
+    } else if (k.phase === 'auf') {
+      k.upT++;
+      if (k.upT === 1) S.play('growl');
+      if (k.upT === 90 && g.onSchlafDone) g.onSchlafDone();
+    }
+  }
+
+  function schlafDraw(ctx, g, W, H) {
+    var k = g.scene, L = schlafLayout(W, H), i;
+    var hell = hellwert(k.min);
+
+    // Wand: nachts dunkelblau, morgens warm
+    ctx.fillStyle = mischen('#141026', '#5a4462', hell);
+    ctx.fillRect(0, 0, W, H);
+    for (var x = 0; x < W; x += 24) rect(ctx, x, 0, 2, L.floorY, 'rgba(255,255,255,0.03)');
+
+    // Fenster: Sterne und Mond gehen, die Sonne kommt
+    rect(ctx, L.winX - 4, L.winY - 4, L.winW + 8, L.winH + 8, '#1a1428');
+    var sky = ctx.createLinearGradient(0, L.winY, 0, L.winY + L.winH);
+    sky.addColorStop(0, mischen('#060818', '#6aa8e0', hell));
+    sky.addColorStop(1, mischen('#1a1a48', '#f4b060', hell));
+    ctx.fillStyle = sky;
+    ctx.fillRect(L.winX, L.winY, L.winW, L.winH);
+    ctx.save();
+    ctx.beginPath(); ctx.rect(L.winX, L.winY, L.winW, L.winH); ctx.clip();
+    var nacht = Math.max(0, Math.min(1, (k.min - NACHT) / (WECKEN - NACHT)));
+    ctx.globalAlpha = Math.max(0, 1 - hell * 1.6);
+    for (i = 0; i < 14; i++) {
+      rect(ctx, L.winX + (i * 37) % L.winW, L.winY + (i * 23) % (L.winH - 20), 1, 1, '#ffffff');
+    }
+    ctx.fillStyle = '#fff0c0';
+    ctx.beginPath();
+    ctx.arc(L.winX + 24 + nacht * 70, L.winY + 16 + nacht * 70, 9, 0, 6.3);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    if (hell > 0) {
+      ctx.fillStyle = '#ffd86a';
+      ctx.beginPath();
+      ctx.arc(L.winX + 76, L.winY + L.winH + 12 - hell * 60, 12, 0, 6.3);
+      ctx.fill();
+    }
+    ctx.restore();
+    rect(ctx, L.winX + L.winW / 2 - 1, L.winY, 3, L.winH, '#1a1428');
+    rect(ctx, L.winX, L.winY + L.winH / 2 - 1, L.winW, 3, '#1a1428');
+
+    // Boden
+    rect(ctx, 0, L.floorY, W, H - L.floorY, '#3a2a1e');
+    rect(ctx, 0, L.floorY, W, 3, '#5a4230');
+
+    // Die sechs Tueten stehen noch da. Einraeumen ist fuer morgen.
+    for (i = 0; i < 6; i++) {
+      P.draw(ctx, 'tuete', 10 + (i % 3) * 11, L.floorY - 9 - Math.floor(i / 3) * 8);
+    }
+
+    // Bett
+    rect(ctx, L.bedX - 6, L.bedY - 30, 6, 30 + 22, '#6b4522');        // Kopfteil
+    rect(ctx, L.bedX, L.bedY + 8, L.bedW, 12, '#8a5a30');              // Gestell
+    rect(ctx, L.bedX + 4, L.bedY + 20, 6, L.floorY - L.bedY - 20, '#5a3a1e');
+    rect(ctx, L.bedX + L.bedW - 10, L.bedY + 20, 6, L.floorY - L.bedY - 20, '#5a3a1e');
+    rect(ctx, L.bedX, L.bedY, L.bedW, 9, '#e8e4dc');                   // Matratze
+    rect(ctx, L.bedX + 4, L.bedY - 9, 32, 10, '#f4f2ec');              // Kissen
+
+    var liegt = (k.phase !== 'auf');
+    var decke = mischen('#3a5a9a', '#4a6aaa', hell);
+    if (liegt) {
+      // Yusuf liegt auf der Seite, Kopf auf dem Kissen
+      ctx.save();
+      ctx.translate(L.bedX + 72, L.bedY - 14);
+      ctx.rotate(-Math.PI / 2);
+      P.drawChar(ctx, 'yusuf', 0, 0, {
+        pose: 'idle', face: 'sleep', frame: (k.t >> 5), scale: 2
+      });
+      ctx.restore();
+      // Decke bis zur Schulter, der Bauch drunter hebt und senkt sich.
+      var atem = Math.round(Math.sin(k.t * 0.05) * 1.5);
+      rect(ctx, L.bedX + 36, L.bedY - 36 - atem, L.bedW - 42, 45 + atem, decke);
+      rect(ctx, L.bedX + 36, L.bedY - 36 - atem, L.bedW - 42, 3, 'rgba(255,255,255,0.18)');
+      rect(ctx, L.bedX + 36, L.bedY - 33 - atem, 3, 42 + atem, 'rgba(0,0,0,0.15)');
+      // Zzz
+      for (i = 0; i < 3; i++) {
+        var zt = (k.t * 0.02 + i * 0.33) % 1;
+        F.draw(ctx, 'Z', L.bedX + 20 + zt * 18, L.bedY - 36 - zt * 26, {
+          color: 'rgba(200,185,255,' + (1 - zt).toFixed(2) + ')', scale: 1 + Math.floor(zt * 2)
+        });
+      }
+    } else {
+      // Die Decke liegt zerknuellt am Fussende, Yusuf steht daneben
+      rect(ctx, L.bedX + L.bedW - 50, L.bedY - 8, 46, 10, decke);
+      var up = k.upT;
+      P.drawChar(ctx, 'yusuf', L.standX, L.floorY, {
+        pose: up < 45 ? 'idle' : 'cheer', face: up < 30 ? 'sleep' : 'growl',
+        frame: (g.tick >> 3), scale: 2
+      });
+    }
+
+    // Nachttisch mit Wecker und Handy
+    rect(ctx, L.tischX, L.floorY - 30, 44, 30, '#6b4522');
+    rect(ctx, L.tischX, L.floorY - 30, 44, 3, '#8a5a30');
+    rect(ctx, L.tischX + 3, L.floorY - 44, 26, 14, '#101014');
+    var blink = (k.phase === 'nacht' && (k.t >> 4) % 2 === 0);
+    var zeit = uhrzeit(k.min);
+    F.draw(ctx, blink ? zeit.replace(':', ' ') : zeit, L.tischX + 16, L.floorY - 40,
+           { color: '#ff3a30', align: 'center' });
+    var zit = (k.phase === 'ring' && k.ringT % 10 < 5) ? 1 : 0;
+    P.draw(ctx, 'handy', L.tischX + 32 + zit, L.floorY - 40);
+    if (k.phase === 'ring' && k.ringT % 70 < 40) {
+      F.draw(ctx, 'ESAT RUFT AN', L.tischX + 36, L.floorY - 54,
+             { color: '#6fc8e8', align: 'center', shadow: true });
+    }
+
+    // Oben: die Uhrzeit gross, solange die Nacht vorbeirast
+    if (k.phase === 'nacht' && k.t > 50) {
+      F.draw(ctx, zeit, W / 2, 14, { color: '#ffe9a8', align: 'center', scale: 3, shadow: true });
+      if ((k.t >> 4) % 2 === 0) {
+        F.draw(ctx, g.touch ? 'TIPPEN = VORSPULEN' : 'SPRUNG = VORSPULEN', W / 2, 44,
+               { color: '#8f86a8', align: 'center' });
+      }
+    }
+    // Tagesende
+    if (k.phase === 'ende') {
+      var ea = Math.min(1, k.endT / 40);
+      ctx.globalAlpha = ea;
+      F.draw(ctx, 'ENDE. FÜR HEUTE.', W / 2, 20, { color: '#ffd257', align: 'center', scale: 3, shadow: true });
+      F.draw(ctx, 'YUSUF SCHLÄFT. MIT SCHUHEN.', W / 2, 52, { color: '#c8b8e0', align: 'center' });
+      ctx.globalAlpha = 1;
+    }
+    drawParticles(ctx, g);
+    drawFloats(ctx, g);
+  }
+
+  /* =====================================================================
+     ESSEN AM TISCH — nach Hamza (Shawarma) und nach Georgios (Souvlaki).
+     Gespielt wird nichts, der Dialog laeuft darueber. Was auf dem Tisch
+     steht und wer gerade isst, richtet sich nach der Dialogzeile.
+     ===================================================================== */
+
+  var MAHL = {
+    imbiss:  { host: 'hamza', food: 'shawarma', esatSpaeter: true,
+               wand: ['#3a2014', '#7a4a2e'], boden: '#5a3a22' },
+    taverne: { host: 'georgios', food: 'souvlaki', esatSpaeter: false,
+               wand: ['#eef4fa', '#b8d0ea'], boden: '#8a6640' }
+  };
+
+  function mahlInit(kind) {
+    var c = MAHL[kind] || MAHL.imbiss;
+    return { type: 'mahl', kind: kind, t: 0,
+             esatDa: !c.esatSpaeter, esatWalk: c.esatSpaeter ? 0 : 60,
+             yusufRest: 1, esatRest: 0, isst: false, esatIsst: false, kauT: 0, esatKauT: 0 };
+  }
+
+  function mahlLayout(W, H) {
+    var floorY = H - 96, mid = Math.round(W / 2);
+    return { W: W, H: H, floorY: floorY, mid: mid,
+             tischX: mid - 84, tischW: 168, tischY: floorY - 24,
+             yusufX: mid - 46, esatX: mid + 48, hostX: Math.round(W * 0.86) };
+  }
+
+  function mahlUpdate(g, W, H) {
+    var k = g.scene, L = mahlLayout(W, H);
+    k.t++;
+    if (g.banner > 0) g.banner--;
+    g.particles.update();
+    g.floats.update();
+    var line = g.dialog ? g.dialog[g.dialogIdx] : null;
+    var txt = line ? line[1] : '';
+
+    // Was die Dialogzeile gerade erzaehlt, passiert auch auf dem Tisch
+    if (/^MACH DREI/.test(txt) && !k.nachschlag) { k.nachschlag = true; k.yusufRest = 3; }
+    if (/^DIE TÜR GEHT AUF/.test(txt)) k.esatDa = true;
+    if (/^ESAT ISST/.test(txt) && !k.esatBekommt) { k.esatBekommt = true; k.esatRest = 2; k.esatIsst = true; }
+    if (k.kind === 'taverne' && /^EIN TELLER SOUVLAKI/.test(txt) && !k.teller) { k.teller = true; k.yusufRest = 3; }
+    if (/^ABER ICH ESS DAS JETZT KOMPLETT|^MACH DREI|^ICH HAB EIGENTLICH/.test(txt)) k.isst = true;
+    if (/^YUSUF ISST ALLES AUF/.test(txt)) { k.yusufRest = 0; k.leer = true; }
+    if (k.esatDa && k.esatWalk < 60) k.esatWalk++;
+
+    // Kauen
+    if (k.isst && k.yusufRest > 0 && k.t % 80 === 0) {
+      k.yusufRest--; k.kauT = 30; S.play('bite');
+      krumel(g, L.yusufX, L.floorY - 70);
+    }
+    if (k.esatIsst && k.esatRest > 0 && k.t % 95 === 40) {
+      k.esatRest--; k.esatKauT = 30; S.play('bite');
+    }
+    if (k.kauT > 0) k.kauT--;
+    if (k.esatKauT > 0) k.esatKauT--;
+  }
+
+  function krumel(g, x, y) {
+    for (var i = 0; i < 8; i++) {
+      g.particles.spawn({ x: x + (Math.random() - 0.5) * 10, y: y,
+                          vx: (Math.random() - 0.5) * 2, vy: -0.8 - Math.random(),
+                          life: 24, col: (i % 2) ? '#c98f3e' : '#f0d8a0', size: 2, grav: 0.22 });
+    }
+  }
+
+  function mahlDraw(ctx, g, W, H) {
+    var k = g.scene, c = MAHL[k.kind] || MAHL.imbiss, L = mahlLayout(W, H), i;
+    var grd = ctx.createLinearGradient(0, 0, 0, L.floorY);
+    grd.addColorStop(0, c.wand[0]);
+    grd.addColorStop(1, c.wand[1]);
+    ctx.fillStyle = grd;
+    ctx.fillRect(0, 0, W, H);
+
+    if (k.kind === 'imbiss') {
+      // Der Spiess an der Wand, dahinter das gluehende Heizelement
+      var sx = Math.round(W * 0.16);
+      rect(ctx, sx - 20, 30, 40, 110, '#2a1a12');
+      rect(ctx, sx - 16, 34, 32, 102, '#ff6a1a');
+      rect(ctx, sx - 12, 38, 24, 94, '#ffb43c');
+      spiess(ctx, sx, 40, k.t);
+      // Karte
+      rect(ctx, Math.round(W * 0.34), 26, 150, 58, '#1a1210');
+      F.draw(ctx, 'SHAWARMA  6,50', Math.round(W * 0.34) + 8, 34, { color: '#ffd257' });
+      F.draw(ctx, 'FALAFEL   5,00', Math.round(W * 0.34) + 8, 48, { color: '#ffe9a8' });
+      F.draw(ctx, 'HUMMUS    4,50', Math.round(W * 0.34) + 8, 62, { color: '#ffe9a8' });
+      zeder(ctx, Math.round(W * 0.74), 30);
+    } else {
+      // Weisse Wand, blaue Fensterrahmen, Maeanderband
+      for (var mx = 0; mx < W; mx += 16) {
+        rect(ctx, mx, 18, 12, 3, '#2a5ab8');
+        rect(ctx, mx + 9, 18, 3, 9, '#2a5ab8');
+        rect(ctx, mx + 3, 24, 9, 3, '#2a5ab8');
+      }
+      rect(ctx, Math.round(W * 0.2), 40, 70, 60, '#2a5ab8');
+      rect(ctx, Math.round(W * 0.2) + 4, 44, 62, 52, '#0e1a3a');
+      ctx.fillStyle = '#fff6c8';
+      ctx.beginPath(); ctx.arc(Math.round(W * 0.2) + 46, 58, 6, 0, 6.3); ctx.fill();
+      griechenflagge(ctx, Math.round(W * 0.66), 38);
+    }
+
+    rect(ctx, 0, L.floorY, W, H - L.floorY, c.boden);
+    rect(ctx, 0, L.floorY, W, 3, 'rgba(255,255,255,0.18)');
+
+    // Der Wirt steht daneben und freut sich
+    P.drawChar(ctx, c.host, L.hostX, L.floorY, {
+      pose: 'idle', face: 'laugh', frame: (g.tick >> 4), flip: true, scale: 2
+    });
+
+    // Yusuf und Esat sitzen am Tisch (der Tisch verdeckt die Beine)
+    P.drawChar(ctx, 'yusuf', L.yusufX, L.floorY - 6, {
+      pose: 'idle', face: k.kauT > 0 ? 'eat' : 'laugh', frame: (g.tick >> 4), scale: 2
+    });
+    if (k.esatDa) {
+      var ex = L.esatX + (60 - k.esatWalk) * 5;
+      var sitzt = k.esatWalk >= 60;
+      P.drawChar(ctx, 'esat', ex, L.floorY - (sitzt ? 6 : 0), {
+        pose: sitzt ? 'idle' : 'run', face: k.esatKauT > 0 ? 'eat' : 'normal',
+        frame: (g.tick >> 3), flip: true, scale: 2
+      });
+    }
+
+    rect(ctx, L.tischX, L.tischY, L.tischW, 7, '#8a5a30');
+    rect(ctx, L.tischX, L.tischY, L.tischW, 2, '#b07a45');
+    rect(ctx, L.tischX + 8, L.tischY + 7, 6, L.floorY - L.tischY - 7, '#5a3a1e');
+    rect(ctx, L.tischX + L.tischW - 14, L.tischY + 7, 6, L.floorY - L.tischY - 7, '#5a3a1e');
+
+    // Was auf dem Tisch steht
+    var fsp = P.get(c.food);
+    if (k.kind === 'taverne') {
+      rect(ctx, L.yusufX - 26, L.tischY - 3, 52, 3, '#f4f6fa');
+      if (!k.leer) P.draw(ctx, 'tzatziki', L.yusufX + 8, L.tischY - 8);
+    }
+    for (i = 0; i < k.yusufRest; i++) {
+      P.draw(ctx, c.food, L.yusufX - 24 + i * (fsp.w - 2), L.tischY - fsp.h - (k.kind === 'taverne' ? 3 : 0));
+    }
+    for (i = 0; i < k.esatRest; i++) {
+      P.draw(ctx, c.food, L.esatX - 10 + i * (fsp.w - 2), L.tischY - fsp.h);
+    }
+
+    drawParticles(ctx, g);
+    drawFloats(ctx, g);
+  }
+
+  /** Ein Doener-Spiess, der sich dreht: Streifen wandern mit der Zeit. */
+  function spiess(ctx, cx, top, t) {
+    for (var y = 0; y < 86; y += 2) {
+      var w = 22 - Math.abs(y - 30) * 0.18;
+      var off = ((y * 3 + t) >> 2) % 4;
+      rect(ctx, cx - w / 2, top + y, w, 2, off < 2 ? '#b8643a' : '#8a4424');
+    }
+    rect(ctx, cx - 1, top - 8, 2, 100, '#c8ccd6');
+  }
+
+  /** Libanesische Flagge: rot-weiss-rot, gruene Zeder in der Mitte. */
+  function zeder(ctx, x, y) {
+    rect(ctx, x, y, 60, 10, '#d8282e');
+    rect(ctx, x, y + 10, 60, 20, '#f4f2ec');
+    rect(ctx, x, y + 30, 60, 10, '#d8282e');
+    ctx.fillStyle = '#2a9a4a';
+    for (var i = 0; i < 3; i++) {
+      ctx.beginPath();
+      ctx.moveTo(x + 30, y + 11 + i * 5);
+      ctx.lineTo(x + 20 - i * 2, y + 18 + i * 5);
+      ctx.lineTo(x + 40 + i * 2, y + 18 + i * 5);
+      ctx.closePath(); ctx.fill();
+    }
+    rect(ctx, x + 29, y + 27, 2, 3, '#2a9a4a');
+  }
+
+  /** Griechische Flagge: neun Streifen, Kreuz links oben. */
+  function griechenflagge(ctx, x, y) {
+    for (var i = 0; i < 9; i++) rect(ctx, x, y + i * 4, 60, 4, i % 2 ? '#f4f6fa' : '#2a5ab8');
+    rect(ctx, x, y, 22, 20, '#2a5ab8');
+    rect(ctx, x + 9, y, 4, 20, '#f4f6fa');
+    rect(ctx, x, y + 8, 22, 4, '#f4f6fa');
+  }
+
+  /* =====================================================================
+     SHISHA — am Ende von Level 14. Esat raucht Traube-Minze, Yusuf
+     Doppelapfel. Gezogen wird von allein, mit C wird ausgepustet.
+     Zu frueh auspusten heisst husten. Nach drei Zuegen: Hunger.
+     ===================================================================== */
+
+  function shishaInit() {
+    return { type: 'shisha', t: 0, phase: 'vorher', zug: 0, puffs: 0,
+             ringe: [], hust: 0, lacht: 0, esatT: 70, fertigT: 0 };
+  }
+
+  function shishaLayout(W, H) {
+    var floorY = H - 92, mid = Math.round(W / 2);
+    return { W: W, H: H, floorY: floorY, mid: mid,
+             yusufX: mid - 70, esatX: mid + 70, sofaY: floorY - 40,
+             pfeifeY: floorY - 38 };
+  }
+
+  function shishaUpdate(g, W, H) {
+    var k = g.scene, L = shishaLayout(W, H), i;
+    k.t++;
+    if (g.banner > 0) g.banner--;
+    g.particles.update();
+    g.floats.update();
+    for (i = k.ringe.length - 1; i >= 0; i--) {
+      var r = k.ringe[i];
+      r.r += 0.3; r.y -= 0.35; r.x += r.vx;
+      if (--r.life <= 0) k.ringe.splice(i, 1);
+    }
+    if (k.hust > 0) k.hust--;
+    if (k.lacht > 0) k.lacht--;
+    if (g.dialog) return;
+
+    // Esat raucht nebenher, ganz entspannt
+    if (--k.esatT <= 0) {
+      k.esatT = 150;
+      k.ringe.push({ x: L.esatX - 8, y: L.floorY - 64, r: 3, vx: -0.2, life: 90, col: '200,255,220' });
+    }
+
+    if (k.phase === 'rauchen') {
+      k.rT = (k.rT || 0) + 1;
+      k.zug = Math.min(1, k.zug + 1 / 70);
+      if (k.zug < 1 && k.t % 16 === 0) S.play('move');   // blubb
+      var In = global.Input;
+      // Die Taste, die eben den Dialog geschlossen hat, zaehlt noch nicht
+      var puste = k.rT > 12 && (In.hit('puff') || In.hit('throw') || In.hit('jump') ||
+                                In.hit('confirm') || !!In.tap());
+      if (puste) {
+        if (k.zug >= 0.55) {
+          k.puffs++;
+          k.lacht = 40;
+          var mx = L.yusufX + 10, my = L.floorY - 66;
+          k.ringe.push({ x: mx, y: my, r: 3 + k.zug * 2, vx: 0.25, life: 110, col: '220,220,235' });
+          for (i = 0; i < 16; i++) {
+            g.particles.spawn({ x: mx, y: my, vx: 0.4 + Math.random() * 1.2, vy: -0.4 - Math.random() * 0.6,
+                                life: 50, col: '#d8d8e8', size: 3, grav: -0.01 });
+          }
+          S.play('shoot');
+          g.player.score += 150;
+          var sp = ['RAUCHRING!', 'SAUBER.', 'WIE EIN PROFI.'];
+          g.floats.add(mx, my - 14, sp[Math.min(2, k.puffs - 1)] + ' +150', '#ffe9a8', 70);
+        } else {
+          k.hust = 40;
+          S.play('hurt');
+          g.floats.add(L.yusufX, L.floorY - 80, 'HUST! HUST! ZU FRÜH.', '#c8c0d8', 60);
+        }
+        k.zug = 0;
+      }
+      if (k.puffs >= 3) { k.phase = 'fertig'; k.fertigT = 0; }
+    } else if (k.phase === 'fertig') {
+      k.fertigT++;
+      if (k.fertigT === 60) {
+        k.phase = 'nachher';
+        g.showDialog(global.Levels.shisha.nachher, function () {
+          g.state = 'play';
+          if (g.onShishaDone) g.onShishaDone();
+        });
+      }
+    }
+  }
+
+  function shishaDraw(ctx, g, W, H) {
+    var k = g.scene, L = shishaLayout(W, H), i;
+    var grd = ctx.createLinearGradient(0, 0, 0, L.floorY);
+    grd.addColorStop(0, '#0e0816');
+    grd.addColorStop(1, '#2e1840');
+    ctx.fillStyle = grd;
+    ctx.fillRect(0, 0, W, H);
+
+    // Neon an der Wand
+    var neon = (k.t % 120) < 5 ? '#ffd8f0' : '#ff8ad8';
+    F.draw(ctx, 'STILBRUCH', L.mid, 14, { color: neon, align: 'center', scale: 3, shadow: true });
+
+    // Hinten sitzen die Typen wieder friedlich an ihren Tischen
+    var typen = ['typ1', 'typ2', 'typ3', 'typ1'];
+    for (i = 0; i < 4; i++) {
+      var tx = 20 + i * (W - 60) / 3;
+      rect(ctx, tx - 6, L.floorY - 60, 34, 4, '#3a2446');
+      ctx.globalAlpha = 0.6;
+      P.draw(ctx, typen[i], tx, L.floorY - 78, i % 2 === 1);
+      ctx.globalAlpha = 1;
+    }
+
+    rect(ctx, 0, L.floorY, W, H - L.floorY, '#3e2046');
+    rect(ctx, 0, L.floorY, W, 3, '#5a3060');
+
+    // Das Sofa, darauf die beiden
+    rect(ctx, L.mid - 130, L.sofaY - 22, 260, 26, '#5a1e3a');
+    rect(ctx, L.mid - 130, L.sofaY - 22, 260, 4, '#7a2e52');
+    P.drawChar(ctx, 'yusuf', L.yusufX, L.sofaY + 14, {
+      pose: 'idle', frame: (g.tick >> 4), scale: 2,
+      face: k.hust > 0 ? 'hurt' : (k.lacht > 0 ? 'laugh' : (k.zug > 0.3 ? 'eat' : 'normal'))
+    });
+    P.drawChar(ctx, 'esat', L.esatX, L.sofaY + 14, {
+      pose: 'idle', frame: (g.tick >> 4), flip: true, scale: 2,
+      face: k.esatT > 120 ? 'laugh' : 'normal'
+    });
+    rect(ctx, L.mid - 140, L.sofaY, 280, 12, '#4a1830');
+
+    // Niedriger Tisch mit den zwei Pfeifen und den Schlaeuchen
+    rect(ctx, L.mid - 60, L.floorY - 8, 120, 6, '#6b4522');
+    var px1 = L.mid - 36, px2 = L.mid + 12;
+    [px1, px2].forEach(function (px, n) {
+      ctx.save();
+      ctx.translate(px, L.floorY - 46);
+      ctx.scale(2, 2);
+      P.draw(ctx, 'shisha', 0, 0);
+      ctx.restore();
+      // Blubbern im Wasser
+      if ((n === 0 && k.phase === 'rauchen' && k.zug < 1) || (n === 1 && k.esatT > 110)) {
+        var b = (k.t >> 2) % 3;
+        rect(ctx, px + 8 + b * 3, L.floorY - 16 - b * 2, 2, 2, '#e8f8ff');
+      }
+      ctx.strokeStyle = '#3a6a8a';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      var mx = n === 0 ? L.yusufX + 12 : L.esatX - 12;
+      ctx.moveTo(px + 20, L.floorY - 20);
+      ctx.bezierCurveTo(px + (n === 0 ? -30 : 60), L.floorY + 4, mx, L.floorY - 30, mx, L.floorY - 60);
+      ctx.stroke();
+    });
+    F.draw(ctx, 'DOPPELAPFEL', px1 + 12, L.floorY + 6, { color: '#ff8a8a', align: 'center' });
+    F.draw(ctx, 'TRAUBE-MINZE', px2 + 12, L.floorY + 18, { color: '#8ae0c8', align: 'center' });
+
+    // Rauchringe
+    for (i = 0; i < k.ringe.length; i++) {
+      var r = k.ringe[i];
+      ctx.strokeStyle = 'rgba(' + r.col + ',' + Math.min(0.8, r.life / 60).toFixed(2) + ')';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(Math.round(r.x), Math.round(r.y), r.r, 0, 6.3); ctx.stroke();
+    }
+    drawParticles(ctx, g);
+    drawFloats(ctx, g);
+
+    // Anzeige: wie tief gezogen, wie oft ausgepustet
+    if (k.phase === 'rauchen') {
+      var bw = 120, bx = L.mid - bw / 2, by = 44;
+      rect(ctx, bx - 2, by - 2, bw + 4, 12, 'rgba(6,4,10,0.85)');
+      rect(ctx, bx, by, bw, 8, '#241830');
+      rect(ctx, bx + Math.round(bw * 0.55), by, Math.round(bw * 0.45), 8, 'rgba(140,216,90,0.25)');
+      rect(ctx, bx, by, Math.round(bw * k.zug), 8, k.zug >= 0.55 ? '#8cd85a' : '#ffc23c');
+      F.draw(ctx, 'ZIEHEN', bx - 6, by, { color: '#c8b8e0', align: 'right' });
+      F.draw(ctx, k.puffs + '/3', bx + bw + 6, by, { color: '#ffd257' });
+      if ((k.t >> 4) % 2 === 0) {
+        F.draw(ctx, g.touch ? 'B ODER TIPPEN = AUSPUSTEN' : 'C = AUSPUSTEN', L.mid, by + 16,
+               { color: '#ffffff', align: 'center', shadow: true });
+      }
+    }
+  }
+
   global.Eat = { init: init, update: update, draw: draw };
+  global.Mahl = { init: mahlInit, update: mahlUpdate, draw: mahlDraw };
+  global.Shisha = { init: shishaInit, update: shishaUpdate, draw: shishaDraw };
   global.Kasse = { init: kasseInit, update: kasseUpdate, draw: kasseDraw };
+  global.Schlaf = { init: schlafInit, update: schlafUpdate, draw: schlafDraw };
 
 })(window);

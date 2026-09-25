@@ -35,7 +35,8 @@
     save.completed = (s.completed === true);
 
     if (Array.isArray(s.best)) {
-      for (var i = 0; i < s.best.length && i < 8; i++) {
+      // Frueher fest "8": die Bestzeiten ab Level 9 gingen beim Neuladen verloren
+      for (var i = 0; i < s.best.length && i < LV.list.length; i++) {
         var b = s.best[i];
         if (!b || typeof b !== 'object') { save.best[i] = null; continue; }
         save.best[i] = {
@@ -50,8 +51,11 @@
     // beim Benutzen kontrolliert — siehe validRun().
     var r = s.run;
     if (r && typeof r === 'object') {
+      // Frueher auf Level 7 gedeckelt: ab Level 8 passte die Pruefsumme
+      // nicht mehr und WEITER hat den Durchgang verworfen.
+      var lastIdx = LV.list.length - 1;
       save.run = {
-        from: num(r.from, 6), next: num(r.next, 6),
+        from: num(r.from, lastIdx), next: num(r.next, lastIdx),
         s: num(r.s, 9999999), h: num(r.h, 99999), t: num(r.t, 359999),
         d: num(r.d, 9999), e: num(r.e, 9999), l: num(r.l, 99),
         g: typeof r.g === 'string' ? r.g.slice(0, 16) : ''
@@ -101,6 +105,9 @@
   G.cameraTopY = function () { return G.cam.y - 20; };
   G.viewW = function () { return W; };
   G.showDialog = function (lines, after) { startDialog(lines, after); };
+  /** Sprechblase ueber einer Figur, ohne das Spiel anzuhalten (Level 12). */
+  G.talk = {};
+  G.say = function (who, text, dur) { G.talk[who] = { text: text, t: dur || 80, max: dur || 80 }; };
   /** Kurzes farbiges Aufblitzen, z.B. bei einer Boss-Verwandlung. */
   G.flashScreen = function (col, dur) { G.flashFx = { col: col, t: dur, max: dur }; };
 
@@ -131,6 +138,8 @@
   /* ================= Level laden ================= */
 
   function loadLevel(idx, fromCheckpoint) {
+    // Ein noch offener Dialog gehoert zum alten Level
+    G.dialog = null; G.dialogAfter = null;
     G.lvlIndex = idx;
     var lvl = LV.list[idx];
     G.lvl = lvl;
@@ -147,17 +156,34 @@
     // Level 8 ist keine Huepfstrecke, sondern die Szene aus eat.js
     G.eat = (lvl.eat && global.Eat) ? global.Eat.init(G, lvl) : null;
     G.kasse = null;
-    if (!fromCheckpoint) G.drunk = 0;
+    G.scene = null;           // Schlafengehen nach Level 11
+    G.cut = null;             // Lennarts Auftritt in Level 12
+    G.autoAx = null; G.autoMax = 0; G.camFocus = null;
+    G.talk = {};
+    // Der Rausch gehoert zum Kampf: wer stirbt, wacht nuechtern auf.
+    G.drunk = 0;
+    // Lennart bleibt liegen, auch wenn Yusuf danach mal stirbt
+    if (!G.respawning) { G.lennartLie = null; G.kickHint = false; }
 
     var i;
     for (i = 0; i < lvl.enemies.length; i++) {
       var en = lvl.enemies[i];
       G.enemies.push(new E.Enemy(en.t, en.x, en.y));
     }
+    // Eingesammeltes bleibt eingesammelt: nach einem Tod liegt nur das
+    // wieder da, was seit dem letzten Checkpoint dazukam — alles davor
+    // zaehlt ja noch auf dem Konto. Sonst faehrt man dieselbe Honigspur
+    // beliebig oft ab.
+    G.itemsTaken = fromCheckpoint ? copyMap(G.checkpointItems) : {};
     for (i = 0; i < lvl.items.length; i++) {
+      if (G.itemsTaken[i]) continue;
       var it = lvl.items[i];
-      G.items.push(new E.Item(it.t, it.x * T + T / 2, it.y * T + T / 2, false));
+      var itObj = new E.Item(it.t, it.x * T + T / 2, it.y * T + T / 2, false);
+      itObj.idx = i;
+      G.items.push(itObj);
     }
+    // Dasselbe fuer Bloecke und Kisten
+    if (fromCheckpoint && G.checkpointBlocks) restoreBlocks(G.checkpointBlocks);
 
     G.checkpointsHit = [];
     var sp = (fromCheckpoint && G.checkpoint) ? G.checkpoint : lvl.spawn;
@@ -183,14 +209,24 @@
         G.player.eatCount = keep.eatCount;
       }
     }
-    // Im Mustang ist die Trefferbox so breit wie das (doppelt grosse) Auto
-    G.player.w = lvl.driving ? 64 : 12;
-    G.player.h = lvl.driving ? 24 : 26;
+    // Im Mustang ist die Trefferbox so breit wie das (doppelt grosse) Auto,
+    // auf dem Fahrrad etwas breiter und hoeher als zu Fuss.
+    G.player.w = lvl.driving ? 64 : (lvl.bike ? 20 : 12);
+    G.player.h = lvl.driving ? 24 : (lvl.bike ? 28 : 26);
+    G.player.y = sp[1] * T - G.player.h;
+    // Esat kommt mit (Level 12 auf dem Rad, Level 14 und 15 zu Fuss) —
+    // immer auf Yusufs Spur, siehe updateRider
+    G.rider = (lvl.bike || lvl.buddy) ? { hist: [], talkT: 260 } : null;
+    G.dizzy = 0;
     // Nach einem Tod kurz unverwundbar (blinkt), damit ein Gegner neben
     // dem Checkpoint nicht sofort das naechste Herz nimmt.
     if (G.respawning) G.player.invuln = 90;
 
-    if (!fromCheckpoint) G.checkpointStats = snapshotStats();
+    if (!fromCheckpoint) {
+      saveCheckpointState();
+      G.checkpointItems = {}; G.checkpointBlocks = null;
+    }
+    if (!fromCheckpoint) G.player.flipCount = 0;
     if (!fromCheckpoint) {
       G.checkpoint = null; G.bossIntroSeen = false; G.bossHalf = false;
     }
@@ -283,6 +319,260 @@
       } else {
         G.floats.add(p.cx(), p.y - 30, 'DUNKELGELB. GERADE NOCH.', '#ffd257', 70);
       }
+    }
+  }
+
+  /* Szenen ohne Huepfen (eat.js): Schlafen, Essen am Tisch, Shisha. */
+  function sceneMod() {
+    var t = G.scene && G.scene.type;
+    return t === 'mahl' ? global.Mahl : (t === 'shisha' ? global.Shisha : global.Schlaf);
+  }
+
+  /** Eine Szene starten: Blende ist schon dunkel, danach laeuft sie allein. */
+  function startScene(sc) {
+    G.scene = sc;
+    G.particles.list.length = 0; G.floats.list.length = 0;
+    G.frozen = true;
+    G.state = 'play';
+  }
+
+  /* ================= Level 12: Esat faehrt mit ================= */
+
+  // Esat faehrt Yusufs Spur nach, ein Stueck dahinter. So springt er ueber
+  // dieselben Rampen und Luecken, ohne eigene Physik zu brauchen.
+  var RIDER_GAP = 46;
+
+  function updateRider(p) {
+    var r = G.rider, h = r.hist;
+    if (!h.length) h.push({ x: p.cx() - RIDER_GAP, y: p.feet(), a: 0, f: 1 });
+    var last = h[h.length - 1];
+    var here = { x: p.cx(), y: p.feet(), a: p.flipping ? p.flipA : 0, f: p.facing };
+    r.moving = Math.abs(here.x - last.x) + Math.abs(here.y - last.y) >= 2;
+    if (r.moving) {
+      h.push(here);
+      if (h.length > 160) h.shift();
+    }
+    // Von hinten die Wegstrecke abzaehlen, bis RIDER_GAP erreicht ist
+    var rest = RIDER_GAP, i = h.length - 1, pos = h[0];
+    while (i > 0) {
+      var a = h[i], b = h[i - 1];
+      var d = Math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
+      if (d >= rest) {
+        var k = rest / Math.max(0.001, d);
+        pos = { x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k, a: b.a, f: b.f };
+        break;
+      }
+      rest -= d; i--;
+    }
+    r.pos = pos;
+    if (r.moving) r.anim = (r.anim || 0) + 1;
+
+    // Ab und zu hat Esat etwas zu sagen
+    if (!G.cut && !p.dead && --r.talkT <= 0) {
+      r.talkT = 420 + ((Math.random() * 300) | 0);
+      var l = LV[G.lvl.buddyLines] || LV.esatRideLines;
+      G.say('esat', l[(Math.random() * l.length) | 0], 100);
+    }
+  }
+
+  /** Oberkante des Bodens an einer Stelle (fuer Lennart und seine Teile). */
+  function groundAt(px) {
+    var w = G.world, tx = Math.floor(px / T);
+    if (tx < 0 || tx >= w.w) return null;
+    for (var ty = 0; ty < w.h; ty++) if (w.solid(tx, ty)) return ty * T;
+    return null;
+  }
+
+  /* ================= Level 12: Lennarts Auftritt =================
+     Yusuf und Esat bremsen, es droehnt von hinten. Lennart rast heran,
+     springt ueber die beiden (Standbild mit Namen, wie im Kino), macht
+     einen Salto — und beim dritten Sprung fliegt er auf die Nase. Das
+     Rad ist hin. Yusuf und Esat fahren einfach vorbei. */
+
+  function updateLennart(p) {
+    var c = G.cut, cl = LV.lennartCut, L;
+    if (!c) {
+      if (G.lennartLie || p.won || p.dead) return;
+      var at = G.lvl.lennart.at * T;
+      if (p.cx() > at && p.cx() < at + 12 * T) {
+        G.cut = { t: 0, phase: 'stopp', bars: 0, L: null, debris: [], said: {} };
+        G.autoAx = 0;                     // Yusuf und Esat bremsen
+        G.autoMax = 0;
+      }
+      return;
+    }
+
+    c.t++;
+    c.bars = (c.phase === 'aus') ? Math.max(0, c.bars - 0.06) : Math.min(1, c.bars + 0.05);
+    L = c.L;
+    if (L && c.phase !== 'karte') moveLennart(c, L);
+    moveDebris(c.debris);
+
+    switch (c.phase) {
+      case 'stopp':
+        if (c.t === 16) G.say('esat', cl.esatHear, 70);
+        if (c.t === 24 || c.t === 46 || c.t === 64) { S.play('bossRoar'); G.shake(2, 10); }
+        if (c.t === 50) G.say('yusuf', cl.yusufHear, 70);
+        if (c.t >= 86) {
+          // Er kommt von hinten, schon in der Luft
+          var sx = G.cam.x - 40;
+          var gy0 = groundAt(sx);
+          c.L = L = { x: sx, y: (gy0 === null ? p.feet() : gy0) - 30, vx: 7.5, vy: -2,
+                      a: 0, spin: 0, air: true, jumps: 0, rideT: 0, lie: false };
+          c.phase = 'kommt';
+          S.music('bossfinal');
+          G.say('lennart', cl.jump1, 90);
+        }
+        break;
+
+      case 'kommt':
+        // Direkt hinter den beiden: Absprung, drueber weg
+        if (L.jumps === 0 && !L.air && L.x > p.cx() - 90) {
+          L.vy = -9; L.air = true; L.jumps = 1;
+          S.play('doubleJump');
+        }
+        // Ganz oben: Standbild mit Namen
+        if (L.jumps === 1 && L.air && L.vy >= -0.5 && !c.cardDone) {
+          c.phase = 'karte'; c.card = 0; c.cardDone = true;
+          G.flashScreen('#ffffff', 14);
+          S.play('power');
+        }
+        break;
+
+      case 'karte':
+        c.card++;
+        if (c.card >= 100) { c.phase = 'fahrt'; L.vx = 6.5; }
+        break;
+
+      case 'fahrt':
+        G.camFocus = { x: L.x + 40, y: L.y - 20 };
+        if (!L.air) L.rideT++;
+        if (L.jumps === 1 && !L.air && L.rideT >= 18) {
+          // Zweiter Sprung: ein sauberer Rueckwaertssalto
+          L.vy = -9.5; L.air = true; L.jumps = 2; L.rideT = 0;
+          L.spin = Math.PI * 2 / 36; L.spinLeft = Math.PI * 2;
+          S.play('doubleJump');
+        }
+        if (L.jumps === 2 && !L.air && L.rideT === 1) G.say('lennart', cl.jump2, 70);
+        if (L.jumps === 2 && !L.air && L.rideT >= 14) {
+          // Dritter Sprung: dreht zu weit. Viel zu weit.
+          L.vy = -9.5; L.air = true; L.jumps = 3; L.rideT = 0;
+          L.spin = Math.PI * 2 / 28; L.spinLeft = 99;
+          S.play('doubleJump');
+          G.say('lennart', cl.jump3, 60);
+        }
+        break;
+
+      case 'crash':
+        G.camFocus = { x: L.x, y: L.y - 20 };
+        if (++c.lieT === 34) G.say('lennart', cl.crash, 60);
+        if (c.lieT === 100) G.say('lennart', cl.lying, 90);
+        if (c.lieT >= 170) {
+          c.phase = 'vorbei';
+          G.camFocus = null;
+          G.autoAx = 1;
+          G.autoMax = 4.2;
+        }
+        break;
+
+      case 'vorbei':
+        // Einfach weiterfahren. Nichts gesehen.
+        var dist = L.x - p.cx();
+        G.autoMax = dist < 190 ? 2.2 : 4.2;
+        if (dist < 170 && !c.said.e1) { c.said.e1 = true; G.say('esat', cl.esatPass, 90); }
+        if (dist < 90 && !c.said.y1) { c.said.y1 = true; G.say('yusuf', cl.yusufPass, 70); }
+        if (dist < 24 && !c.said.l1) { c.said.l1 = true; G.say('lennart', cl.lennartPass, 110); }
+        if (dist < -70 && !c.said.e2) { c.said.e2 = true; G.say('esat', cl.esatAfter, 90); }
+        if (dist < -110) {
+          c.phase = 'aus';
+          G.autoAx = null; G.autoMax = 0;
+          G.lennartLie = { x: L.x, y: L.y, debris: c.debris };
+          S.music(G.lvl.music);
+        }
+        break;
+
+      case 'aus':
+        if (c.bars <= 0) G.cut = null;
+        break;
+    }
+  }
+
+  function moveLennart(c, L) {
+    if (L.lie) {
+      // Er rutscht noch ein Stueck auf dem Bauch
+      L.vx *= 0.85;
+      L.x += L.vx;
+      L.a += (Math.PI / 2 - L.a) * 0.3;
+      return;
+    }
+    L.x += L.vx;
+    if (L.air) {
+      L.vy += 0.5;
+      L.y += L.vy;
+      if (L.spin) {
+        L.a += L.spin;
+        if (L.spinLeft !== undefined) {
+          L.spinLeft -= Math.abs(L.spin);
+          if (L.spinLeft <= 0) { L.spin = 0; L.a = 0; }
+        }
+      }
+      var gy = groundAt(L.x);
+      if (gy !== null && L.y >= gy && L.vy >= 0) {
+        L.y = gy; L.vy = 0; L.air = false; L.rideT = 0;
+        if (L.jumps >= 3) lennartCrash(c, L);
+        else { L.a = 0; L.spin = 0; }
+      }
+    } else {
+      var gy2 = groundAt(L.x);
+      if (gy2 === null || gy2 > L.y + 2) L.air = true;
+      else L.y = gy2;
+    }
+    // Nitro: Flammen aus dem Hinterrad, Staub vom Boden
+    if (!L.lie && G.tick % 2 === 0) {
+      G.particles.spawn({ x: L.x - 14, y: L.y - 8, vx: -2 - Math.random() * 2, vy: -0.3,
+                          life: 14, col: (G.tick % 4) ? '#ff8a2a' : '#6fc8e8', size: 3, grav: -0.02 });
+      if (!L.air) {
+        G.particles.spawn({ x: L.x - 10, y: L.y - 2, vx: -1.5, vy: -0.8, life: 18,
+                            col: '#c8a070', size: 2, grav: 0.05 });
+      }
+    }
+  }
+
+  function lennartCrash(c, L) {
+    L.lie = true;
+    L.vx = 3;
+    // Beim Fahren dreht der Salto gegen den Uhrzeigersinn (siehe
+    // drawBikeRider), liegend wird im Uhrzeigersinn gezeichnet.
+    L.a = -(L.a % (Math.PI * 2));
+    c.phase = 'crash';
+    c.lieT = 0;
+    S.stopMusic();                  // Stille. Nur der Aufprall.
+    S.play('die');
+    S.play('brk');
+    G.shake(10, 30);
+    G.particles.burst(L.x, L.y - 6, 30, { col: '#8a6440', spread: 3.6, up: 1.4, life: 34 });
+    G.particles.burst(L.x, L.y - 10, 12, { col: '#ff6fa8', spread: 3, up: 1.6, life: 30 });
+    // Das Rad fliegt auseinander
+    c.debris.push({ spr: 'rad', x: L.x + 6, y: L.y - 12, vx: 4.2, vy: -6.5, a: 0 });
+    c.debris.push({ spr: 'rad', x: L.x - 4, y: L.y - 12, vx: 2.6, vy: -8, a: 0 });
+    c.debris.push({ spr: 'bike_kaputt', x: L.x, y: L.y - 8, vx: 1.4, vy: -4, a: 0 });
+  }
+
+  function moveDebris(list) {
+    for (var i = 0; i < list.length; i++) {
+      var d = list[i];
+      if (d.rest) continue;
+      d.vy += 0.5;
+      d.x += d.vx; d.y += d.vy;
+      if (d.spr === 'rad') d.a += d.vx * 0.18;
+      var gy = groundAt(d.x);
+      if (gy !== null && d.y >= gy) {
+        d.y = gy;
+        d.vy = -d.vy * 0.35;
+        d.vx *= 0.8;
+        if (Math.abs(d.vy) < 1 && Math.abs(d.vx) < 0.2) d.rest = true;
+      }
+      if (d.y > G.world.h * T + 40) d.rest = true;
     }
   }
 
@@ -476,6 +766,143 @@
     });
   };
 
+  /* ---------- Broke, Level 11 ---------- */
+
+  G.onBrokePhase = function (phase) {
+    G.bossHalf = true;
+    clearShots();
+    G.player.invuln = Math.max(G.player.invuln, 80);
+    startDialog(phase === 2 ? LV.broke.phase2 : LV.broke.phase3,
+                function () { G.state = 'play'; });
+  };
+
+  G.onBrokeDead = function () {
+    G.frozen = true;
+    clearShots();
+    clearEnemies();              // die Mikas gehen mit nach Hause
+    G.after(85, function () {
+      startDialog(LV.broke.end, function () {
+        // Test bestanden. Jetzt wird geschlafen.
+        fadeTo(function () {
+          startScene(global.Schlaf.init('morgen'));
+          S.stopMusic();
+        });
+      });
+    });
+  };
+
+  /** Ausgeschlafen, Esat hat angerufen: weiter mit Level 12, Downhill.
+      Nach Level 15 ('ende') ist der Tag vorbei: Bestenliste. */
+  G.onSchlafDone = function (mode) {
+    if (mode === 'ende') { finishRun(); return; }
+    save.unlocked = Math.max(save.unlocked, 12);
+    persist();
+    saveRun(11);
+    fadeTo(function () {
+      G.scene = null;
+      G.checkpoint = null;
+      loadLevel(11, false);
+      S.music(LV.list[11].music);
+      startDialog(LV.list[11].intro, function () { G.state = 'play'; });
+    });
+  };
+
+  /* ---------- Gemeinsame Bausteine fuer die Bosse ab Level 13 ---------- */
+
+  function bossPhase(lines) {
+    G.bossHalf = true;
+    clearShots();
+    G.player.invuln = Math.max(G.player.invuln, 80);
+    startDialog(lines, function () { G.state = 'play'; });
+  }
+
+  function bossDown(lines, after) {
+    G.frozen = true;
+    clearShots();
+    clearEnemies();
+    G.dizzy = 0;
+    G.after(85, function () { startDialog(lines, after); });
+  }
+
+  /** Level idx beginnt: Stand speichern, Blende, Intro. */
+  function nextLevel(idx) {
+    save.unlocked = Math.max(save.unlocked, idx + 1);
+    persist();
+    saveRun(idx);
+    fadeTo(function () {
+      G.scene = null;
+      G.checkpoint = null;
+      loadLevel(idx, false);
+      S.music(LV.list[idx].music);
+      startDialog(LV.list[idx].intro, function () { G.state = 'play'; });
+    });
+  }
+
+  /** Der Tag ist vorbei: alles freigeschaltet, ab in die Bestenliste. */
+  function finishRun() {
+    save.unlocked = LV.list.length;
+    save.completed = true;
+    save.run = null;
+    persist();
+    fadeTo(function () { G.scene = null; startNameEntry(); });
+  }
+
+  /* ---------- Hamza, Level 13 ---------- */
+
+  G.onHamzaPhase = function (phase) {
+    bossPhase(phase === 2 ? LV.hamza.phase2 : LV.hamza.phase3);
+  };
+
+  G.onHamzaDead = function () {
+    bossDown(LV.hamza.end, function () {
+      // Hamza macht Shawarma, und dann kommt Esat
+      fadeTo(function () {
+        startScene(global.Mahl.init('imbiss'));
+        G.after(40, function () {
+          startDialog(LV.hamza.essen, function () { G.onMahlDone('imbiss'); });
+        });
+      });
+    });
+  };
+
+  /* ---------- Georgios, Level 15 ---------- */
+
+  G.onGeorgiosPhase = function (phase) {
+    bossPhase(phase === 2 ? LV.georgios.phase2 : LV.georgios.phase3);
+  };
+
+  G.onGeorgiosDead = function () {
+    bossDown(LV.georgios.end, function () {
+      fadeTo(function () {
+        startScene(global.Mahl.init('taverne'));
+        G.after(40, function () {
+          startDialog(LV.georgios.essen, function () { G.onMahlDone('taverne'); });
+        });
+      });
+    });
+  };
+
+  /** Satt. Nach Hamza geht es in den Stilbruch, nach Georgios ins Bett. */
+  G.onMahlDone = function (kind) {
+    if (kind === 'imbiss') { nextLevel(13); return; }
+    fadeTo(function () {
+      startScene(global.Schlaf.init('ende'));
+      S.stopMusic();
+    });
+  };
+
+  /** Drei Mal ausgepustet, und Yusuf hat Hunger: weiter zu Georgios. */
+  G.onShishaDone = function () { nextLevel(14); };
+
+  /** Ein Salto ist gelandet. Esat hat dazu eine Meinung. */
+  G.onFlip = function (flips) {
+    var r = G.rider;
+    if (!r || G.cut) return;
+    var l = LV.esatFlipLines;
+    G.say('esat', flips > 1 ? 'ZWEI?! OKAY, DU BIST VERRÜCKT.' : l[(Math.random() * l.length) | 0], 90);
+    r.talkT = Math.max(r.talkT, 200);
+  };
+
   G.onBossPhase = function (phase) {
     // Alles Fliegende wegräumen, sonst hängt beim Weiterspielen noch
     // ein Salatblatt in der Luft, das man nie kommen sah.
@@ -624,19 +1051,31 @@
 
   /** Karten-Masse der Levelauswahl — fuer Zeichnen und Antippen. */
   function selectCards() {
+    // Ab elf Leveln passen die Karten nicht mehr in eine Reihe: dann zwei
     var nL = LV.list.length, gap = 6;
-    var cw = Math.min(76, Math.floor((W - 24 - gap * (nL - 1)) / nL));
-    var left0 = Math.round((W - (cw * nL + gap * (nL - 1))) / 2);
-    return { n: nL, gap: gap, cw: cw, left0: left0, y: 80, ch: 130 };
+    var rows = nL > 10 ? 2 : 1;
+    var perRow = Math.ceil(nL / rows);
+    var cw = Math.min(76, Math.floor((W - 24 - gap * (perRow - 1)) / perRow));
+    var ch = rows > 1 ? 72 : 130;
+    var y0 = rows > 1 ? 56 : 80;
+    var left0 = Math.round((W - (cw * perRow + gap * (perRow - 1))) / 2);
+    return { n: nL, gap: gap, cw: cw, ch: ch, left0: left0, y: y0, rows: rows, perRow: perRow,
+             bottom: y0 + rows * ch + (rows - 1) * 8 };
+  }
+
+  function cardRect(sc, i) {
+    var row = Math.floor(i / sc.perRow), col = i % sc.perRow;
+    return { x: sc.left0 + col * (sc.cw + sc.gap), y: sc.y + row * (sc.ch + 8), w: sc.cw, h: sc.ch };
   }
 
   function updateSelect() {
     var max = Math.min(LV.list.length, save.unlocked);
+    var sc = selectCards();
     var tp = global.Input.tap();
     if (tp) {
-      var sc = selectCards();
       for (var i = 0; i < max; i++) {
-        if (inRect(tp, { x: sc.left0 + i * (sc.cw + sc.gap), y: sc.y - 8, w: sc.cw, h: sc.ch + 8 })) {
+        var cr = cardRect(sc, i);
+        if (inRect(tp, { x: cr.x, y: cr.y - 8, w: cr.w, h: cr.h + 8 })) {
           if (G.selIdx === i) { S.play('select'); startGame(i); }
           else { G.selIdx = i; S.play('move'); }
           return;
@@ -647,6 +1086,12 @@
     }
     if (global.Input.hit('right')) { G.selIdx = Math.min(max - 1, G.selIdx + 1); S.play('move'); }
     if (global.Input.hit('left')) { G.selIdx = Math.max(0, G.selIdx - 1); S.play('move'); }
+    if (sc.rows > 1 && global.Input.hit('down') && G.selIdx + sc.perRow < max) {
+      G.selIdx += sc.perRow; S.play('move');
+    }
+    if (sc.rows > 1 && global.Input.hit('up') && G.selIdx - sc.perRow >= 0) {
+      G.selIdx -= sc.perRow; S.play('move');
+    }
     if (global.Input.hit('jump') || global.Input.hit('confirm')) {
       S.play('select'); startGame(G.selIdx);
     }
@@ -678,7 +1123,7 @@
       // Erst JETZT den Stand merken — vorher stand hier noch der Honig
       // der letzten Runde drin, und ein Tod vor dem ersten Checkpoint
       // hat ihn zurueckgeholt.
-      G.checkpointStats = snapshotStats();
+      saveCheckpointState();
       G.lastName = null; G.lastScore = null;
       S.music(LV.list[idx].music);
       startDialog(LV.list[idx].intro, function () { G.state = 'play'; });
@@ -745,6 +1190,38 @@
     return { honey: p.honey, score: p.score, eatCount: p.eatCount || 0 };
   }
 
+  function copyMap(src) {
+    var out = {};
+    for (var k in src) out[k] = src[k];
+    return out;
+  }
+
+  /** Zustand aller Bloecke (leer, kaputt, wie viel noch drin). */
+  function snapshotBlocks() {
+    var out = {};
+    for (var key in G.world.blocks) {
+      var b = G.world.blocks[key];
+      out[key] = { used: b.used, count: b.count, dead: b.dead };
+    }
+    return out;
+  }
+
+  function restoreBlocks(snap) {
+    for (var key in snap) {
+      var b = G.world.blocks[key], s = snap[key];
+      if (!b) continue;
+      b.used = s.used; b.count = s.count;
+      if (s.dead && !b.dead) G.world.clearBlock(b);
+    }
+  }
+
+  /** Alles merken, was beim Tod zurueckgesetzt wird: Stand, Items, Bloecke. */
+  function saveCheckpointState() {
+    G.checkpointStats = snapshotStats();
+    G.checkpointItems = copyMap(G.itemsTaken);
+    G.checkpointBlocks = snapshotBlocks();
+  }
+
   /** Entfernt Einträge aus einer Liste — nur ausserhalb eines Durchlaufs. */
   function sweep(list, isGone) {
     for (var i = list.length - 1; i >= 0; i--) {
@@ -755,6 +1232,7 @@
   function updateWorld() {
     var p = G.player, i;
     // Level 8 hat seine eigene Welt (Couch, Schreibtisch, Essen)
+    if (G.scene) { sceneMod().update(G, W, H); return; }
     if (G.kasse) { global.Kasse.update(G, W, H); return; }
     if (G.eat) { global.Eat.update(G, W, H); return; }
     // Während eines Dialogs steht die ganze Welt still. Vorher lief
@@ -768,7 +1246,12 @@
     if (G.comboTimer > 0) { G.comboTimer--; if (G.comboTimer === 0) G.combo = 0; }
     if (p.grounded) G.comboTimer = Math.min(G.comboTimer, 20);
 
-    if (!frozen) {
+    // Level 12: Esat faehrt hinterher, Lennart hat seinen Auftritt
+    if (G.rider && !frozen) updateRider(p);
+    if (G.lvl.lennart && !frozen) updateLennart(p);
+
+    // Waehrend Lennarts Auftritt steht der Rest der Welt still
+    if (!frozen && !G.cut) {
       // WICHTIG: erst alles bewegen, dann aufräumen.
       // Ein Treffer kann mitten im Durchlauf einen Boss töten oder eine
       // Phase starten — und dabei wurden diese Listen geleert. Der
@@ -778,7 +1261,9 @@
         var e = G.enemies[i];
         if (!e) continue;
         var near = (e.x > G.cam.x - 160 && e.x < G.cam.x + W + 160);
-        if (near || e.dead) e.update(G);
+        // Ansturm-Mikas laufen auch ausserhalb des Bildes weiter — sonst
+        // bleiben sie am Rand der Arena stehen und kommen nie an.
+        if (near || e.dead || e.stampede) e.update(G);
       }
       for (i = G.items.length - 1; i >= 0; i--) {
         var it = G.items[i];
@@ -811,7 +1296,7 @@
           Math.abs(p.cx() - (cx + 12)) < 26 && Math.abs(p.feet() - cy) < 40) {
         G.checkpointsHit[i] = true;
         G.checkpoint = cps[i];
-        G.checkpointStats = snapshotStats();
+        saveCheckpointState();
         S.play('checkpoint');
         G.floats.add(cx + 12, cy - 22, 'KURZES NICKERCHEN GESPEICHERT', '#ffd257', 100);
         G.particles.burst(cx + 12, cy - 6, 14, { col: '#ffd257', spread: 2.4, up: 1, life: 30 });
@@ -825,11 +1310,17 @@
       var aTile = Math.floor(G.arena.x / T);
       var groundY = G.lvl.boss.y;
 
-      if (bt === 'alex') {
-        G.boss = new E.BossAlex(G.lvl.boss.x, G.lvl.boss.y);
+      if (bt === 'alex' || bt === 'hamza' || bt === 'georgios') {
+        var BossCls = bt === 'alex' ? E.BossAlex : (bt === 'hamza' ? E.BossHamza : E.BossGeorgios);
+        G.boss = new BossCls(G.lvl.boss.x, G.lvl.boss.y);
         G.world.fill(aTile - 1, 2, 1, groundY - 1, 1);
         G.checkpoint = [aTile + 3, groundY];
-        G.checkpointStats = snapshotStats();
+        saveCheckpointState();
+      } else if (bt === 'broke') {
+        // Die Arena ist das ganze Level: Wiedereinstieg vor der Haustuer
+        G.boss = new E.BossBroke(G.lvl.boss.x, G.lvl.boss.y);
+        G.checkpoint = [G.lvl.spawn[0], G.lvl.spawn[1]];
+        saveCheckpointState();
       } else if (bt === 'esat') {
         G.boss = new E.BossEsat(G.lvl.boss.x, G.lvl.boss.y);
         G.checkpoint = [G.lvl.spawn[0], G.lvl.spawn[1]];
@@ -838,12 +1329,12 @@
         // Zurueck geht nicht mehr, und der Wiedereinstieg liegt drinnen.
         G.world.fill(aTile - 1, 2, 1, groundY - 1, 1);
         G.checkpoint = [aTile + 3, groundY];
-        G.checkpointStats = snapshotStats();
+        saveCheckpointState();
       } else {
         G.boss = new E.Boss(G.lvl.boss.x, G.lvl.boss.y);
         G.world.fill(aTile - 1, 2, 1, 13, 1);
         G.checkpoint = [aTile + 4, 15];
-        G.checkpointStats = snapshotStats();
+        saveCheckpointState();
       }
       G.boss.intro = false;
       // Halbzeit-Checkpoint: wer nach der Verwandlung stirbt, faengt
@@ -855,16 +1346,23 @@
         hb.onTransform(G);
         hb.phase = 2;
         hb.state = 'idle'; hb.timer = 70;
+        // Nach einem Tod faengt der Kampf ab der Haelfte an — aber
+        // nuechtern. Alex kippt nicht nochmal nach.
+        G.drunk = 0;
         G.floats.add(hb.cx(), hb.y - 20, 'WEITER AB HALBZEIT', '#ffd257', 120);
       }
       // Jeder Kampf klingt anders
-      S.music(bt === 'esat' ? 'bossfinal' : ((E.MINIBOSS[bt] || bt === 'alex') ? 'boss2' : 'boss'));
+      S.music(bt === 'esat' ? 'bossfinal'
+              : ((E.MINIBOSS[bt] || bt === 'alex' || bt === 'broke' || bt === 'hamza') ? 'boss2' : 'boss'));
       G.shake(5, 20);
 
       if (!G.bossIntroSeen) {
         G.bossIntroSeen = true;
-        var d0 = (bt === 'esat') ? null
+        // Esat und Broke reden vorher schon im Level-Intro
+        var d0 = (bt === 'esat' || bt === 'broke') ? null
                : (bt === 'alex') ? LV.alex.start
+               : (bt === 'hamza') ? LV.hamza.start
+               : (bt === 'georgios') ? LV.georgios.start
                : (E.MINIBOSS[bt] ? LV.mini[bt].start : LV.boss.start);
         if (d0) startDialog(d0, function () { G.state = 'play'; });
       }
@@ -899,7 +1397,8 @@
       var gx = G.lvl.goal[0] * T, gy = G.lvl.goal[1] * T;
       // Level-Bosse geben das Ziel frei; Huseyin und Esat enden anders.
       var endsWithBoss = (G.lvl.bossType === 'huseyin' || G.lvl.bossType === 'esat' ||
-                          G.lvl.bossType === 'alex');
+                          G.lvl.bossType === 'alex' || G.lvl.bossType === 'broke' ||
+                          G.lvl.bossType === 'hamza' || G.lvl.bossType === 'georgios');
       var canFinish = !G.lvl.boss || (!endsWithBoss && G.bossCleared);
       if (canFinish && Math.abs(p.cx() - (gx + 12)) < 30 &&
           p.feet() > gy - 60 && p.feet() < gy + 40) {
@@ -909,6 +1408,8 @@
 
     G.particles.update();
     G.floats.update();
+    for (var tk in G.talk) if (G.talk[tk].t > 0) G.talk[tk].t--;
+    if (G.dizzy > 0 && !frozen) G.dizzy--;
     updateCamera();
     if (G.banner > 0) G.banner--;
   }
@@ -932,8 +1433,41 @@
     persist();
     if (idx < LV.list.length - 1) saveRun(idx + 1);
 
-    // Level 10 ist das Ende: Yusuf ist zu Hause.
-    if (G.lvl.id === 10) {
+    // Manche Level gehen ohne Zwischenbildschirm weiter: Level 10 endet
+    // vor der Haustuer (da steht Broke), Level 12 unten am Berg (Shawarma).
+    if (G.lvl.direct && idx < LV.list.length - 1) {
+      G.after(60, function () {
+        startDialog(G.lvl.outro, function () {
+          fadeTo(function () {
+            G.checkpoint = null;
+            loadLevel(idx + 1, false);
+            S.music(LV.list[idx + 1].music);
+            startDialog(LV.list[idx + 1].intro, function () { G.state = 'play'; });
+          });
+        });
+      });
+      return;
+    }
+
+    // Level 14: der reservierte Tisch im Stilbruch. Jetzt wird geraucht.
+    if (G.lvl.id === 14) {
+      G.after(50, function () {
+        fadeTo(function () {
+          startScene(global.Shisha.init());
+          G.after(30, function () {
+            startDialog(LV.shisha.vorher, function () {
+              if (G.scene) G.scene.phase = 'rauchen';
+              G.state = 'play';
+            });
+          });
+        });
+      });
+      return;
+    }
+
+    // Das letzte Level: unten am Berg. Danach geht es in die Shisha-Bar —
+    // die kommt aber erst noch. Bis dahin: Bestenliste.
+    if (idx === LV.list.length - 1) {
       G.after(60, function () {
         startDialog(G.lvl.outro, function () {
           save.unlocked = LV.list.length;
@@ -1322,6 +1856,11 @@
     var p = G.player, cam = G.cam;
     var tx = p.cx() - W / 2 + p.facing * 26;
     var ty = p.y + p.h / 2 - H / 2 - 10;
+    // Zwischensequenz: die Kamera schaut woanders hin (Lennart)
+    if (G.camFocus) {
+      tx = G.camFocus.x - W / 2;
+      ty = G.camFocus.y - H / 2 - 10;
+    }
 
     cam.x += (tx - cam.x) * 0.11;
     cam.y += (ty - cam.y) * 0.09;
@@ -1368,7 +1907,7 @@
         ctx.fillRect(0, 0, W, H);
         ctx.globalAlpha = 1;
       }
-      if (!G.eat && !G.kasse) drawHUD();
+      if (!G.eat && !G.kasse && !G.scene && !G.cut) drawHUD();
       if (G.state === 'paused') drawPause();
       if (G.state === 'clear') drawResults();
       if (G.state === 'dialog') drawDialog();
@@ -1535,6 +2074,129 @@
         rect(x - 8, 146, 20, 5, '#12141c');
         rect(x - 6, 151, 16, 3, '#ffe9a8');      // Licht
       }
+    } else if (theme === 'siedlung') {
+      // Nachmittagssonne ueber einer Reihe Einfamilienhaeuser
+      ctx.fillStyle = '#fff2c0';
+      ctx.beginPath(); ctx.arc(420 - f * 0.05, 58, 20, 0, 6.3); ctx.fill();
+      for (i = -1; i < 12; i++) {
+        x = i * 124 - (f % 124);
+        var hh = 64 + ((i + 12) % 3) * 16;
+        rect(x + 12, 250 - hh, 92, hh + 40, t.far);
+        ctx.fillStyle = t.far;
+        ctx.beginPath();
+        ctx.moveTo(x + 2, 251 - hh); ctx.lineTo(x + 58, 216 - hh); ctx.lineTo(x + 114, 251 - hh);
+        ctx.closePath(); ctx.fill();
+        for (var wi = 0; wi < 3; wi++) rect(x + 24 + wi * 26, 262 - hh, 12, 12, '#b8c8e0');
+      }
+      for (i = -1; i < 14; i++) {
+        x = i * 104 - (n % 104);
+        rect(x, 214, 70, 30, '#4f7e3e');                 // Hecke
+        rect(x, 214, 70, 4, '#6aa04e');
+        rect(x + 84, 186, 6, 60, '#5a3a20');             // Baum
+        ctx.fillStyle = '#3f6e34';
+        ctx.beginPath(); ctx.arc(x + 87, 180, 20, 0, 6.3); ctx.fill();
+      }
+    } else if (theme === 'imbiss') {
+      // Hamzas Laden: Fliesen, Karten mit Preisen, drehende Spiesse
+      for (i = -1; i < 26; i++) {
+        x = i * 32 - (f % 32);
+        rect(x, 0, 1, H, 'rgba(255,220,180,0.05)');
+      }
+      for (i = -1; i < 8; i++) {
+        x = i * 220 - (n % 220);
+        rect(x + 20, 60, 44, 150, '#2a1a12');           // Grill-Nische
+        rect(x + 24, 64, 36, 142, '#ff6a1a');
+        rect(x + 28, 68, 28, 134, '#ffb43c');
+        for (var sy = 0; sy < 110; sy += 3) {            // der Spiess dreht sich
+          var sw = 24 - Math.abs(sy - 40) * 0.14;
+          var so = ((sy * 3 + G.tick) >> 2) % 4;
+          rect(x + 42 - sw / 2, 76 + sy, sw, 3, so < 2 ? '#b8643a' : '#8a4424');
+        }
+        rect(x + 41, 66, 2, 130, '#c8ccd6');
+        rect(x + 90, 70, 96, 50, '#1a1210');            // Karte
+        F.draw(ctx, 'SHAWARMA', x + 98, 78, { color: '#ffd257' });
+        F.draw(ctx, 'FALAFEL', x + 98, 92, { color: '#ffe9a8' });
+        F.draw(ctx, 'HUMMUS', x + 98, 106, { color: '#ffe9a8' });
+      }
+      for (i = -1; i < 5; i++) {
+        x = i * 380 - (n % 380) + 200;
+        rect(x, 140, 50, 8, '#d8282e'); rect(x, 148, 50, 14, '#f4f2ec'); rect(x, 162, 50, 8, '#d8282e');
+        ctx.fillStyle = '#2a9a4a';
+        ctx.beginPath(); ctx.moveTo(x + 25, 148); ctx.lineTo(x + 16, 160); ctx.lineTo(x + 34, 160);
+        ctx.closePath(); ctx.fill();
+      }
+    } else if (theme === 'bar') {
+      // Stilbruch von innen: Neon, Rauch, Shisha-Silhouetten
+      for (i = -1; i < 10; i++) {
+        x = i * 170 - (f % 170);
+        var pulse2 = ((G.tick + i * 40) % 140) < 5 ? '#ffd8f0' : '#ff8ad8';
+        F.draw(ctx, i % 2 ? 'SHISHA' : 'STILBRUCH', x + 60, 40, { color: pulse2, align: 'center', scale: 2 });
+        rect(x + 10, 36, 100, 1, 'rgba(255,138,216,0.3)');
+      }
+      for (i = -1; i < 14; i++) {
+        x = i * 110 - (n % 110);
+        rect(x + 14, 150, 8, 70, t.far);                // Shisha-Schlauch-Stange
+        rect(x + 6, 214, 24, 26, t.far);                 // Glas
+        rect(x + 40, 196, 60, 44, t.near);               // Sofa
+        rect(x + 40, 190, 60, 8, t.far);
+      }
+      ctx.fillStyle = 'rgba(200,190,230,0.05)';
+      for (i = 0; i < 6; i++) {
+        var rx2 = ((i * 97 + G.tick * 0.3) % (W + 100)) - 50;
+        ctx.beginPath(); ctx.arc(rx2, 110 + (i % 3) * 30, 40, 0, 6.3); ctx.fill();
+      }
+    } else if (theme === 'taverne') {
+      // Weisse Waende, blaue Fenster mit Meerblick, Maeanderband
+      for (i = -1; i < 40; i++) {
+        x = i * 16 - (f % 16);
+        rect(x, 26, 12, 3, t.near);
+        rect(x + 9, 26, 3, 9, t.near);
+        rect(x + 3, 32, 9, 3, t.near);
+      }
+      for (i = -1; i < 9; i++) {
+        x = i * 180 - (n % 180);
+        rect(x + 30, 70, 64, 80, t.near);                // Fensterrahmen
+        rect(x + 34, 74, 56, 72, '#6ab0e8');             // Himmel
+        rect(x + 34, 118, 56, 28, '#2a6ab8');            // Meer
+        rect(x + 60, 74, 4, 72, t.near);
+        rect(x + 120, 170, 18, 40, '#c87a4a');           // Amphore
+        rect(x + 116, 176, 26, 26, '#b8683a');
+        rect(x + 124, 164, 10, 8, '#c87a4a');
+      }
+      for (i = -1; i < 5; i++) {
+        x = i * 360 - (n % 360) + 150;
+        for (var gs = 0; gs < 9; gs++) rect(x, 60 + gs * 4, 54, 4, gs % 2 ? '#f4f6fa' : '#2a5ab8');
+        rect(x, 60, 20, 20, '#2a5ab8'); rect(x + 8, 60, 4, 20, '#f4f6fa'); rect(x, 68, 20, 4, '#f4f6fa');
+      }
+    } else if (theme === 'berg') {
+      // Morgens am Hausberg: ferne Gipfel mit Schnee, davor Tannen
+      ctx.fillStyle = '#fff6c8';
+      ctx.beginPath(); ctx.arc(86, 48, 18, 0, 6.3); ctx.fill();
+      for (i = -1; i < 9; i++) {
+        x = i * 190 - (f * 0.6 % 190);
+        var peak = 70 + ((i + 10) % 2) * 34;
+        ctx.fillStyle = t.far;
+        ctx.beginPath();
+        ctx.moveTo(x - 20, 290); ctx.lineTo(x + 95, peak); ctx.lineTo(x + 210, 290);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#eef4fa';
+        ctx.beginPath();
+        ctx.moveTo(x + 95, peak); ctx.lineTo(x + 77, peak + 18); ctx.lineTo(x + 86, peak + 14);
+        ctx.lineTo(x + 95, peak + 20); ctx.lineTo(x + 104, peak + 14); ctx.lineTo(x + 113, peak + 18);
+        ctx.closePath(); ctx.fill();
+      }
+      for (i = -1; i < 16; i++) {
+        x = i * 64 - (n % 64);
+        var th = 46 + ((i + 16) % 3) * 12;
+        rect(x + 14, 250 - 12, 5, 16, '#4a3220');
+        for (var tl = 0; tl < 3; tl++) {
+          var ty = 240 - th + tl * (th / 3.2), tw = 12 + tl * 6;
+          ctx.fillStyle = tl % 2 ? '#245a30' : t.near;
+          ctx.beginPath();
+          ctx.moveTo(x + 16 - tw, ty + th / 3); ctx.lineTo(x + 16, ty - 4); ctx.lineTo(x + 17 + tw, ty + th / 3);
+          ctx.closePath(); ctx.fill();
+        }
+      }
     } else {
       // Festung: Türme, Blitze, Salatbanner
       for (i = -1; i < 10; i++) {
@@ -1557,7 +2219,7 @@
     }
 
     // Wolken in hellen Welten
-    if (theme === 'garten' || theme === 'zimmer') {
+    if (theme === 'garten' || theme === 'zimmer' || theme === 'siedlung' || theme === 'berg') {
       for (i = -1; i < 8; i++) {
         x = i * 220 - ((camX * 0.12 + G.tick * 0.12) % 220);
         P.draw(ctx, 'wolke', x, 26 + (i % 3) * 26);
@@ -1606,9 +2268,14 @@
       var px = h.x - camX, py = h.y - camY;
       if (h.type === 'gabel') {
         for (var x = 0; x < h.w; x += 8) P.draw(ctx, 'gabel', px + x, py);
+      } else if (h.type === 'dornen') {
+        for (var dx = 0; dx < h.w; dx += T) P.draw(ctx, 'dornbusch', px + dx, py);
       } else {
-        var col = h.type === 'oel' ? '#3a2a12' : '#6fa83c';
-        var hi = h.type === 'oel' ? '#8a6a2a' : '#a8e05a';
+        // Oel, Salatdressing, Knoblauchsosse (toum) oder heisse Kohle
+        var HZ = { oel: ['#3a2a12', '#8a6a2a'], toum: ['#d8d0c0', '#ffffff'],
+                   kohle: ['#2a1008', (G.tick >> 3) % 2 ? '#ff6a1a' : '#ffb43c'] };
+        var col = (HZ[h.type] || ['#6fa83c'])[0];
+        var hi = (HZ[h.type] || [0, '#a8e05a'])[1];
         rect(px, py + 2, h.w, h.h - 2, col);
         for (var wv = 0; wv < h.w; wv += 4) {
           var yy = py + 1 + Math.sin((G.tick * 0.08) + wv * 0.4) * 1.4;
@@ -1722,6 +2389,21 @@
       }
       return;
     }
+    // Level 14 endet am reservierten Tisch im Stilbruch
+    if (G.lvl.id === 14) {
+      rect(gx - 34, gy - 30, 96, 30, '#5a1e3a');
+      rect(gx - 34, gy - 30, 96, 4, '#7a2e52');
+      rect(gx - 20, gy - 8, 70, 8, '#6b4522');
+      P.draw(ctx, 'shisha', gx - 8, gy - 27);
+      P.draw(ctx, 'shisha', gx + 20, gy - 27);
+      rect(gx - 6, gy - 64, 56, 14, '#f4f2ec');
+      F.draw(ctx, 'RESERVIERT', gx + 22, gy - 60, { color: '#3a2446', align: 'center' });
+      if (G.tick % 9 === 0) {
+        G.particles.spawn({ x: G.lvl.goal[0] * T - 2 + Math.random() * 30, y: G.lvl.goal[1] * T - 30,
+                            vx: 0.1, vy: -0.4, life: 60, col: '#9aa8b8', size: 2, grav: -0.006 });
+      }
+      return;
+    }
     P.draw(ctx, 'ziel', gx, gy - 26 + bob);
     F.draw(ctx, 'ZIEL', gx + 12, gy - 40 + bob, {
       color: '#ffe9a8', align: 'center', shadow: true,
@@ -1791,7 +2473,9 @@
      Das Bild wackelt, ein zweites halbdurchsichtiges Bild liegt
      versetzt darueber. */
   function drawDrunkOrPlain() {
-    if (!G.drunk) { drawScene(); return; }
+    // Wackeln: nach Alex' Wodka (bis der Kampf vorbei ist) oder kurz nach
+    // einer HHC-Welle von Hamza
+    if (!G.drunk && !(G.dizzy > 0)) { drawScene(); return; }
     var dt = G.tick * 0.05;
     ctx.save();
     ctx.translate(W / 2 + Math.sin(dt) * 3, H / 2 + Math.cos(dt * 0.8) * 2);
@@ -1805,11 +2489,15 @@
     ctx.globalAlpha = 0.25;
     ctx.drawImage(canvas, Math.round(Math.sin(dt * 1.3) * 6), Math.round(Math.cos(dt) * 4));
     ctx.globalAlpha = 1;
-    ctx.fillStyle = 'rgba(255,150,60,0.07)';
+    ctx.fillStyle = G.drunk ? 'rgba(255,150,60,0.07)' : 'rgba(120,230,110,0.09)';
     ctx.fillRect(0, 0, W, H);
   }
 
   function drawScene() {
+    if (G.scene) {
+      sceneMod().draw(ctx, G, W, H);
+      return;
+    }
     if (G.kasse) {
       global.Kasse.draw(ctx, G, W, H);
       return;
@@ -1828,6 +2516,7 @@
     drawParallax(G.world.theme, camX, camY);
     ctx.restore();
 
+    if (G.lvl.deko === 'haus') drawHaus(camX, camY);
     drawCheckpoints(camX, camY);
     if (G.ampeln.length) drawAmpeln(camX, camY);
     drawSigns(camX, camY);
@@ -1836,6 +2525,7 @@
     drawHazards(camX, camY);
     drawBlocks(camX, camY);
     drawMovers(camX, camY);
+    if (G.world.kickers.length) drawKickers(camX, camY);
 
     var i;
     for (i = 0; i < G.items.length; i++) {
@@ -1888,7 +2578,59 @@
         ctx.globalAlpha = 1;
         continue;
       }
+      if (pr.patch) {
+        // Flecken am Boden: Alex' Pfuetzen, Hummus, Glut, Scherben.
+        // (Die Pfuetzen waren frueher unsichtbar — man rutschte, ohne
+        // zu sehen warum.)
+        var fx2 = Math.round(pr.x - camX), fy2 = Math.round(pr.y - camY);
+        ctx.globalAlpha = Math.min(1, pr.life / 30) * 0.9;
+        if (pr.t === 'scherben') {
+          for (var si = 0; si < pr.w; si += 4) {
+            rect(fx2 + si, fy2 + 1 + (si % 8 ? 1 : 0), 3, 2, '#f4f6fa');
+            rect(fx2 + si + 1, fy2 + 3, 2, 1, '#2a5ab8');
+          }
+        } else {
+          rect(fx2 + 2, fy2 + 1, pr.w - 4, pr.h - 1, pr.col);
+          rect(fx2, fy2 + 2, pr.w, pr.h - 2, pr.col);
+          rect(fx2 + 3, fy2 + 1, pr.w - 8, 1,
+               pr.t === 'glut' ? ((G.tick >> 2) % 2 ? '#ffd257' : '#ff8a2a') : 'rgba(255,255,255,0.5)');
+        }
+        ctx.globalAlpha = 1;
+        continue;
+      }
+      if (pr.t === 'hhc') {
+        // HHC-Welle: gruen-lila Schwaden, die auf und ab wogen
+        var hx = pr.x - camX, hy = pr.y - camY;
+        ctx.globalAlpha = Math.min(0.85, pr.life / 40);
+        for (var hk = 0; hk < 4; hk++) {
+          ctx.fillStyle = hk % 2 ? '#8ae07a' : '#b89ae8';
+          ctx.beginPath();
+          ctx.arc(hx + 5 + hk * 7, hy + 10 + Math.sin(pr.t0 * 0.2 + hk) * 3, 7, 0, 6.3);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        continue;
+      }
+      if (pr.t === 'faust') {
+        // Kurzes Aufblitzen, wo der Handschuh trifft
+        if (pr.life >= 4) {
+          ctx.globalAlpha = 0.55;
+          rect(pr.x - camX, pr.y - camY + pr.h / 2 - 2, pr.w, 4, '#ffffff');
+          ctx.globalAlpha = 1;
+        }
+        continue;
+      }
       if (!pr.spr) continue;
+      if (pr.rot) {
+        // Zangen, Teller und der Ball drehen sich im Flug
+        var rs = P.get(pr.spr);
+        ctx.save();
+        ctx.translate(Math.round(pr.x - camX + pr.w / 2), Math.round(pr.y - camY + pr.h / 2));
+        ctx.rotate(pr.rot);
+        P.draw(ctx, pr.spr, -rs.w / 2, -rs.h / 2);
+        ctx.restore();
+        continue;
+      }
       P.draw(ctx, pr.spr, pr.x - camX, pr.y - camY, pr.vx < 0);
     }
 
@@ -1920,9 +2662,14 @@
     }
 
     if (G.boss) drawBoss(camX, camY);
+    // Level 12: Lennart (liegend oder im Anflug) und Esat hinter Yusuf
+    if (G.lennartLie) drawLennartLie(G.lennartLie, camX, camY);
+    if (G.rider && G.rider.pos) drawRider(camX, camY);
     drawPlayer(camX, camY);
+    if (G.cut && G.cut.L) drawLennartCut(G.cut, camX, camY);
     drawParticles(camX, camY);
     drawFloats(camX, camY);
+    drawTalk(camX, camY);
 
     // leichte Abdunklung an den Rändern
     var vg = ctx.createLinearGradient(0, 0, 0, H);
@@ -1932,7 +2679,205 @@
     ctx.fillStyle = vg;
     ctx.fillRect(0, 0, W, H);
 
+    if (G.cut) drawCutFrame(G.cut);
     if (G.banner > 0) drawBanner();
+  }
+
+  /* ---------- Level 11: Yusufs Haus ---------- */
+
+  function drawHaus(camX, camY) {
+    var gy = 15 * T - camY, x0 = 6 - camX, w = 112;
+    if (x0 > W || x0 + w < -20) return;
+    // Hauswand, Dach, Fenster
+    rect(x0, gy - 118, w, 118, '#d8c0a0');
+    rect(x0, gy - 118, w, 4, '#b89c7c');
+    for (var bx = 0; bx < w; bx += 16) rect(x0 + bx, gy - 110, 1, 110, 'rgba(0,0,0,0.05)');
+    ctx.fillStyle = '#8a3a2e';
+    ctx.beginPath();
+    ctx.moveTo(x0 - 10, gy - 118); ctx.lineTo(x0 + w / 2, gy - 164); ctx.lineTo(x0 + w + 10, gy - 118);
+    ctx.closePath(); ctx.fill();
+    rect(x0 - 10, gy - 120, w + 20, 4, '#5e241c');
+    // Fenster oben mit Vorhang
+    rect(x0 + 14, gy - 102, 30, 24, '#3a4a6a'); rect(x0 + 14, gy - 102, 30, 3, '#6a82aa');
+    rect(x0 + 68, gy - 102, 30, 24, '#3a4a6a'); rect(x0 + 68, gy - 102, 30, 3, '#6a82aa');
+    rect(x0 + 14, gy - 102, 8, 24, '#c85a4a'); rect(x0 + 90, gy - 102, 8, 24, '#c85a4a');
+    // Tuer mit Nummer und Klingelschild
+    rect(x0 + 40, gy - 52, 32, 52, '#5a3a22');
+    rect(x0 + 43, gy - 49, 26, 49, '#6e4a2c');
+    rect(x0 + 64, gy - 28, 3, 3, '#ffd257');
+    F.draw(ctx, '7', x0 + 56, gy - 44, { color: '#ffd257', align: 'center' });
+    rect(x0 + 76, gy - 36, 34, 11, '#e8e4dc');
+    rect(x0 + 76, gy - 36, 34, 1, '#ffffff');
+    F.draw(ctx, 'BALCI', x0 + 93, gy - 34, { color: '#3a3a44', align: 'center' });
+    // Die sechs Tueten stehen vor der Tuer
+    for (var i = 0; i < 6; i++) {
+      P.draw(ctx, 'tuete', x0 + 4 + (i % 3) * 11, gy - 9 - Math.floor(i / 3) * 8);
+    }
+  }
+
+  /* ---------- Level 12: Rampen, Esat, Lennart ---------- */
+
+  function drawKickers(camX, camY) {
+    var ks = G.world.kickers;
+    for (var i = 0; i < ks.length; i++) {
+      var k = ks[i];
+      var px = Math.round(k.x - camX), py = Math.round(k.y - camY);
+      if (px < -40 || px - 40 > W) continue;
+      // Holzrampe: flach anlaufend, vorne 10 Pixel hoch
+      ctx.fillStyle = '#6b4522';
+      ctx.beginPath();
+      ctx.moveTo(px - 32, py); ctx.lineTo(px, py - 11); ctx.lineTo(px, py); ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#b07a45';
+      ctx.beginPath();
+      ctx.moveTo(px - 32, py); ctx.lineTo(px, py - 11); ctx.lineTo(px, py - 8); ctx.lineTo(px - 26, py);
+      ctx.closePath(); ctx.fill();
+      rect(px - 2, py - 11, 2, 11, '#4a2c17');
+      for (var s = 0; s < 3; s++) rect(px - 24 + s * 8, py - 3 - s * 3, 1, 3 + s * 3, '#8a5a30');
+    }
+  }
+
+  /** Hebt das Fahrrad auf der Rampe an, damit es nicht durchs Holz faehrt. */
+  function rampLift(x, feet) {
+    var ks = G.world.kickers;
+    for (var i = 0; i < ks.length; i++) {
+      var k = ks[i];
+      if (x > k.x - 32 && x <= k.x + 2 && Math.abs(feet - k.y) < 3) {
+        return Math.round(Math.max(0, Math.min(1, (x - (k.x - 32)) / 32)) * 10);
+      }
+    }
+    return 0;
+  }
+
+  /** Fahrrad mit Fahrer. (cx, feet) = Mitte unten, a = Drehung (Salto). */
+  function drawBikeRider(who, bikeSpr, cx, feet, flip, a, travel, face) {
+    // travel = gefahrene Strecke: alle 5 Pixel drehen sich die Speichen weiter
+    var step = Math.floor(travel / 5);
+    ctx.save();
+    ctx.translate(Math.round(cx), Math.round(feet - 9));
+    if (a) ctx.rotate(flip ? a : -a);
+    if (flip) ctx.scale(-1, 1);
+    P.draw(ctx, bikeSpr + (step % 2 ? '2' : ''), -15, -8);
+    if (who === 'lennart') P.draw(ctx, 'lennart', -12, -23);
+    else P.drawChar(ctx, who, -2, 2, { pose: 'ride', frame: step >> 1, face: face || 'normal' });
+    ctx.restore();
+  }
+
+  function drawRider(camX, camY) {
+    var r = G.rider, pos = r.pos;
+    var talking = G.talk.esat && G.talk.esat.t > 0;
+    if (!G.lvl.bike) {
+      // Zu Fuss: springt, wo Yusuf gesprungen ist
+      var gy = groundAt(pos.x);
+      var inAir = (gy !== null && pos.y < gy - 3);
+      P.drawChar(ctx, 'esat', pos.x - camX, pos.y - camY, {
+        pose: inAir ? 'jump' : (r.moving ? 'run' : 'idle'),
+        frame: Math.floor(pos.x / 7), flip: pos.f < 0,
+        face: talking ? 'laugh' : 'normal'
+      });
+      return;
+    }
+    var lift = rampLift(pos.x, pos.y);
+    drawBikeRider('esat', 'bike_e', pos.x - camX, pos.y - camY - lift, pos.f < 0, pos.a,
+                  pos.x, talking ? 'laugh' : 'normal');
+  }
+
+  function drawLennartCut(c, camX, camY) {
+    var L = c.L;
+    if (L.lie) {
+      drawLennartLie({ x: L.x, y: L.y, a: L.a }, camX, camY);
+      return;
+    }
+    drawBikeRider('lennart', 'bike_l', L.x - camX, L.y - camY, false, L.a, L.x, 'normal');
+  }
+
+  /** Lennart liegt auf dem Bauch, daneben die Reste seines Rades. */
+  function drawLennartLie(o, camX, camY) {
+    var i, deb = o.debris || (G.cut && G.cut.debris) || [];
+    for (i = 0; i < deb.length; i++) {
+      var d = deb[i], sp = P.get(d.spr);
+      ctx.save();
+      ctx.translate(Math.round(d.x - camX), Math.round(d.y - camY - sp.h / 2));
+      if (d.a) ctx.rotate(d.a);
+      P.draw(ctx, d.spr, -sp.w / 2, -sp.h / 2);
+      ctx.restore();
+    }
+    var px = Math.round(o.x - camX), py = Math.round(o.y - camY);
+    if (px < -40 || px > W + 40) return;
+    ctx.save();
+    ctx.translate(px, py - 10);
+    ctx.rotate(o.a === undefined ? Math.PI / 2 : o.a);
+    P.draw(ctx, 'lennart', -10, -11);
+    ctx.restore();
+    // Sternchen um den Kopf
+    if ((G.tick >> 3) % 3 !== 0) {
+      var st = G.tick * 0.12;
+      F.draw(ctx, '*', px + 14 + Math.cos(st) * 7, py - 18 + Math.sin(st) * 3, { color: '#ffd257' });
+    }
+  }
+
+  /** Sprechblasen ueber den Figuren (ohne das Spiel anzuhalten). */
+  function drawTalk(camX, camY) {
+    for (var who in G.talk) {
+      var s = G.talk[who];
+      if (!s || s.t <= 0) continue;
+      var x, y, p = G.player;
+      // Hoehen gestaffelt: Esat faehrt direkt hinter Yusuf, und Lennart
+      // liegt beim Vorbeifahren daneben — sonst ueberdecken sich die Blasen.
+      if (who === 'yusuf') { x = p.cx(); y = p.y - 22; }
+      else if (who === 'esat' && G.rider && G.rider.pos) { x = G.rider.pos.x; y = G.rider.pos.y - 66; }
+      else if (who === 'lennart') {
+        var L = (G.cut && G.cut.L) || G.lennartLie;
+        if (!L) continue;
+        x = L.x; y = L.y - (L.lie || !G.cut ? 26 : 48);
+      } else continue;
+      var sx = Math.round(x - camX), sy = Math.round(y - camY);
+      var tw = F.measure(s.text, 1, 1);
+      var bx = Math.max(4, Math.min(W - tw - 12, sx - tw / 2 - 4));
+      ctx.globalAlpha = Math.min(1, s.t / 12);
+      ctx.fillStyle = 'rgba(14,9,20,0.82)';
+      ctx.fillRect(bx, sy - 4, tw + 8, 14);
+      F.draw(ctx, s.text, bx + 4, sy, { color: SPEAKER[who] ? SPEAKER[who].col : '#ffffff' });
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  /** Kinobalken, Tempo-Streifen und das Standbild mit Namen. */
+  function drawCutFrame(c) {
+    var i;
+    // Tempo-Streifen, solange Lennart rast
+    if (c.L && !c.L.lie && c.phase !== 'karte') {
+      for (i = 0; i < 7; i++) {
+        var sy = 40 + ((i * 53 + G.tick * 3) % (H - 80));
+        var sx = W - ((G.tick * 22 + i * 97) % (W + 120));
+        rect(sx, sy, 60 + (i % 3) * 20, 1, 'rgba(255,255,255,0.35)');
+      }
+    }
+    if (c.phase === 'karte') {
+      // Standbild: warme Toene, Name gross und schraeg im Bild
+      ctx.fillStyle = 'rgba(255,140,40,0.16)';
+      ctx.fillRect(0, 0, W, H);
+      var k = Math.min(1, c.card / 10);
+      ctx.save();
+      ctx.translate(W / 2, H / 2 - 10);
+      ctx.rotate(-0.08);
+      ctx.fillStyle = 'rgba(10,6,16,0.82)';
+      ctx.fillRect(-W, -30 * k, W * 2, 60 * k);
+      rect(-W, -30 * k, W * 2, 2, '#ff6fa8');
+      rect(-W, 30 * k - 2, W * 2, 2, '#6fc8e8');
+      if (c.card > 6) {
+        F.draw(ctx, LV.lennartCut.card, 0, -20, {
+          color: '#ffffff', align: 'center', scale: 4, shadow: true, shadowColor: '#ff6fa8'
+        });
+        F.draw(ctx, LV.lennartCut.cardSub, 0, 14, { color: '#6fc8e8', align: 'center' });
+      }
+      ctx.restore();
+    }
+    var bh = Math.round(26 * c.bars);
+    if (bh > 0) {
+      rect(0, 0, W, bh, '#000000');
+      rect(0, H - bh, W, bh, '#000000');
+    }
   }
 
   function drawEnemy(e, camX, camY) {
@@ -1979,6 +2924,24 @@
       return;
     }
 
+    // Level 12: Yusuf auf dem Fahrrad. Beim Salto dreht sich alles mit.
+    if (G.lvl.bike && !p.dead) {
+      var bps = p.pose();
+      var bface = p.flipping ? 'laugh' : bps.face;
+      var blift = p.grounded ? rampLift(p.cx(), p.feet()) : 0;
+      drawBikeRider('yusuf', 'bike', p.cx() - camX, p.feet() - camY - blift, p.facing < 0,
+                    p.flipping ? p.flipA : 0, p.x, bface);
+      if (p.sleeping) {
+        for (var zi = 0; zi < 3; zi++) {
+          var zt = (G.tick * 0.02 + zi * 0.33) % 1;
+          F.draw(ctx, 'Z', p.cx() - camX + 8 + zt * 12, p.y - camY - 10 - zt * 18, {
+            color: 'rgba(200,185,255,' + (1 - zt).toFixed(2) + ')', scale: 1 + Math.floor(zt * 2)
+          });
+        }
+      }
+      return;
+    }
+
     var ps = p.pose();
     var opts = {
       pose: ps.pose, face: ps.face,
@@ -2020,7 +2983,9 @@
   /* Angriffe, vor denen gewarnt wird — Beruehrung tut dann weh. */
   var BOSS_WARN = {
     chargeprep: 1, carjump: 1, slam: 1, doubleslam: 1, dashprep: 1,
-    stampf: 1, drift: 1, wirbel: 1, tornado: 1, runter: 1
+    stampf: 1, drift: 1, wirbel: 1, tornado: 1, runter: 1,
+    blitzprep: 1, sprung: 1,
+    dribbelprep: 1, fallrueck: 1, upprep: 1, sirtaki: 1
   };
 
   /** Leuchtender Rand um einen verwandelten Boss (Sprite-Bosse). */
@@ -2106,6 +3071,99 @@
       return;
     }
 
+    // Hamza: immer mit dem Ball am Fuss
+    if (G.lvl.bossType === 'hamza') {
+      var hp2 = 'idle', hf = 'normal';
+      if (b.dead) { hp2 = 'hurt'; hf = 'hurt'; }
+      else if (b.state === 'transform') { hp2 = 'cheer'; hf = 'rage'; }
+      else if (b.state === 'dribbel' || b.state === 'walk') { hp2 = 'run'; hf = b.state === 'dribbel' ? 'rage' : 'normal'; }
+      else if (!b.grounded) hp2 = b.vy < 0 ? 'jump' : 'fall';
+      else if (b.state === 'humus' || b.state === 'humusregen' || b.state === 'hhc') { hp2 = 'cheer'; hf = 'laugh'; }
+      else if (b.state === 'kick') hp2 = 'run';
+      if (b.flash > 0) hf = 'hurt';
+      else if (b.rage && !b.dead && hf === 'normal') hf = 'rage';
+      var ho = { pose: hp2, face: hf, frame: b.anim, flip: b.facing < 0, scale: 2 };
+      if (glow || b.state === 'transform') drawCharAura('hamza', px, py, ho, b.rageCol);
+      if (b.dead) ho.alpha = Math.max(0.2, 1 - b.deadTimer / 160);
+      if (b.flash > 0 && (G.tick >> 1) % 2 === 0) { ho.flash = '#ffffff'; ho.flashAlpha = 0.8; }
+      if (b.invuln > 0 && b.state !== 'transform' && (G.tick >> 1) % 2 === 0 && !b.dead) ho.alpha = 0.55;
+      P.drawChar(ctx, 'hamza', px, py, ho);
+      if (!b.dead && b.ballAtFeet) P.draw(ctx, 'ball', px + (b.facing < 0 ? -20 : 10), py - 10);
+      if (!b.dead && b.state === 'hhc' && b.timer > 16) {
+        ctx.globalAlpha = 0.6;
+        ctx.fillStyle = '#8ae07a';
+        ctx.beginPath(); ctx.arc(px + b.facing * 18, py - 34, 5 + (G.tick % 6), 0, 6.3); ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+      if (!b.dead && BOSS_WARN[b.state] && (G.tick >> 2) % 2 === 0) {
+        F.draw(ctx, '!', px, py - b.h - 12, { color: '#ff6a6a', align: 'center', scale: 2 });
+      }
+      return;
+    }
+
+    // Georgios: erst im Hemd, ab der Haelfte oben ohne mit Boxhandschuhen
+    if (G.lvl.bossType === 'georgios') {
+      var gp = 'idle', gf = 'normal';
+      if (b.dead) { gp = 'hurt'; gf = 'hurt'; }
+      else if (b.state === 'transform') { gp = 'cheer'; gf = 'rage'; }
+      else if (b.boxer && b.punchT > 0) { gp = 'punch'; gf = 'rage'; }
+      else if (b.state === 'dash' || b.state === 'sirtaki' || b.state === 'walk' || b.state === 'anlauf') {
+        gp = 'run'; gf = b.state === 'walk' ? 'normal' : 'laugh';
+      }
+      else if (!b.grounded) gp = b.vy < 0 ? 'jump' : 'fall';
+      else if (b.boxer) gp = 'guard';
+      else if (b.state === 'teller' || b.state === 'oliven') { gp = 'cheer'; gf = 'laugh'; }
+      if (b.flash > 0) gf = 'hurt';
+      else if (b.rage && !b.dead && gf === 'normal') gf = 'rage';
+      var gwho = b.boxer ? 'georgios_box' : 'georgios';
+      var go = { pose: gp, face: gf, frame: b.anim, scale: 2,
+                 flip: b.state === 'sirtaki' ? ((G.tick >> 2) % 2 === 0) : b.facing < 0 };
+      if (glow || b.state === 'transform') drawCharAura(gwho, px, py, go, b.rageCol);
+      if (b.dead) go.alpha = Math.max(0.2, 1 - b.deadTimer / 160);
+      if (b.flash > 0 && (G.tick >> 1) % 2 === 0) { go.flash = '#ffffff'; go.flashAlpha = 0.8; }
+      if (b.invuln > 0 && b.state !== 'transform' && (G.tick >> 1) % 2 === 0 && !b.dead) go.alpha = 0.55;
+      P.drawChar(ctx, gwho, px, py, go);
+      if (!b.dead && BOSS_WARN[b.state] && (G.tick >> 2) % 2 === 0) {
+        F.draw(ctx, '!', px, py - b.h - 12, { color: '#ff6a6a', align: 'center', scale: 2 });
+      }
+      return;
+    }
+
+    // Broke: so schnell, dass er Nachbilder hinterlaesst
+    if (G.lvl.bossType === 'broke') {
+      var bp = 'idle', bf = 'normal';
+      if (b.dead) { bp = 'hurt'; bf = 'hurt'; }
+      else if (b.state === 'transform') { bp = 'cheer'; bf = 'rage'; }
+      else if (b.state === 'dash' || b.state === 'blitz' || b.state === 'walk') {
+        bp = 'run'; bf = b.state === 'walk' ? 'normal' : 'rage';
+      }
+      else if (b.state === 'mikas' || b.state === 'ansturm') { bp = 'cheer'; bf = 'laugh'; }
+      else if (!b.grounded) bp = b.vy < 0 ? 'jump' : 'fall';
+      if (b.flash > 0) bf = 'hurt';
+      else if (b.rage && !b.dead && bf === 'normal') bf = 'rage';
+
+      var trailCol = b.rage ? b.rageCol : '#9ad0ff';
+      for (var ti = 0; ti < b.trail.length; ti++) {
+        var tr = b.trail[ti];
+        P.drawChar(ctx, 'broke', tr.x - camX, tr.y - camY, {
+          pose: 'run', frame: tr.a, flip: tr.f < 0, scale: 2,
+          flash: trailCol, flashAlpha: 1, alpha: 0.12 + 0.3 * (ti + 1) / b.trail.length
+        });
+      }
+      var bo = { pose: bp, face: bf, frame: b.anim, flip: b.facing < 0, scale: 2 };
+      if (glow || b.state === 'transform') drawCharAura('broke', px, py, bo, b.rageCol);
+      if (b.dead) bo.alpha = Math.max(0.2, 1 - b.deadTimer / 160);
+      if (b.flash > 0 && (G.tick >> 1) % 2 === 0) { bo.flash = '#ffffff'; bo.flashAlpha = 0.8; }
+      if (b.invuln > 0 && b.state !== 'transform' && (G.tick >> 1) % 2 === 0 && !b.dead) {
+        bo.alpha = 0.55;
+      }
+      P.drawChar(ctx, 'broke', px, py, bo);
+      if (!b.dead && BOSS_WARN[b.state] && (G.tick >> 2) % 2 === 0) {
+        F.draw(ctx, '!', px, py - b.h - 12, { color: '#ff6a6a', align: 'center', scale: 2 });
+      }
+      return;
+    }
+
     // Alex: klettert auf die Regale und hat immer eine Flasche dabei
     if (G.lvl.bossType === 'alex') {
       var ap = 'idle', af = 'normal';
@@ -2121,6 +3179,13 @@
 
       var ao = { pose: ap, face: af, frame: b.anim, flip: b.facing < 0,
                  scale: b.rage ? 3 : 2 };
+      // Der zweite Alex. Sieht fast gleich aus, macht aber nichts.
+      if (b.schatten) {
+        P.drawChar(ctx, 'alex', b.schatten.x + b.w / 2 - camX, b.schatten.y + b.h - camY, {
+          pose: ap, face: af, frame: b.anim, flip: b.schatten.f < 0,
+          scale: b.rage ? 3 : 2, alpha: 0.82, flash: '#6a8ad8', flashAlpha: 0.16
+        });
+      }
       if (glow || b.state === 'transform') drawCharAura('alex', px, py, ao, b.rageCol);
       if (b.dead) ao.alpha = Math.max(0.2, 1 - b.deadTimer / 160);
       if (b.flash > 0 && (G.tick >> 1) % 2 === 0) { ao.flash = '#ffffff'; ao.flashAlpha = 0.8; }
@@ -2260,9 +3325,29 @@
     // Leben
     F.draw(ctx, 'YUSUF x' + Math.max(0, p.lives), 8, 44, { color: '#f4bd91', shadow: true });
 
+    if (G.lvl.bike) {
+      // Level 12: wie viele Saltos er schon gestanden hat
+      F.draw(ctx, 'SALTOS ' + (p.flipCount || 0), 8, 58, { color: '#ffd257', shadow: true });
+    } else {
+      // Puste fuer die Arschbombe. Leer = kein Stampfer.
+      var sw = 60, sf = Math.round(sw * Math.max(0, p.stamina) / p.stamMax);
+      var voll = (p.stamina >= 42);
+      rect(8, 58, sw, 6, 'rgba(6,4,10,0.6)');
+      rect(8, 58, sf, 6, (p.pustT > 0 && (G.tick >> 2) % 2 === 0) ? '#ff6a6a'
+                        : (voll ? '#8cd85a' : '#ffc23c'));
+      rect(8, 58, sf, 2, 'rgba(255,255,255,0.3)');
+      F.draw(ctx, 'BAUCH', 72, 58, { color: voll ? '#c8b8e0' : '#8f86a8', shadow: true });
+    }
+
+    // Nach Hamzas HHC-Welle
+    if (G.dizzy > 0) {
+      F.draw(ctx, 'HHC: ALLES DREHT SICH', 8 + Math.sin(G.tick * 0.12) * 2, 70,
+             { color: '#8ae07a', shadow: true });
+    }
+
     // Nach Alex' Dusche: wie viel Yusuf intus hat
     if (G.drunk) {
-      F.draw(ctx, 'PROMILLE 1,4', 8 + Math.sin(G.tick * 0.12) * 2, 58,
+      F.draw(ctx, 'PROMILLE 1,4', 8 + Math.sin(G.tick * 0.12) * 2, 70,
              { color: '#ff8a2a', shadow: true });
     }
 
@@ -2298,14 +3383,15 @@
       // Nach der Verwandlung wechselt der Balken die Farbe und pulsiert
       var isA = (bt2 === 'alex');
       var barCol = G.boss.rage ? G.boss.rageCol
-        : (mini ? mini.col : (isE ? '#6fc8e8' : (isA ? '#c9a05a' : '#5ec24a')));
+        : (G.boss.barCol || (mini ? mini.col : (isE ? '#6fc8e8' : (isA ? '#c9a05a' : '#5ec24a'))));
       if (G.boss.rage && G.boss.phase >= 3 && (G.tick >> 3) % 2 === 0) barCol = '#ffffff';
       rect(x2, by2, hw, 12, barCol);
       rect(x2, by2, hw, 2, 'rgba(255,255,255,0.35)');
       // Markierung bei der Haelfte: dort verwandelt er sich
       if (!G.boss.rage) rect(x2 + Math.floor(w2 / 2), by2, 1, 12, 'rgba(255,255,255,0.6)');
 
-      var bname = mini ? mini.name : (isE ? 'ESAT' : (isA ? 'ALEX' : 'HUSEYIN BALCI'));
+      var bname = G.boss.barName ||
+                  (mini ? mini.name : (isE ? 'ESAT' : (isA ? 'ALEX' : 'HUSEYIN BALCI')));
       F.draw(ctx, bname, W / 2, by2 + 3,
              { color: '#ffffff', align: 'center', shadow: true });
 
@@ -2346,7 +3432,12 @@
     esat:    { name: 'ESAT',    col: '#6fc8e8' },
     lennart: { name: 'LENNART', col: '#e8b894' },
     mirkan:  { name: 'MIRKAN',  col: '#b8c0d4' },
-    alex:    { name: 'ALEX',    col: '#c9a05a' }
+    alex:    { name: 'ALEX',    col: '#c9a05a' },
+    broke:   { name: 'BROKE',   col: '#d8b07a' },
+    mika:    { name: 'MIKA',    col: '#9ad0ff' },
+    hamza:   { name: 'HAMZA',   col: '#ff6a6a' },
+    georgios: { name: 'GEORGIOS', col: '#6a9ae8' },
+    typ:     { name: 'TYP VOM NEBENTISCH', col: '#c8c0d8' }
   };
 
   function drawPortrait(who, x, y, talking) {
@@ -2370,6 +3461,22 @@
     } else if (who === 'alex') {
       ctx.scale(2, 2);
       P.draw(ctx, talking ? 'a_head_angry' : 'a_head', 1, 1);
+    } else if (who === 'broke') {
+      ctx.scale(2, 2);
+      P.draw(ctx, talking ? 'b_head_grin' : 'b_head', 1, 1);
+    } else if (who === 'mika') {
+      // Jeder Mika sieht gleich aus. Welcher gerade redet, weiss keiner.
+      ctx.scale(2, 2);
+      P.draw(ctx, 'mika', 2, 1 + (talking ? 1 : 0));
+    } else if (who === 'hamza') {
+      ctx.scale(2, 2);
+      P.draw(ctx, talking ? 'ha_head_grin' : 'ha_head', 1, 1);
+    } else if (who === 'georgios') {
+      ctx.scale(2, 2);
+      P.draw(ctx, talking ? 'ge_head_grin' : 'ge_head', 1, 1);
+    } else if (who === 'typ') {
+      ctx.scale(2, 2);
+      P.draw(ctx, 'typ1', 2, 1 + (talking ? 1 : 0));
     } else {
       ctx.scale(2, 2);
       P.draw(ctx, talking ? 'y_head_laugh' : 'y_head', 0, 0);
@@ -2516,11 +3623,16 @@
     });
 
     // Karten passen sich der Breite an — bei 7 Leveln war die letzte
-    // Karte vorher halb abgeschnitten.
+    // Karte vorher halb abgeschnitten. Ab elf Leveln: zwei Reihen.
     var sc = selectCards();
+    var two = sc.rows > 1;
+    // Wo was auf der Karte steht: bei zwei Reihen sind die Karten flacher
+    var o = two ? { num: 5, zu: 34, frueh: 46, hon: 30, honT: 35, pts: 50, time: 61, neu: 40 }
+                : { num: 10, zu: 52, frueh: 64, hon: 48, honT: 53, pts: 72, time: 86, neu: 60 };
     for (var i = 0; i < sc.n; i++) {
       var unlocked = i < save.unlocked;
-      var x = sc.left0 + i * (sc.cw + sc.gap), y = sc.y, cw = sc.cw, ch = sc.ch;
+      var cr = cardRect(sc, i);
+      var x = cr.x, y = cr.y, cw = cr.w, ch = cr.h;
       var sel = (i === G.selIdx);
 
       ctx.fillStyle = sel ? 'rgba(52,34,20,0.95)' : 'rgba(22,15,30,0.9)';
@@ -2530,26 +3642,26 @@
       ctx.strokeRect(x + 1, y + 1 + (sel ? -6 : 0), cw - 2, ch - 2);
 
       var yy = y + (sel ? -6 : 0);
-      F.draw(ctx, '' + (i + 1), x + cw / 2, yy + 10, {
+      F.draw(ctx, '' + (i + 1), x + cw / 2, yy + o.num, {
         color: unlocked ? '#ffd257' : '#5d5470', align: 'center', scale: 3
       });
 
       if (!unlocked) {
-        F.draw(ctx, 'ZU', x + cw / 2, yy + 52, { color: '#5d5470', align: 'center' });
-        F.draw(ctx, 'FRÜH', x + cw / 2, yy + 64, { color: '#5d5470', align: 'center' });
+        F.draw(ctx, 'ZU', x + cw / 2, yy + o.zu, { color: '#5d5470', align: 'center' });
+        F.draw(ctx, 'FRÜH', x + cw / 2, yy + o.frueh, { color: '#5d5470', align: 'center' });
       } else {
         // Der Name steht gross unter der Reihe — bei zehn Karten ist
         // hier kein Platz mehr dafuer, da lief er frueher ueber den Rand.
         var b = save.best[i];
         if (b) {
-          P.draw(ctx, 'honig', x + cw / 2 - 16, yy + 48);
-          F.draw(ctx, 'x' + b.honey, x + cw / 2 - 2, yy + 53, { color: '#ffe9a8' });
-          F.draw(ctx, '' + b.score, x + cw / 2, yy + 72,
+          P.draw(ctx, 'honig', x + cw / 2 - 16, yy + o.hon);
+          F.draw(ctx, 'x' + b.honey, x + cw / 2 - 2, yy + o.honT, { color: '#ffe9a8' });
+          F.draw(ctx, '' + b.score, x + cw / 2, yy + o.pts,
                  { color: '#a094b8', align: 'center' });
-          F.draw(ctx, fmtTime(b.time), x + cw / 2, yy + 86,
+          F.draw(ctx, fmtTime(b.time), x + cw / 2, yy + o.time,
                  { color: '#6a6280', align: 'center' });
         } else {
-          F.draw(ctx, 'NEU', x + cw / 2, yy + 60, { color: '#8f86a8', align: 'center' });
+          F.draw(ctx, 'NEU', x + cw / 2, yy + o.neu, { color: '#8f86a8', align: 'center' });
         }
       }
     }
@@ -2558,15 +3670,15 @@
     var selLvl = LV.list[Math.min(G.selIdx, sc.n - 1)];
     var offen = G.selIdx < save.unlocked;
     F.draw(ctx, offen ? selLvl.name : 'NOCH NICHT FREIGESPIELT',
-           W / 2, sc.y + sc.ch + 14,
+           W / 2, sc.bottom + (two ? 10 : 14),
            { color: offen ? '#ffffff' : '#6a6280', align: 'center', scale: 2, shadow: true });
     if (offen) {
-      F.draw(ctx, selLvl.sub, W / 2, sc.y + sc.ch + 34,
+      F.draw(ctx, selLvl.sub, W / 2, sc.bottom + (two ? 28 : 34),
              { color: '#a094b8', align: 'center' });
     }
 
     F.draw(ctx, G.touch ? 'KARTE ANTIPPEN   -   NOCHMAL TIPPEN STARTET   -   HIER TIPPEN = ZURÜCK'
-                        : 'LINKS / RECHTS WÄHLEN   -   SPRUNG STARTET   -   ESC ZURÜCK',
+                        : 'PFEILE WÄHLEN   -   SPRUNG STARTET   -   ESC ZURÜCK',
            W / 2, H - 22, { color: '#a094b8', align: 'center' });
   }
 
@@ -2613,7 +3725,7 @@
       color: '#ffd257', align: 'center', scale: 3, shadow: true,
       wave: G.tick * 0.06, waveAmp: 1
     });
-    F.draw(ctx, G.partialRun ? 'ESAT IST BESIEGT!' : 'TRAG DICH IN DIE BESTENLISTE EIN', W / 2, 56,
+    F.draw(ctx, G.partialRun ? 'DER BERG IST GESCHAFFT!' : 'TRAG DICH IN DIE BESTENLISTE EIN', W / 2, 56,
            { color: '#c8b8e0', align: 'center' });
 
     var sec = Math.floor((G.runTime || 0) / 60);
@@ -2710,23 +3822,38 @@
     ctx.fillRect(0, 0, W, H);
     drawParticles(0, 0);
 
+    // Nach dem langen Tag: Yusuf schlaeft. Und das Handy klingelt bestimmt gleich.
     var a = Math.min(1, G.endScroll / 60);
     ctx.globalAlpha = a;
-    F.draw(ctx, 'DEMNÄCHST', W / 2, 46, {
-      color: '#8f86a8', align: 'center', scale: 2
+    F.draw(ctx, 'FORTSETZUNG', W / 2, 30, {
+      color: '#ffd257', align: 'center', scale: 5, shadow: 1,
+      shadowColor: '#5e2a10', wave: G.tick * 0.05, waveAmp: 1
     });
-    F.draw(ctx, 'ESATS', W / 2, 70, {
-      color: '#6fc8e8', align: 'center', scale: 5, shadow: 1,
-      shadowColor: '#10303f', wave: G.tick * 0.05, waveAmp: 1
-    });
-    F.draw(ctx, "JUMP'N'RUN", W / 2, 116, {
-      color: '#ffd257', align: 'center', scale: 4, shadow: 1, shadowColor: '#5e2a10'
+    F.draw(ctx, 'FOLGT', W / 2, 74, {
+      color: '#ffe9a8', align: 'center', scale: 3, shadow: 1, shadowColor: '#5e2a10'
     });
     ctx.globalAlpha = 1;
 
-    P.draw(ctx, 'esat', W / 2 - 8, 172);
+    // Die Couch, darauf Yusuf. Daneben das Handy.
+    var gy = H - 58;
+    rect(0, gy, W, 3, '#5a5f6e');
+    rect(W / 2 - 80, gy - 30, 160, 30, '#5a1e3a');
+    rect(W / 2 - 80, gy - 30, 160, 4, '#7a2e52');
+    ctx.save();
+    ctx.translate(W / 2 + 36, gy - 26);
+    ctx.rotate(-Math.PI / 2);
+    P.drawChar(ctx, 'yusuf', 0, 0, { pose: 'idle', face: 'sleep', scale: 2 });
+    ctx.restore();
+    for (var zi = 0; zi < 3; zi++) {
+      var zt = (G.tick * 0.02 + zi * 0.33) % 1;
+      F.draw(ctx, 'Z', W / 2 - 30 + zt * 16, gy - 70 - zt * 24, {
+        color: 'rgba(200,185,255,' + (1 - zt).toFixed(2) + ')', scale: 1 + Math.floor(zt * 2)
+      });
+    }
+    var zit = ((G.tick >> 2) % 2) && (G.tick % 120 < 60) ? 1 : 0;
+    P.draw(ctx, 'handy', W / 2 + 94 + zit, gy - 12);
     if (G.endScroll > 90) {
-      F.draw(ctx, 'ER WEISS NOCH NICHTS DAVON.', W / 2, H - 44,
+      F.draw(ctx, 'YUSUF SCHLÄFT. DAS HANDY LIEGT SCHON BEREIT.', W / 2, H - 44,
              { color: '#c8b8e0', align: 'center' });
     }
     if (G.endScroll > 150 && (G.tick >> 4) % 2 === 0) {
