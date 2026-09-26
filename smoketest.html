@@ -39,9 +39,14 @@ window.__restore = function () {
 <script src="src/sprites.js"></script>
 <script src="src/audio.js"></script>
 <script src="src/input.js"></script>
+<script src="src/abschnitte.js"></script>
 <script src="src/levels.js"></script>
 <script src="src/entities.js"></script>
+<script src="src/bosse.js"></script>
 <script src="src/eat.js"></script>
+<script src="src/fussball.js"></script>
+<script src="src/rennen.js"></script>
+<script src="src/doener.js"></script>
 <script src="src/game.js"></script>
 
 <script>
@@ -368,6 +373,126 @@ function run() {
        '7000 -> ' + scoreAfter);
   })();
 
+  // ---- 3e. Erreichbarkeit mit der echten Sprungphysik ----
+  // Von jeder Stelle, an der Yusuf stehen kann, werden ein paar hundert
+  // Spruenge simuliert (Richtung, Anlauf, wie lange gedrueckt, wann der
+  // Bauch-Boost kommt). Daraus entsteht eine Karte: wo kommt man hin?
+  // Geprueft wird: Ziel bzw. Arena erreichbar, jeder Goldhonig
+  // erreichbar, und es gibt keine Sackgasse, aus der man nie wieder
+  // rauskommt. Bewegliche Tabletts werden weggelassen — was nur mit
+  // ihnen erreichbar ist, gilt hier als nicht erreichbar.
+  (function () {
+    var T = 16, cur = { ax: 0, hit: false, down: false };
+    var keep = { axis: Input.axis, hit: Input.hit, down: Input.down, play: Sound.play };
+    Input.axis = function () { return cur.ax; };
+    Input.hit = function (a) { return a === 'jump' && cur.hit; };
+    Input.down = function (a) {
+      if (a === 'jump') return cur.down;
+      if (a === 'run') return true;
+      return (a === 'right' && cur.ax > 0) || (a === 'left' && cur.ax < 0);
+    };
+    Sound.play = function () {};
+    function noop() {}
+    var MACROS = [];
+    [-1, 0, 1].forEach(function (dir) {
+      [0, 6, 12, 22].forEach(function (hold) {
+        [-1, 6, 12, 18, 26].forEach(function (dj) {
+          if (hold === 0 && dj >= 0 && dj < 12) return;
+          [0, 1].forEach(function (sv) {
+            [999, 8, 16, 26].forEach(function (stop) {
+              if (dir === 0 && (sv || stop !== 999)) return;
+              MACROS.push({ dir: dir, hold: hold, dj: dj, sv: sv, stop: stop });
+            });
+          });
+        });
+      });
+    });
+
+    Levels.list.forEach(function (L, li) {
+      if (L.eat || L.mode) return;
+      var err = null, res;
+      try { res = reach(L); } catch (e) { err = e.message; }
+      var n = 'L' + (li + 1);
+      ok(!err, n + ' Erreichbarkeit laesst sich pruefen', err || '');
+      if (err) return;
+      ok(res.goal, n + ' Ziel ist vom Start aus erreichbar', res.nodes + ' Stehplaetze');
+      ok(res.goldMissing.length === 0, n + ' jeder Goldhonig ist erreichbar',
+         res.goldMissing.join(' ') || (res.gold + ' Stueck'));
+      ok(res.traps.length === 0, n + ' keine Sackgassen', res.traps.slice(0, 12).join(' '));
+    });
+
+    function reach(L) {
+      var w = new Ent.World(); w.load(L);
+      w.movers = [];
+      var pw = L.driving ? 64 : (L.bike ? 20 : 12), ph = L.driving ? 24 : (L.bike ? 28 : 26);
+      var g = { world: w, frozen: false, lvl: L, tick: 0, autoAx: null, autoMax: 0, drunk: 0,
+                dizzy: 0, boss: null, enemies: [], items: [],
+                particles: { spawn: noop, burst: noop }, floats: { add: noop },
+                shake: noop, addProjectile: noop, addItem: noop, say: noop, onFlip: noop,
+                onPlayerDead: noop };
+      var gold = L.items.filter(function (it) { return it.t === 'goldhonig'; }).map(function (it) {
+        return { x: it.x * T + 2, y: it.y * T + 1, w: 12, h: 14, tx: it.x, ty: it.y, hit: false };
+      });
+      function key(tx, ty) { return tx + ',' + ty; }
+      var p = new Ent.Player(0, 0);
+      var s0 = key(L.spawn[0], L.spawn[1]), seen = {}, queue = [L.spawn.slice()], edges = {};
+      seen[s0] = true;
+      while (queue.length) {
+        var nd = queue.shift(), nk = key(nd[0], nd[1]);
+        edges[nk] = {};
+        for (var mi = 0; mi < MACROS.length; mi++) {
+          var m = MACROS[mi];
+          // Nie halb in der Randwand starten (das Auto ist vier Kacheln breit)
+          p.reset(Math.max(0, Math.min(L.w * T - pw, nd[0] * T + T / 2 - pw / 2)), nd[1] * T - ph);
+          p.w = pw; p.h = ph; p.hp = 3; p.grounded = true;
+          p.vx = m.sv ? m.dir * (L.driving ? 4.8 : (L.bike ? 4.2 : 3.15)) : 0;
+          var air = false, to = null;
+          for (var f = 0; f < 170; f++) {
+            cur.ax = f < m.stop ? m.dir : 0;
+            cur.hit = (f === 0 && m.hold > 0) || f === m.dj;
+            cur.down = f < m.hold || (m.dj >= 0 && f >= m.dj && f < m.dj + 12);
+            g.tick++;
+            p.update(g);
+            if (p.hp < 3 || p.dead) break;
+            for (var gi = 0; gi < gold.length; gi++) {
+              var gg = gold[gi];
+              if (!gg.hit && p.x < gg.x + gg.w && p.x + p.w > gg.x &&
+                  p.y < gg.y + gg.h && p.y + p.h > gg.y) gg.hit = true;
+            }
+            if (!p.grounded) air = true;
+            if (p.grounded && (air || f >= 10)) {
+              to = [Math.floor(p.cx() / T), Math.floor((p.y + p.h) / T)];
+              break;
+            }
+          }
+          // Nur echte Stehplaetze im Level zaehlen
+          if (!to || to[1] < 0 || to[1] >= L.h || !w.solid(to[0], to[1]) ||
+              p.x < 0 || p.x + p.w > L.w * T) continue;
+          var tk = key(to[0], to[1]);
+          if (tk === nk) continue;
+          edges[nk][tk] = true;
+          if (!seen[tk]) { seen[tk] = true; queue.push(to); }
+        }
+      }
+      // Rueckwaerts: von welchen Stellen aus kommt man noch ins Ziel?
+      var gx = L.arena ? L.arena.x + 5 : (L.boss ? L.boss.x - 29 : L.goal[0] - 2);
+      var rev = {}, okk = {}, q2 = [];
+      Object.keys(edges).forEach(function (a) {
+        Object.keys(edges[a]).forEach(function (b) { (rev[b] = rev[b] || []).push(a); });
+      });
+      Object.keys(seen).forEach(function (k) { if (+k.split(',')[0] >= gx) { okk[k] = true; q2.push(k); } });
+      while (q2.length) {
+        (rev[q2.shift()] || []).forEach(function (a) { if (!okk[a]) { okk[a] = true; q2.push(a); } });
+      }
+      return {
+        nodes: Object.keys(seen).length, goal: !!okk[s0], gold: gold.length,
+        goldMissing: gold.filter(function (gg) { return !gg.hit; }).map(function (gg) { return gg.tx + ',' + gg.ty; }),
+        traps: Object.keys(seen).filter(function (k) { return !okk[k]; })
+      };
+    }
+    Input.axis = keep.axis; Input.hit = keep.hit; Input.down = keep.down; Sound.play = keep.play;
+  })();
+
   // ---- 4. Bot spielt jedes Level ----
   // Der Bot laeuft nach rechts und springt, wenn eine Wand oder eine
   // Luecke vor ihm ist. Doppelsprung, wenn er im Fallen keinen Boden sieht.
@@ -439,6 +564,53 @@ function run() {
       return;
     }
 
+    // Rennen und Doenerbude: kein Laufweg, eigene Pruefung
+    if (L.mode === 'rennen' || L.mode === 'doener') {
+      var mErr = null, info = '', ok1 = false;
+      try {
+        G.player.lives = 99;
+        if (L.mode === 'rennen') {
+          var r0 = G.modus.pos;
+          var heldR = {};
+          var keepR = { axis: Input.axis, down: Input.down, hit: Input.hit };
+          Input.axis = function () { return 0; };
+          Input.down = function (a) { return !!heldR[a]; };
+          Input.hit = function () { return false; };
+          for (var rt = 0; rt < 4000; rt++) {
+            // Nitro in Stoessen, sonst geradeaus
+            heldR.jump = (rt % 300) < 60;
+            G.player.hp = 3;             // hier geht es ums Vorankommen, nicht ums Fahren
+            G._update();
+            if (G.state === 'dialog') { G.dialog = null; G.frozen = false; G.state = 'play'; }
+            if (rt % 13 === 0) G._render();
+          }
+          Input.axis = keepR.axis; Input.down = keepR.down; Input.hit = keepR.hit;
+          var weit = G.modus ? G.modus.pos - r0 : 0;
+          ok1 = weit > 200 * 600;
+          info = Math.round(weit / 200) + ' Strassenstuecke, geblitzt ' + (G.modus ? G.modus.geblitzt : '-');
+        } else {
+          var db = window.DoenerBude;
+          for (var dt = 0; dt < 40 && G.modus && G.modus.phase !== 'fertig'; dt++) {
+            db._nimm(G, G.modus, 0);                 // Brot
+            db._nimm(G, G.modus, 1);                 // Fleisch
+            db._nimm(G, G.modus, 1);
+            db._nimm(G, G.modus, 2);                 // Pommes
+            db._nimm(G, G.modus, 10);                // wickeln
+            for (var dw = 0; dw < 70; dw++) {
+              G._update();
+              if (dw % 9 === 0) G._render();
+            }
+          }
+          ok1 = !!G.modus && G.modus.kcal >= G.modus.ziel;
+          info = (G.modus ? G.modus.kcal : '-') + ' kcal, Phase ' + (G.modus ? G.modus.phase : '-');
+        }
+      } catch (ex) { mErr = ex.message + ' | ' + (ex.stack || '').split('\n')[1]; }
+      ok(!mErr, 'L' + (idx + 1) + ' Szene laeuft ohne Absturz', mErr || '');
+      ok(ok1, 'L' + (idx + 1) + (L.mode === 'rennen' ? ' Rennen kommt voran' : ' Doener bringen Kalorien'), info);
+      results.push('L' + (idx + 1) + ': ' + L.mode + ', ' + info);
+      return;
+    }
+
     var p = G.player;
     p.lives = 999;
     var startX = p.x;
@@ -471,7 +643,7 @@ function run() {
         if (G.state === 'clear' || G.state === 'ending') break;
         if (G.state === 'dialog') {
           // Dialog am Levelende = geschafft; unterwegs (z.B. Kolonne) wegklicken
-          if (G.player.won || G.bossStarted) break;
+          if (G.player.won || (G.bossStarted && G.arena && G.arena.x > 0)) break;
           G.dialog = null; G.frozen = false; G.state = 'play';
         }
       }
@@ -514,7 +686,11 @@ function run() {
       results.push('   Tabletts: ' + mv);
     }
     ok(!err, 'L' + (idx + 1) + ' laeuft ohne Absturz', err || '');
-    ok(pct > 45, 'L' + (idx + 1) + ' Bot kommt weit genug', pct + '%');
+    // Der Bot ist dumm (rennt, springt vor Luecken). In den langen Leveln
+    // stirbt er oft in Gruben — ob sie schaffbar sind, prueft oben die
+    // Erreichbarkeit mit der echten Physik. Hier geht es nur ums Laufen.
+    var noetig = L.w > 500 ? 15 : 45;
+    ok(pct > noetig, 'L' + (idx + 1) + ' Bot kommt weit genug', pct + '% (noetig ' + noetig + '%)');
     ok(deaths < 25, 'L' + (idx + 1) + ' nicht toedlich ueberladen', deaths + ' Tode');
   });
 

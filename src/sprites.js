@@ -576,6 +576,28 @@
     m: '#a8763c', M: '#6b4522'
   });
 
+  /* Goldhonig. Drei pro Level, von Huseyin immer ganz oben versteckt —
+     da, wo Yusuf angeblich nie hinkommt. */
+  P.def('goldhonig', `
+    ..kkkkkkkk..
+    .kmmmmmmmmk.
+    .kMMMMMMMMk.
+    ..kkkkkkkk..
+    .kyyyyyyyyk.
+    kyYyyywyyyyk
+    kyYywwwwwyyk
+    kyYyywwwyyyk
+    kyYyywywyyyk
+    kyyyyoooyyyk
+    kyyyooooooyk
+    kyooooooooyk
+    .kooooooook.
+    ..kkkkkkkk..
+  `, {
+    k: '#5a3a08', y: '#ffd84a', Y: '#fffbe0', o: '#f0b020',
+    m: '#fff0a0', M: '#d8a830', w: '#ffffff'
+  });
+
   /* Döner. Heilt Wunden, Kummer und Montage. */
   P.def('doener', `
     ..kkkkkkkkkk..
@@ -2101,6 +2123,376 @@
   `, { k: '#1a2a5a', w: '#f4f6ee', g: '#8ac860', b: '#2a5ab8', B: '#8ab0f0' });
 
   /* ---------------------------------------------------------------
+     LEVEL 15-20 — Sparta, Fussball, Riese, Rennen, Knast, Doenerbude
+     --------------------------------------------------------------- */
+
+  /* Georgios als Spartaner wirft Speere. Spitze zeigt nach rechts. */
+  P.def('speer', `
+    ....................kk....
+    kkkkkkkkkkkkkkkkkkkkkaakk.
+    krnnnnnnnnnnnnnnnnnnnoaaak
+    kkkkkkkkkkkkkkkkkkkkkaakk.
+    ....................kk....
+  `, { k: '#2a1a0a', n: '#8a5a2a', r: '#c02828', o: '#8a5a20', a: '#f0c860' });
+
+  /* Die Kruecken vom anderen Alex. Rot, Alu, Gummifuss. */
+  P.def('kruecke', `
+    .rrr...........................
+    rRRRr..........rrr.............
+    rRRRrmmmmmmmmmmrRrmmmmmmmmmmmkk
+    rRRRrMMMMMMMMMMrRrMMMMMMMMMMMkk
+    .rrr...........rrr.............
+  `, { r: '#c82a2a', R: '#ff5a4a', m: '#d8dce4', M: '#8a8e98', k: '#1a1a1a' });
+
+  /* Nils wirft mit Wissen. Genauer: mit Buechern. */
+  var BUCH_ART = `
+    kkkkkkkkkk
+    kbbbbbbbwk
+    kbBBBBBbwk
+    kbbbbbbbwk
+    kbBBBbbbwk
+    kbbbbbbbwk
+    kbbbbbbbwk
+    kkkkkkkkkk
+  `;
+  P.def('buch', BUCH_ART, { k: '#141018', b: '#2a5ab8', B: '#ffd257', w: '#f4f0e0' });
+  P.def('buch2', BUCH_ART, { k: '#141018', b: '#b8282e', B: '#f4f0e0', w: '#f4f0e0' });
+
+  /* Und mit Spielkarten. Er mag den Joker. */
+  P.def('karte', `
+    .kkkkkk.
+    kwwwwwwk
+    kwrwwwwk
+    kwwwwwwk
+    kwwrrwwk
+    kwrrrrwk
+    kwwrrwwk
+    kwwwwwwk
+    kwwwwrwk
+    kwwwwwwk
+    .kkkkkk.
+  `, { k: '#141018', w: '#f8f8f2', r: '#d82a3a' });
+
+  /* Handschellen: was die Waerter werfen */
+  P.def('handschelle', `
+    .kkk...kkk.
+    kmMmkkkmMmk
+    km.mmmmm.mk
+    kmMmk.kmMmk
+    .kkk...kkk.
+  `, { k: '#1a1a20', m: '#c8ccd6', M: '#8a8e98' });
+
+  /* Insassen im orangen Overall. Nummer auf der Brust. */
+  var INSASSE_PAL = {
+    k: '#141018', h: '#2a2018', s: '#e8b48c', d: '#c8906a', g: '#1a1a1a',
+    m: '#6a2a24', o: '#f07a28', O: '#c8581a', w: '#f4f4ee', n: '#2a2a2e'
+  };
+  P.def('insasse', `
+    ...kkkkkkkk...
+    ..khhhhhhhhk..
+    ..kssssssssk..
+    ..ksgsssgsdk..
+    ..kssssssssk..
+    ..kssmmmmssk..
+    ...kssssssk...
+    ..kkooooookk..
+    .kooooowwoook.
+    koooooowwooook
+    kOooooooooooOk
+    ksoooooooooosk
+    kskooooooooksk
+    .kkooooooookk.
+    ..kooooooook..
+    ..kooooooook..
+    ..kooookoook..
+    ..kooookoook..
+    ..kooookoook..
+    ..kook..kook..
+    .kkkkk..kkkkk.
+    .knnnk..knnnk.
+  `, INSASSE_PAL);
+  P.def('insasse2', `
+    ...kkkkkkkk...
+    ..khhhhhhhhk..
+    ..kssssssssk..
+    ..ksgsssgsdk..
+    ..kssssssssk..
+    ..kssmmmmssk..
+    ...kssssssk...
+    ..kkooooookk..
+    .kooooowwoook.
+    koooooowwooook
+    kOooooooooooOk
+    ksoooooooooosk
+    kskooooooooksk
+    .kkooooooookk.
+    ..kooooooook..
+    ..kooooooook..
+    ..kooookoook..
+    .kooook.koook.
+    .kook....kook.
+    .kook....kook.
+    kkkkk....kkkkk
+    knnnk....knnnk
+  `, INSASSE_PAL);
+
+  /* Der Schlaeger: breit, Glatze, Unterarm-Tattoo. Zwei Treffer. */
+  var SCHLAEGER_PAL = {
+    k: '#141018', s: '#e8b48c', d: '#c8906a', g: '#1a1a1a', m: '#6a2a24',
+    t: '#3a5a8a', o: '#f07a28', O: '#c8581a', w: '#f4f4ee', n: '#2a2a2e'
+  };
+  P.def('schlaeger', `
+    ....kkkkkkkkkk....
+    ...kssssssssssk...
+    ...kssssssssssk...
+    ...ksgssssssgsk...
+    ...ksssssdsssssk..
+    ...kssskmmmksssk..
+    ....kssssssssk....
+    ..kkkooooooookkk..
+    .kssoooooooooossk.
+    kssoooowwwoooossk.
+    ksdoooooooooooodsk
+    ktdOoooooooooOdtk.
+    kssOOoooooooOOssk.
+    .kkkOOOOOOOOOOkkk.
+    ...kooooooooook...
+    ...kooooooooook...
+    ...koooookoooook..
+    ...koooookoooook..
+    ...koooookoooook..
+    ...kooook.kooook..
+    ..kkkkkk..kkkkkk..
+    ..knnnnk..knnnnk..
+  `, SCHLAEGER_PAL);
+  P.def('schlaeger2', `
+    ....kkkkkkkkkk....
+    ...kssssssssssk...
+    ...kssssssssssk...
+    ...ksgssssssgsk...
+    ...ksssssdsssssk..
+    ...kssskmmmksssk..
+    ....kssssssssk....
+    ..kkkooooooookkk..
+    .kssoooooooooossk.
+    kssoooowwwoooossk.
+    ksdoooooooooooodsk
+    ktdOoooooooooOdtk.
+    kssOOoooooooOOssk.
+    .kkkOOOOOOOOOOkkk.
+    ...kooooooooook...
+    ...kooooooooook...
+    ...koooookoooook..
+    ..koooook.koooook.
+    ..kooook...kooook.
+    ..kooook...kooook.
+    .kkkkkk....kkkkkk.
+    .knnnnk....knnnnk.
+  `, SCHLAEGER_PAL);
+
+  /* Waerter: graue Uniform, Muetze, Schlagstock am Guertel */
+  var WAERTER_PAL = {
+    k: '#141018', b: '#5a6660', B: '#3a4440', w: '#ffd257', s: '#e8b48c', d: '#c8906a',
+    g: '#1a1a1a', m: '#6a2a24', y: '#2a2a2e', n: '#26262c'
+  };
+  var WAERTER_ART = `
+    ...kkkkkkkk...
+    ..kbbbbbbbbk..
+    ..kbbbwwbbbk..
+    .kkkkkkkkkkkk.
+    ..kssssssssk..
+    ..ksgsssgsdk..
+    ..kssssssssk..
+    ..ksskmmkssk..
+    ...kssssssk...
+    ..kkbbbbbbkk..
+    .kbbbbwbbbbbk.
+    kbbbbbbbbbbbbk
+    kbBbbbbbbbbBbk
+    ksbbbbbbbbbbsk
+    kskbbbbbbbbksk
+    .kkyyyyyyyykk.
+    ..knnnnnnnnk..
+    ..knnnnnnnnk..
+    ..knnnkknnnk..
+    ..knnnkknnnk..
+    ..knnnkknnnk..
+    ..knnk..knnk..
+    .kkkkk..kkkkk.
+    .kkkkk..kkkkk.
+  `;
+  P.def('waerter', WAERTER_ART, WAERTER_PAL);
+  P.def('waerter2', WAERTER_ART.replace('..knnnkknnnk..\n    ..knnk..knnk..',
+                                        '.knnnk..knnnk.\n    .knnk....knnk.'), WAERTER_PAL);
+
+  /* ----- Level 18: Autos von hinten (Ich-Perspektive) ----- */
+  var HECK_ART = `
+    ..........kkkkkkkkkkkk..........
+    ........kkbbbbbbbbbbbbkk........
+    .......kbbBbbbbbbbbbbbbbk.......
+    ......kbbbbbbbbbbbbbbbbbbk......
+    .....kcccccccccccccccccccck.....
+    ..kkkcccccccccccccccccccccckkk..
+    .kcccccccccccccccccccccccccccck.
+    kcrrrrRccccccccccccccccccRrrrrck
+    kcrRRrRccccccccccccccccccRrRRrck
+    kccccccccccccwwwwwwcccccccccccck
+    kccccccccccccwkkkkwcccccccccccck
+    kCCCCCCCCCCCCwwwwwwCCCCCCCCCCCCk
+    kCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCk
+    kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+    .kttttk..................kttttk.
+    .kttttk..................kttttk.
+    ..kkkk....................kkkk..
+  `;
+  var HECK_BASE = { k: '#141418', b: '#2a3848', B: '#6a88a8', r: '#d8202a', R: '#ff6a5a',
+                    w: '#f4f4ee', t: '#1a1a1a' };
+  function heck(c, C) {
+    var p = {}; for (var key in HECK_BASE) p[key] = HECK_BASE[key];
+    p.c = c; p.C = C; return p;
+  }
+  P.def('audi_heck', HECK_ART, heck('#b8bcc8', '#7a7e8a'));      // Alex: silberner Audi
+  P.def('cla_heck', HECK_ART, heck('#2a2a32', '#16161c'));       // Erfan: schwarzer CLA
+  P.def('polizei_heck', HECK_ART, heck('#e8ecf4', '#3a5ab8'));   // Streife
+
+  /* Explosives Fass. Nicht reinfahren. Oder doch — sieht gut aus. */
+  P.def('fass', `
+    .kkkkkkkkkk.
+    kRrrrrrrrrrk
+    kkkkkkkkkkkk
+    kRrrrrrrrrrk
+    kRryyyyyyrrk
+    kRryykkyyrrk
+    kRryyyyyyrrk
+    kRrrrrrrrrrk
+    kkkkkkkkkkkk
+    kRrrrrrrrrrk
+    kRrrrrrrrrrk
+    .kkkkkkkkkk.
+  `, { k: '#1a0a0a', r: '#c82020', R: '#ff5a4a', y: '#ffd257' });
+
+  P.def('kegel', `
+    ....kk....
+    ...kook...
+    ...kwwk...
+    ..kooook..
+    ..kwwwwk..
+    .kooooook.
+    .kwwwwwwk.
+    kkkkkkkkkk
+  `, { k: '#2a1408', o: '#ff7a1a', w: '#f4f4ee' });
+
+  P.def('nitro', `
+    ..kkkk..
+    ..kwwk..
+    .kkkkkk.
+    kbbbbbbk
+    kbBBBBbk
+    kbwbbwbk
+    kbwwbwbk
+    kbwbwwbk
+    kbwbbwbk
+    kbBBBBbk
+    kbbbbbbk
+    .kkkkkk.
+  `, { k: '#0a1420', b: '#2a6ad8', B: '#8ab8ff', w: '#f4f4ee' });
+
+  P.def('blitzer', `
+    kkkkkkkkkk
+    kggggggggk
+    kgkkkkkkgk
+    kgkwwwwkgk
+    kgkwkkwkgk
+    kgkwwwwkgk
+    kgkkkkkkgk
+    kggggggggk
+    kgyyyyyygk
+    kggggggggk
+    kkkkkkkkkk
+    ....kk....
+    ....kk....
+    ....kk....
+    ....kk....
+    ....kk....
+    ....kk....
+    ....kk....
+    ...kkkk...
+  `, { k: '#1a1a20', g: '#8a8e98', y: '#ffd257', w: '#6ab0e8' });
+
+  /* ----- Level 20: Doenerbude ----- */
+  P.def('brot', `
+    ...kkkkkkkkkkkkkk...
+    .kkppppppppppppppkk.
+    kppPpppppwpppppPpppk
+    kppppppppppppppppppk
+    kpppppPpppppppPppppk
+    kPppppppppppppppppPk
+    .kPPPPPPPPPPPPPPPPk.
+    ..kkkkkkkkkkkkkkkk..
+  `, { k: '#6a4a1e', p: '#f0cc7a', P: '#d9a441', w: '#fff6d8' });
+
+  P.def('fleisch', `
+    .kkkkkkkkkk.
+    kmmMmmmMmmmk
+    kMmmmMmmmMmk
+    kmmmMmmmMmmk
+    kmMmmmMmmmmk
+    kmmmmMmmMmmk
+    kMmmMmmmmmMk
+    .kkkkkkkkkk.
+  `, { k: '#3a2410', m: '#a85a2e', M: '#7d3f1e' });
+
+  P.def('kaese', `
+    ..kkkkkk..
+    .kyyYyyyk.
+    kyYyyyYyyk
+    kyyyYyyyYk
+    kYyyyyYyyk
+    kyyYyyyyyk
+    .kyyyYyyk.
+    ..kkkkkk..
+  `, { k: '#6a4a10', y: '#ffd84a', Y: '#e8a81e' });
+
+  P.def('sucuk', `
+    .kkkkkkkkkkkk.
+    krrwrrrrwrrrrk
+    krrrrwrrrrrwrk
+    krwrrrrwrrrrrk
+    kRRRRRRRRRRRRk
+    .kkkkkkkkkkkk.
+  `, { k: '#3a0a0a', r: '#b8282e', R: '#7a1414', w: '#f4e8d8' });
+
+  P.def('zwiebel', `
+    ..kkkkkk..
+    .kvvvvvvk.
+    kvwwwwwwvk
+    kvwvvvvwvk
+    kvwvwwvwvk
+    kvwwwwwwvk
+    .kvvvvvvk.
+    ..kkkkkk..
+  `, { k: '#3a1a3a', v: '#a85aa8', w: '#f0d8f0' });
+
+  var FLASCHE_ART = `
+    ...kk...
+    ...kk...
+    ..kwwk..
+    .kkkkkk.
+    kbbbbbbk
+    kbwbbbbk
+    kbwbbbbk
+    kbbbbbbk
+    kbLLLLbk
+    kbLkkLbk
+    kbLLLLbk
+    kbbbbbbk
+    kbbbbbbk
+    .kkkkkk.
+  `;
+  P.def('sosse_k', FLASCHE_ART, { k: '#2a2a20', b: '#f4f2ea', w: '#ffffff', L: '#8ac860' });
+  P.def('sosse_s', FLASCHE_ART, { k: '#2a0a0a', b: '#e03828', w: '#ff9a8a', L: '#ffd257' });
+
+  /* ---------------------------------------------------------------
      TILES — zwei Masken, eine Palette pro Welt
      --------------------------------------------------------------- */
 
@@ -2230,6 +2622,22 @@
       sky:  ['#0e0816', '#1c1030', '#2e1840', '#44204e'],
       far:  '#241634', near: '#160c22',
       accent: '#ff8ad8'
+    },
+    // Bolzplatz und Tribuene (Level 16/17): Rasen, Beton, Flutlicht
+    stadion: {
+      top:  ['#8ce85a', '#5ec23c', '#3e9128', '#1e5a14'],
+      fill: ['#9aa0ac', '#7a808c', '#5a606c', '#2a2e36'],
+      sky:  ['#3a6ab8', '#6a9ad8', '#a8c8ec', '#e8f0f8'],
+      far:  '#5a6a82', near: '#3a4658',
+      accent: '#ffffff'
+    },
+    // Knast (Level 19): Beton, Gitter, Neonlicht
+    knast: {
+      top:  ['#a8acb4', '#8a8e98', '#6a6e78', '#2a2c32'],
+      fill: ['#6a6e78', '#585c66', '#464a52', '#22242a'],
+      sky:  ['#1a1c22', '#262a32', '#343842', '#444852'],
+      far:  '#2c3038', near: '#1e2128',
+      accent: '#f07a28'
     },
     // Taverne Georgios: weiss und blau, Holzboden
     taverne: {

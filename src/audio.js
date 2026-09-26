@@ -285,6 +285,104 @@
       drums: 'KKhKS.hKKKhKS.hh'
     },
 
+    // Level 16 — Bolzplatz. Klingt nach Stadion und Fangesang.
+    fussball: {
+      bpm: 150, duty: 'p25',
+      lead: S(`G4 . G4 . C5 . C5 . E5 . D5 . C5 . . .
+               G4 . G4 . C5 . C5 . E5 . G5 . E5 . . .
+               F5 . F5 . E5 . D5 . C5 . D5 . E5 . . .
+               D5 . C5 . B4 . D5 . C5 . . . C5 . . .`),
+      bass: S(`C3 . . . G2 . . . C3 . . . G2 . . .
+               C3 . . . G2 . . . C3 . . . E3 . . .
+               F2 . . . F2 . . . C3 . . . C3 . . .
+               G2 . . . G2 . . . C3 . . . C3 . . .`),
+      drums: 'K.h.S.h.K.hhS.h.'
+    },
+
+    // Level 17 — der Riese. Schwer, langsam, jeder Schritt ein Bass.
+    riese: {
+      bpm: 120, duty: 'p125',
+      lead: S(`E4 . . . E4 . G4 . . . E4 . . . D4 .
+               E4 . . . E4 . A4 . . . G4 . . . E4 .
+               C5 . . . B4 . . . A4 . . . G4 . . .
+               F#4 . . . G4 . . . A4 . . . B4 . . .`),
+      bass: S(`E2 E2 . . E2 . . . E2 E2 . . D2 . . .
+               E2 E2 . . E2 . . . A2 A2 . . G2 . . .
+               C3 C3 . . B2 . . . A2 A2 . . G2 . . .
+               F#2 F#2 . . G2 . . . A2 . . . B2 . . .`),
+      drums: 'K...S..KK...S...'
+    },
+
+    // Level 18 — Rennen. Vollgas.
+    rennen: {
+      bpm: 180, duty: 'p25',
+      lead: S(`A4 . C5 . E5 . A5 . G5 . E5 . C5 . E5 .
+               F4 . A4 . C5 . F5 . E5 . C5 . A4 . C5 .
+               G4 . B4 . D5 . G5 . F5 . D5 . B4 . D5 .
+               E5 . E5 . G#5 . G#5 . B5 . A5 . G#5 . E5 .`),
+      bass: S(`A2 . A2 . A2 . A2 . A2 . A2 . A2 . A2 .
+               F2 . F2 . F2 . F2 . F2 . F2 . F2 . F2 .
+               G2 . G2 . G2 . G2 . G2 . G2 . G2 . G2 .
+               E2 . E2 . E2 . E2 . E2 . E2 . E2 . E2 .`),
+      drums: 'K.hKS.hKK.hKS.hh'
+    },
+
+    // Erfans Auftritt: spanisch. Ole.
+    spanisch: {
+      bpm: 164, duty: 'p50',
+      lead: S(`E5 . F5 . G#5 . F5 . E5 . . . D5 . C5 .
+               B4 . C5 . D5 . C5 . B4 . . . A4 . G#4 .
+               A4 . B4 . C5 . D5 . E5 . F5 . E5 . D5 .
+               C5 . B4 . A4 . G#4 . E4 . . . E4 . . .`),
+      bass: S(`E2 . . E2 . . F2 . E2 . . E2 . . F2 .
+               A2 . . A2 . . G2 . F2 . . F2 . . E2 .
+               A2 . . A2 . . G2 . F2 . . F2 . . E2 .
+               F2 . . F2 . . E2 . E2 . . E2 . . E2 .`),
+      drums: 'K..hS.hKK..hS.h.'
+    },
+
+    // Level 19 — Knast. Duester, ein bisschen Blues.
+    knast: {
+      bpm: 126, duty: 'p125',
+      lead: S(`D4 . . F4 . . G4 . G#4 . A4 . . . C5 .
+               A4 . . G4 . . F4 . D4 . . . . . . .
+               D4 . . F4 . . G4 . G#4 . A4 . . . D5 .
+               C5 . A4 . G4 . F4 . D4 . . . . . . .`),
+      bass: S(`D2 . D2 . F2 . D2 . G2 . G#2 . A2 . C3 .
+               D2 . D2 . F2 . D2 . G2 . F2 . D2 . C2 .
+               D2 . D2 . F2 . D2 . G2 . G#2 . A2 . C3 .
+               D2 . C2 . A1 . C2 . D2 . D2 . D2 . D2 .`),
+      drums: 'K.h.S.hhK.h.S.h.'
+    },
+
+    // Nils: schrullig, chromatisch, ein bisschen Zirkus. Wie ein Professor.
+    nils: {
+      bpm: 148, duty: 'p25',
+      lead: S(`C5 . B4 . A#4 . A4 . C5 . . . E5 . . .
+               D5 . C#5 . C5 . B4 . D5 . . . F5 . . .
+               E5 . D#5 . E5 . G5 . C6 . . . G5 . . .
+               F5 . E5 . D5 . C5 . B4 . D5 . C5 . . .`),
+      bass: S(`C3 . G2 . C3 . G2 . C3 . G2 . C3 . G2 .
+               D3 . A2 . D3 . A2 . G2 . D2 . G2 . D2 .
+               C3 . G2 . C3 . G2 . A2 . E2 . A2 . E2 .
+               F2 . C3 . G2 . D3 . C3 . G2 . C3 . . .`),
+      drums: 'K.hhS.hhK.hhS.hh'
+    },
+
+    // Level 20 — Doenerbude. Hicaz, wie beim Doenermann im Radio.
+    doener: {
+      bpm: 138, duty: 'p50',
+      lead: S(`D5 . D#5 . F#5 . G5 . A5 . . . G5 . F#5 .
+               D#5 . D5 . . . C5 . D5 . D#5 . D5 . . .
+               A4 . A#4 . C5 . D5 . D#5 . F#5 . G5 . A5 .
+               G5 . F#5 . D#5 . D5 . C5 . A#4 . A4 . . .`),
+      bass: S(`D2 . . . A2 . . . D2 . . . A2 . . .
+               C2 . . . G2 . . . D2 . . . A2 . . .
+               D2 . . . A2 . . . G2 . . . D2 . . .
+               C2 . . . D2 . . . D2 . . . D2 . . .`),
+      drums: 'K..KS...K..KS...'
+    },
+
     // Endgegner.
     boss: {
       bpm: 172, duty: 'p125',

@@ -318,10 +318,10 @@
     this.laughTimer = 0;
     this.slip = 0;           // auf einer Pfuetze ausgerutscht
     this.stick = 0;          // in Hummus getreten: langsam
-    this.stamina = this.stamMax || STAM_MAX;
-    this.pustT = 0;
     this.smoke = false;      // Kippen-Power-Up aktiv
     this.smokeCool = 0;
+    this.punchT = 0;         // Level 19: Faust gerade vorn
+    this.punchCool = 0;
     this.growlTimer = 0;
     this.growlCool = 0;
     this.anim = 0;
@@ -384,6 +384,18 @@
                           vx: this.facing * 0.3, vy: -0.4, life: 26,
                           col: '#9a9088', size: 2, grav: -0.012 });
       if (Math.random() < 0.3) this.doGrowl(g);
+    }
+
+    /* --- Boxen (Level 19): im Knast gibt es keine Kippen, nur Faeuste --- */
+    if (this.punchT > 0) this.punchT--;
+    if (this.punchCool > 0) this.punchCool--;
+    if (!frozen && !auto && g.lvl && g.lvl.punch && !this.smoke && this.punchCool === 0 &&
+        In.hit('throw')) {
+      this.punchCool = 16;
+      this.punchT = 9;
+      g.addProjectile('faustY', this.facing > 0 ? this.x + this.w - 2 : this.x - 16,
+                      this.y + 5, 0, 0, true);
+      global.Sound.play('flick');
     }
 
     /* --- Schlaf-Gag --- */
@@ -615,11 +627,8 @@
 
     /* --- Gefahren --- */
     for (var hi = 0; hi < world.hazards.length; hi++) {
-      if (overlap(this, world.hazards[hi])) {
-        this.hurt(g, world.hazards[hi].type === 'gabel' ? 1 : 1,
-                  world.hazards[hi].x + world.hazards[hi].w / 2);
-        break;
-      }
+      var hz = world.hazards[hi];
+      if (overlap(this, hz)) { this.hurt(g, 1, hz.x + hz.w / 2); break; }
     }
 
     /* --- Aus der Welt gefallen --- */
@@ -787,6 +796,11 @@
   Player.prototype.hurt = function (g, dmg, fromX) {
     if (this.invuln > 0 || this.dead) return;
     if (this.power > 0) return;
+    // Boss liegt schon: Was jetzt noch trifft, zaehlt nicht mehr. Sonst
+    // konnte man im selben Moment gewinnen und sterben — und musste nach
+    // dem Wiederbeleben den ganzen Kampf nochmal machen. (Nach Mirkan,
+    // Lennart und Erfan geht das Level danach normal weiter.)
+    if (g.boss && g.boss.dead && !g.bossCleared) return;
     // Wer getroffen wird, dreht keinen Salto mehr zu Ende
     this.flipping = false; this.flipA = 0; this.flipsAir = 0;
 
@@ -855,10 +869,11 @@
     if (this.dead) return { pose: 'hurt', face: 'hurt' };
     if (this.won || this.cheer > 0) return { pose: 'cheer', face: 'laugh' };
     if (this.sleeping) return { pose: 'sleep', face: 'sleep' };
+    if (this.punchT > 0) return { pose: 'punch', face: 'growl' };
     var face = 'normal';
     if (this.growlTimer > 0) face = 'growl';
     else if (this.hurtTimer > 0) face = 'hurt';
-    else if (this.eatTimer > 0) face = 'eat';
+    else if (this.eatTimer > 0) face = ((this.eatTimer >> 2) % 2) ? 'eat' : 'laugh';   // Schnelltakt
     else if (this.laughTimer > 0) face = 'laugh';
     else if (this.smoke) face = 'smoke';
 
@@ -898,7 +913,11 @@
     // Level 15, bei Georgios: Meeresfruechte
     krabbe:   { w: 16, h: 10, spr: ['krabbe', 'krabbe2'], score: 150, hp: 1 },
     krake:    { w: 14, h: 13, spr: ['krake', 'krake2'], score: 180, hp: 1 },
-    fisch:    { w: 14, h: 8, spr: ['fisch', 'fisch2'], score: 160, hp: 1, fly: true }
+    fisch:    { w: 14, h: 8, spr: ['fisch', 'fisch2'], score: 160, hp: 1, fly: true },
+    // Level 19, im Knast
+    insasse:   { w: 12, h: 22, spr: ['insasse', 'insasse2'], score: 160, hp: 1 },
+    schlaeger: { w: 16, h: 22, spr: ['schlaeger', 'schlaeger2'], score: 300, hp: 2 },
+    waerter:   { w: 14, h: 24, spr: ['waerter', 'waerter2'], score: 220, hp: 1 }
   };
 
   function Enemy(type, tx, ty) {
@@ -963,6 +982,9 @@
       case 'krabbe': this.upWalker(g, 1.3 * DIFF); break;
       case 'krake': this.upKrake(g, p, dx, dist); break;
       case 'fisch': this.upBiene(g, p, dx); break;
+      case 'insasse': this.upInsasse(g, p, dx, dist); break;
+      case 'schlaeger': this.upLennart(g, dx, dist, global.Levels.schlaegerLines); break;
+      case 'waerter': this.upPolizei(g, p, dx, dist, 'handschelle', global.Levels.waerterLines); break;
     }
     if (this.dead) return;   // Mika ist beim Ansturm vom Rand verschwunden
 
@@ -1025,7 +1047,7 @@
     if (Math.abs(this.vx) < 1) this.vx = this.vx >= 0 ? 1.15 : -1.15;
   };
 
-  Enemy.prototype.upLennart = function (g, dx, dist) {
+  Enemy.prototype.upLennart = function (g, dx, dist, sprueche) {
     this.vy += GRAV;
     if (this.stun > 0) { this.grounded = (moveY(this, g.world, this.vy) === 1); return; }
 
@@ -1037,7 +1059,7 @@
       this.facing = dx > 0 ? 1 : -1;
       this.charge = 42;
       global.Sound.play('shoot');
-      var lines = global.Levels.lennartLines;
+      var lines = sprueche || global.Levels.lennartLines;
       g.floats.add(this.cx(), this.y - 8,
                    lines[(Math.random() * lines.length) | 0], '#ffd257', 55);
     } else {
@@ -1156,6 +1178,54 @@
     this.grounded = (moveY(this, g.world, this.vy) === 1);
   };
 
+  /** Insasse (Level 19): schlendert, kommt naeher, holt aus — und haut zu.
+      Das Ausholen sieht man (er blinkt), also kann man vorher springen. */
+  Enemy.prototype.upInsasse = function (g, p, dx, dist) {
+    this.vy += GRAV;
+    if (this.stun > 0) { this.grounded = (moveY(this, g.world, this.vy) === 1); return; }
+    var nah = dist < 150 && Math.abs(p.feet() - (this.y + this.h)) < 24;
+    if (this.wind > 0) {
+      this.wind--;
+      this.vx = 0;
+      if (this.wind === 0) {
+        var fx = this.facing > 0 ? this.x + this.w - 2 : this.x - 16;
+        var f = g.addProjectile('faust', fx, this.y + 4, 0, 0);
+        if (f) { f.w = 18; f.h = 12; f.life = 6; }
+        global.Sound.play('stomp');
+      }
+    } else {
+      if (nah) this.facing = dx > 0 ? 1 : -1;
+      this.vx = this.facing * (nah ? 1.0 : 0.5) * DIFF;
+      if (nah && dist < 34 && this.t0 % 40 === 0) {
+        this.wind = Math.round(20 / DIFF) + 4;
+        this.flash = this.wind;
+        if (Math.random() < 0.5) {
+          var kl = global.Levels.knastLines || ['WAS GUCKST DU?'];
+          g.floats.add(this.cx(), this.y - 10, kl[(Math.random() * kl.length) | 0], '#f07a28', 55);
+        }
+      }
+    }
+    if (moveX(this, g.world, this.vx) !== 0) this.facing = -this.facing;
+    var aheadX = this.facing > 0 ? this.x + this.w + 2 : this.x - 2;
+    var below = Math.floor((this.y + this.h + 4) / T);
+    if (this.grounded && !g.world.solid(Math.floor(aheadX / T), below)) this.facing = -this.facing;
+    this.grounded = (moveY(this, g.world, this.vy) === 1);
+  };
+
+  /** Von Yusufs Faust getroffen (Level 19). */
+  Enemy.prototype.punched = function (g, p) {
+    this.hp--;
+    this.flash = 10;
+    this.wind = 0;
+    global.Sound.play('stomp');
+    g.shake(3, 6);
+    g.particles.burst(this.cx(), this.y + this.h / 2, 8, { col: '#fff0c0', spread: 2.4, up: 0.6, life: 18 });
+    if (this.hp <= 0) { this.die(g, p); return; }
+    this.stun = 50;
+    this.vx = 0;
+    g.floats.add(this.cx(), this.y - 8, 'AUA! NOCHMAL?', '#ffd257', 45);
+  };
+
   /** Still verschwinden, ohne Punkte und ohne Todesanimation. */
   Enemy.prototype.vanish = function () {
     this.dead = true;
@@ -1165,7 +1235,7 @@
 
   /** Polizist: steht am Strassenrand und wirft Strafzettel im Bogen.
       Kommt der Mustang, hechtet er zur Seite (siehe die()). */
-  Enemy.prototype.upPolizei = function (g, p, dx, dist) {
+  Enemy.prototype.upPolizei = function (g, p, dx, dist, wurf, sprueche) {
     this.vy += GRAV;
     this.facing = dx > 0 ? 1 : -1;
     this.vx = 0;
@@ -1174,10 +1244,10 @@
       // Vorhalten: dahin werfen, wo der Wagen gleich sein wird
       var lead = p.vx * 26;
       var tvx = Math.max(-3.6, Math.min(3.6, (dx + lead) / 38));
-      g.addProjectile('zettel', this.cx() - 5, this.y + 4, tvx, -4.6);
+      g.addProjectile(wurf || 'zettel', this.cx() - 5, this.y + 4, tvx, -4.6);
       global.Sound.play('shoot');
       if (Math.random() < 0.5) {
-        var pl = global.Levels.polizeiLines || ['HALT! POLIZEI!'];
+        var pl = sprueche || global.Levels.polizeiLines || ['HALT! POLIZEI!'];
         g.floats.add(this.cx(), this.y - 10, pl[(Math.random() * pl.length) | 0], '#8ab4ff', 60);
       }
     }
@@ -1253,6 +1323,7 @@
 
   var ITEM = {
     honig: { w: 12, h: 14, spr: 'honig' },
+    goldhonig: { w: 12, h: 14, spr: 'goldhonig' },
     doener: { w: 14, h: 11, spr: 'doener' },
     baklava: { w: 13, h: 9, spr: 'baklava' },
     herz: { w: 11, h: 10, spr: 'herz' },
@@ -1262,6 +1333,8 @@
     shawarma: { w: 14, h: 10, spr: 'shawarma' },
     souvlaki: { w: 16, h: 5, spr: 'souvlaki' }
   };
+
+  var FRESSBAR = { shawarma: 1, souvlaki: 1, doener: 1, kubide: 1, baklava: 1, gold: 1 };
 
   function Item(type, x, y, popped) {
     var d = ITEM[type] || ITEM.honig;
@@ -1304,6 +1377,15 @@
     // wieder da (siehe loadLevel). Sonst faehrt man dieselbe Honigspur
     // beliebig oft ab.
     if (g.itemsTaken && this.idx !== undefined) g.itemsTaken[this.idx] = true;
+    // Essen wird nicht eingesammelt. Es wird inhaliert: in Stuecken, im
+    // Bogen, in den Mund, der dabei weiterlaeuft.
+    if (FRESSBAR[this.t] && global.Fress) {
+      global.Fress.schlingen(g, {
+        von: { x: this.x + this.w / 2, y: this.y + this.h / 2 },
+        mund: function () { return { x: p.cx() + p.facing * 4, y: p.feet() - 21 }; },
+        spr: [this.spr], n: 4, tempo: 2, gross: 0.75, haende: false
+      });
+    }
     switch (this.t) {
       case 'honig':
         p.honey++; p.score += 50;
@@ -1315,6 +1397,17 @@
           global.Sound.play('oneUp');
           g.floats.add(p.cx(), p.y - 14, '100 HONIG = EXTRALEBEN!', '#ffd257', 100);
         }
+        break;
+      case 'goldhonig':
+        // Drei pro Level. Zaehlt fuer die Levelkarte, nicht fuers Leben.
+        p.score += 1000; p.laughTimer = 50;
+        global.Sound.play('oneUp');
+        g.shake(2, 6);
+        var got = g.goldCount ? g.goldCount() : 0, all = (g.lvl && g.lvl.gold) || 3;
+        g.floats.add(p.cx(), p.y - 16, 'GOLDHONIG ' + got + '/' + all + '  +1000', '#fff0a0', 100);
+        g.floats.add(p.cx(), p.y - 30, global.Levels.goldLine(got, all), '#ffd257', 110);
+        g.particles.burst(this.x + this.w / 2, this.y + this.h / 2, 22,
+          { col: '#fff0a0', spread: 3, up: 1.2, life: 34 });
         break;
       case 'shawarma':
       case 'souvlaki':
@@ -1433,6 +1526,33 @@
       this.w = 22; this.h = 16; this.spr = null; this.grav = 0;
       this.life = 6; this.ghost = true;
     }
+    // Level 15-19
+    else if (type === 'speer') { this.w = 26; this.h = 5; this.spr = 'speer'; this.grav = 0; }
+    else if (type === 'pferd') {
+      // Das Trojanische Pferd: rollt, haelt in der Mitte, spuckt Speere
+      this.w = 44; this.h = 40; this.spr = null; this.grav = 0; this.ghost = true;
+      this.stopT = 0; this.wurf = false;
+    }
+    else if (type === 'kruecke') { this.w = 30; this.h = 6; this.spr = 'kruecke'; this.grav = 0; this.spin = true; }
+    else if (type === 'wort') {
+      // Rage-Bait: Woerter, die vom Himmel fallen
+      this.text = 'L'; this.w = 8; this.h = 9; this.spr = null; this.grav = 0.04;
+    }
+    else if (type === 'buch') {
+      this.w = 10; this.h = 8; this.spr = Math.random() < 0.5 ? 'buch' : 'buch2';
+      this.grav = 0.22; this.spin = true;
+    }
+    else if (type === 'karte') { this.w = 8; this.h = 11; this.spr = 'karte'; this.grav = 0; this.spin = true; }
+    else if (type === 'blitz') {
+      // Gedankenblitz: erst eine Warnung am Boden, dann schlaegt er ein
+      this.w = 18; this.h = 40; this.spr = null; this.grav = 0; this.ghost = true;
+      this.life = 64; this.aktiv = 16;
+    }
+    else if (type === 'handschelle') { this.w = 11; this.h = 5; this.spr = 'handschelle'; this.grav = 0.2; this.spin = true; }
+    else if (type === 'faustY') {
+      // Yusufs Faust im Knast: steht ein paar Ticks vor ihm
+      this.w = 18; this.h = 14; this.spr = null; this.grav = 0; this.life = 7; this.ghost = true;
+    }
     else if (type === 'welle') {
       // Bodenwelle nach einem Einschlag: flach, schnell, drueberspringen.
       this.w = 14; this.h = 10; this.spr = null; this.grav = 0;
@@ -1466,7 +1586,7 @@
       schwebenden Arena-Plattformen — sonst stellt man sich einfach
       darunter und der Kampf laeuft von allein. */
   Projectile.prototype.solidAt = function (g, tx, ty) {
-    if (this.bossShot && g.boss && ty < g.boss.floorRow) return false;
+    if (this.bossShot && g.boss && ty < (g.boss.shotFloor || g.boss.floorRow)) return false;
     return g.world.solid(tx, ty);
   };
 
@@ -1565,6 +1685,109 @@
       var vw0 = g.viewW ? g.viewW() : W_VIEW;
       if (this.x < g.cam.x - 120 || this.x > g.cam.x + vw0 + 120) this.dead = true;
       return;
+    }
+
+    // Yusufs Faust (Level 19): trifft Gegner, Kisten und Bosse — einmal
+    if (this.t === 'faustY') {
+      if (--this.life <= 0) { this.dead = true; return; }
+      var pY = g.player;
+      var fx0 = Math.floor(this.x / T), fx1 = Math.floor((this.x + this.w - 1) / T);
+      var fy0 = Math.floor(this.y / T), fy1 = Math.floor((this.y + this.h - 1) / T);
+      for (var fty = fy0; fty <= fy1; fty++) {
+        for (var ftx = fx0; ftx <= fx1; ftx++) {
+          var fb = g.world.blockAt(ftx, fty);
+          if (fb && !fb.dead && fb.type === 'kiste') pY.breakCrate(g, fb);
+        }
+      }
+      if (this.done) return;
+      for (var fe = 0; fe < g.enemies.length; fe++) {
+        var en = g.enemies[fe];
+        if (en.dead || !overlap(this, en)) continue;
+        en.punched(g, pY);
+        this.done = true;
+        return;
+      }
+      if (g.boss && !g.boss.dead && overlap(this, g.boss)) {
+        this.done = true;
+        g.boss.hit(g, 1, null);
+      }
+      return;
+    }
+
+    // Trojanisches Pferd
+    if (this.t === 'pferd') {
+      var mitte = this.mitte || 0;
+      if (!this.wurf && ((this.vx > 0 && this.x + this.w / 2 >= mitte) ||
+                         (this.vx < 0 && this.x + this.w / 2 <= mitte))) {
+        this.wurf = true; this.stopT = 76; this.vxAlt = this.vx;
+      }
+      if (this.stopT > 0) {
+        this.x -= this.vx;                  // steht still
+        this.stopT--;
+        if (this.stopT === 44) {
+          // Die Luke geht auf: ein Faecher aus Speeren
+          for (var sk = 0; sk < 5; sk++) {
+            var ang = Math.PI * (0.18 + sk * 0.16);
+            var spk = g.addProjectile('speer', this.x + this.w / 2 - 13, this.y + 4,
+                                      Math.cos(ang) * 4.2, -Math.sin(ang) * 6.2);
+            if (spk) { spk.grav = 0.2; spk.lenkt = true; }
+          }
+          global.Sound.play('bossRoar');
+          g.floats.add(this.x + this.w / 2, this.y - 10, 'TROJANER!', '#e8b030', 60);
+        }
+        if (this.stopT === 0) this.vx = this.vxAlt;
+      } else if (this.t0 % 5 === 0) {
+        g.particles.spawn({ x: this.x + (this.vx > 0 ? 4 : this.w - 4), y: this.y + this.h,
+                            vx: -this.vx * 0.3, vy: -0.5, life: 16, col: '#c8a878', size: 2, grav: 0.02 });
+      }
+      if (this.arenaW && (this.x > this.arenaX + this.arenaW + 60 || this.x + this.w < this.arenaX - 60)) {
+        this.dead = true; return;
+      }
+      var pp2 = g.player;
+      if (!pp2.dead && overlap(this, pp2)) {
+        if (pp2.vy > 0 && pp2.feet() - this.y < 14) {
+          // Draufspringen: Holz federt
+          pp2.vy = -9.8; pp2.jumpsLeft = 1; pp2.y = this.y - pp2.h;
+          global.Sound.play('doubleJump');
+          g.floats.add(pp2.cx(), pp2.y - 6, 'HOLZ!', '#c8a878', 40);
+        } else if (pp2.power <= 0 && pp2.pound !== -1) {
+          pp2.hurt(g, 1, this.x + this.w / 2);
+        }
+      }
+      return;
+    }
+
+    // Gedankenblitz: erst Warnung, dann Einschlag
+    if (this.t === 'blitz') {
+      this.x -= this.vx; this.y -= this.vy;
+      if (--this.life <= 0) { this.dead = true; return; }
+      if (this.life === this.aktiv) {
+        global.Sound.play('bossHit');
+        g.shake(4, 10);
+        g.particles.burst(this.x + this.w / 2, this.y + this.h, 14,
+          { col: '#8ae0ff', spread: 3, up: 1.4, life: 22 });
+      }
+      var pb = g.player;
+      if (this.life <= this.aktiv && !pb.dead && overlap(this, pb) &&
+          pb.power <= 0 && pb.pound !== -1) {
+        pb.hurt(g, 1, this.x + this.w / 2);
+      }
+      return;
+    }
+
+    // Kruecke: fliegt geradeaus. An der Arenawand steckt sie fest
+    // (der Boss macht daraus eine Bruecke) — oder kommt als Bumerang zurueck.
+    if (this.t === 'kruecke' && g.arena) {
+      var links = this.x < g.arena.x + 20, rechts = this.x + this.w > g.arena.x + g.arena.w - 20;
+      if (this.bumerang && this.t0 > 8 && (links || rechts) && !this.zurueck) {
+        this.zurueck = true; this.vx = -this.vx;
+      } else if (this.bumerang && this.zurueck && this.t0 > 200) {
+        this.dead = true; return;
+      } else if (!this.bumerang && (links || rechts)) {
+        if (this.onWall) this.onWall(g, this);
+        this.dead = true;
+        return;
+      }
     }
 
     // Boxhieb: steht nur ein paar Ticks
@@ -1688,10 +1911,12 @@
       }
       var ahead = Math.floor((this.x + (this.vx > 0 ? this.w : 0)) / T);
       if (this.solidAt(g, ahead, cyT)) this.pop(g, '#ffb43c');
-    } else if (!this.bouncy && this.solidAt(g, cxT, cyT)) {
-      this.pop(g);
+    } else if (!this.bouncy && this.t !== 'kruecke' && this.solidAt(g, cxT, cyT)) {
+      this.pop(g, this.t === 'wort' ? '#ff6a6a' : undefined);
     }
     if (this.spin) this.rot = (this.rot || 0) + (this.vx >= 0 ? 0.35 : -0.35);
+    // Speere aus dem Pferd zeigen immer in Flugrichtung
+    if (this.lenkt) this.rot = Math.atan2(this.vy, this.vx);
 
     if (this.t0 > 420 || this.y > g.world.h * T + 60) this.dead = true;
     if (this.dead) return;
@@ -1797,6 +2022,21 @@
     if (dmg && dmg < 1) g.floats.add(b.cx(), b.y - 20, 'NUR HALB!', '#c8c0d8', 50);
     g.shake(6, 14);
     g.particles.burst(b.cx(), b.y + b.h / 2, 16, { col: col, spread: 3, up: 1, life: 30 });
+  }
+
+  /** Bosse mit mehreren Leben (Hamza zwei, Georgios drei): ist die
+      Energie leer, faengt das naechste Leben mit vollem Balken an — mit
+      Verwandlung. still = nach einem Tod direkt dorthin, ohne Show. */
+  function naechstesLeben(b, g, still) {
+    b.leben--;
+    b.hp = b.maxHp;
+    g.bossLeben = b.lebenMax - b.leben;
+    if (still) {
+      b.onTransform(g);
+      b.phase = g.bossLeben + 1;
+      return;
+    }
+    startTransform(b, g);
   }
 
   /** Verwandlung starten. Der Dialog kommt erst, wenn sie vorbei ist. */
@@ -3431,15 +3671,46 @@
     this.landed = true;
     this.shot = false;
     this.ballAtFeet = true;       // den Ball hat er immer dabei
-    this.rageName = 'YALLA-MODUS';
+    this.rageName = '2. HALBZEIT';
     this.rageCol = '#4ad86a';
     this.barName = 'HAMZA';
     this.barCol = '#d8282e';
+    this.hp = 10; this.maxHp = 10;
+    this.lebenMax = 2; this.leben = 2; // erste und zweite Halbzeit
+    this.bodenRow = ty;
+    this.shotFloor = ty;           // seine Wuerfe fliegen durch die Empore
+    this.oben = false;             // steht er gerade auf der Empore?
+    this.sprungT = 0;
   }
 
   BossHamza.prototype.cx = function () { return this.x + this.w / 2; };
   BossHamza.prototype.go = function (s, t) { this.state = s; this.timer = t; };
   BossHamza.prototype.onTransform = function () { this.rage = true; };
+  BossHamza.prototype.naechstesLeben = function (g, still) {
+    naechstesLeben(this, g, still);
+    if (still && g.lvl.empore) this.aufEmpore(g, true);
+  };
+
+  /** Rauf auf die Empore (sofort oder mit Sprung) — und wieder runter. */
+  BossHamza.prototype.aufEmpore = function (g, sofort) {
+    var e = g.lvl.empore;
+    if (sofort) {
+      this.oben = true;
+      this.floorRow = e.y; this.bw = null;
+      this.x = (e.x0 + e.x1) / 2 * T; this.y = e.y * T - this.h; this.vy = 0;
+      return;
+    }
+    this.go('hoch', 48);
+    this.sprung = { x0: this.x, y0: this.y, x1: (e.x0 + 2 + Math.random() * (e.x1 - e.x0 - 4)) * T, y1: e.y * T - this.h };
+  };
+  BossHamza.prototype.runter = function (g) {
+    this.oben = false;
+    this.floorRow = this.bodenRow; this.bw = null;
+    this.vy = -4;
+    this.bodenT = 360;
+    this.go('boden', 20);
+    g.floats.add(this.cx(), this.y - 14, 'YALLA, RUNTER!', '#4ad86a', 50);
+  };
 
   BossHamza.prototype.kickBall = function (g, vx, vy) {
     g.addProjectile('ball', this.cx() + this.facing * 10 - 5, this.y + this.h - 12, vx, vy);
@@ -3462,12 +3733,40 @@
 
     switch (this.state) {
       case 'transform':
-        if (this.timer === 88) g.floats.add(this.cx(), this.y - 14, 'YALLA!', '#ffd257', 80);
-        if (tickTransform(this, g, 'YALLA-MODUS!', this.rageCol)) {
+        if (this.timer === 88) g.floats.add(this.cx(), this.y - 14, 'HALBZEIT! YALLA!', '#ffd257', 80);
+        if (tickTransform(this, g, '2. HALBZEIT!', this.rageCol)) {
           this.go('idle', 12);
           this.phase = 2;
           g.onHamzaPhase(2);
+          if (g.lvl.empore) this.aufEmpore(g, false);
         }
+        break;
+
+      // Mit einem Satz auf die Empore (die Plattformen stoeren dabei nicht)
+      case 'hoch':
+        var sp = this.sprung, k = 1 - this.timer / 48;
+        this.x = sp.x0 + (sp.x1 - sp.x0) * k;
+        this.y = sp.y0 + (sp.y1 - sp.y0) * k - Math.sin(k * Math.PI) * 60;
+        this.vx = 0; this.vy = 0;
+        if (this.timer <= 0) {
+          this.oben = true;
+          this.floorRow = g.lvl.empore.y; this.bw = null;
+          this.x = sp.x1; this.y = sp.y1;
+          this.go('idle', 20);
+          g.shake(4, 10);
+          g.floats.add(this.cx(), this.y - 14, 'ICH SPIEL OBEN. DA IST DIE LUFT BESSER.', '#4ad86a', 80);
+        }
+        this.anim++;
+        this.open = true;
+        bossContact(this, g);
+        return;
+
+      // Unten auf dem Boden, bis er wieder hochspringt
+      case 'boden':
+        this.vx *= 0.8;
+        this.facing = dx > 0 ? 1 : -1;
+        if ((this.bodenT || 0) <= 0 && g.lvl.empore) { this.aufEmpore(g, false); break; }
+        if (this.timer <= 0) this.pick(g, dx, true);
         break;
 
       case 'idle':
@@ -3479,6 +3778,13 @@
 
       case 'walk':
         this.vx = this.facing * 1.8 * spd;
+        // Oben nicht von der Empore laufen
+        if (this.oben && g.lvl.empore) {
+          var em = g.lvl.empore;
+          if ((this.facing < 0 && this.x < (em.x0 + 1) * T) || (this.facing > 0 && this.x + this.w > (em.x1) * T)) {
+            this.facing = -this.facing;
+          }
+        }
         if (this.timer <= 0) this.go('idle', this.rage ? 12 : 22);
         break;
 
@@ -3518,10 +3824,12 @@
         break;
 
       // Schuss. Flach und hart, der Ball springt noch ein paar Mal.
+      // Von oben schiesst er schraeg nach unten.
       case 'kick':
         this.vx *= 0.7;
         if (this.timer === 14) {
-          this.kickBall(g, this.facing * 6.2 * spd, -2.2);
+          if (this.oben) this.kickBall(g, Math.max(-5, Math.min(5, dx / 30)), 1.5);
+          else this.kickBall(g, this.facing * 6.2 * spd, -2.2);
           var kl = ['SCHUSS!', 'LINKER FUSS!', 'WIE IN BEIRUT!', 'DIREKT INS ECK!'];
           g.floats.add(this.cx(), this.y - 14, kl[(Math.random() * kl.length) | 0], '#ffffff', 50);
         }
@@ -3581,61 +3889,67 @@
     }
 
     bossMove(this, g);
+    // Auf der Empore bleibt er auf der Empore
+    if (this.oben && g.lvl.empore) {
+      var ep = g.lvl.empore;
+      this.x = Math.max(ep.x0 * T, Math.min((ep.x1 + 1) * T - this.w, this.x));
+    }
 
     this.animT++;
     if (this.animT > (this.state === 'dribbel' ? 3 : 7)) { this.animT = 0; this.anim++; }
 
+    // Unten auf dem Boden (zweite Halbzeit) geht es nach jedem Angriff
+    // zurueck in "boden", damit er wieder hochspringt
+    if (this.rage && !this.oben && this.bodenT > 0) this.bodenT--;
+    if (this.state === 'idle' && this.nach === 'boden' && this.rage && !this.oben) {
+      this.state = 'boden'; this.timer = 40;
+    }
     this.open = !(this.state === 'dribbel');
     bossContact(this, g);
   };
 
-  BossHamza.prototype.pick = function (g, dx) {
+  BossHamza.prototype.pick = function (g, dx, unten) {
     var r = Math.random();
     this.facing = dx > 0 ? 1 : -1;
     this.landed = true;
+    var zurueck = unten ? 'boden' : 'idle';
     if (!this.rage) {
       if (r < 0.26) this.go('humus', 38);
       else if (r < 0.48) this.go('hhc', 40);
       else if (r < 0.72) this.go('kick', 30);
       else if (r < 0.86) this.go('dribbelprep', 22);
       else this.go('walk', 40);
-    } else if (this.phase === 2) {
-      if (r < 0.16) this.go('humus', 32);
-      else if (r < 0.34) this.go('hhc', 36);
-      else if (r < 0.52) this.go('kick', 28);
-      else if (r < 0.68) this.go('fallrueck', 50);
-      else if (r < 0.80) this.go('humusregen', 74);
-      else if (r < 0.92) this.go('dribbelprep', 16);
-      else this.go('walk', 30);
+    } else if (this.oben) {
+      // Zweite Halbzeit, oben: werfen, schiessen, regnen lassen — und
+      // ab und zu runterspringen, damit man ihn auch unten erwischt.
+      if (r < 0.22) this.go('humus', 32);
+      else if (r < 0.42) this.go('kick', 28);
+      else if (r < 0.58) this.go('hhc', 36);
+      else if (r < 0.70) this.go('humusregen', 74);
+      else if (r < 0.82) this.go('walk', 50);
+      else { this.runter(g); return; }
     } else {
-      if (r < 0.22) this.go('kick', 26);
-      else if (r < 0.42) this.go('fallrueck', 50);
-      else if (r < 0.60) this.go('hhc', 32);
-      else if (r < 0.76) this.go('humusregen', 74);
-      else if (r < 0.90) this.go('dribbelprep', 14);
+      if (r < 0.24) this.go('kick', 26);
+      else if (r < 0.46) this.go('fallrueck', 50);
+      else if (r < 0.64) this.go('dribbelprep', 14);
+      else if (r < 0.82) this.go('hhc', 32);
       else this.go('humus', 28);
     }
+    this.nach = zurueck;
   };
 
   BossHamza.prototype.hit = function (g, dmg, p) {
-    if (this.invuln > 0 || this.dead || this.state === 'transform') return;
+    if (this.invuln > 0 || this.dead || this.state === 'transform' || this.state === 'hoch') return;
+    var warUnten = this.state === 'boden' || (this.rage && !this.oben);
     this.hp -= dmg;
     bossBounce(this, g, p, '#d8282e', dmg);
-    if (this.hp <= 0) {
-      this.dead = true; this.deadTimer = 0; this.vy = -7;
-      g.shake(10, 42);
-      global.Sound.play('bossRoar');
-      g.onHamzaDead();
-      return;
-    }
-    if (!this.rage && this.hp <= Math.floor(this.maxHp / 2)) {
-      startTransform(this, g);
-      return;
-    }
-    if (this.rage && this.phase < 3 && this.hp <= Math.ceil(this.maxHp / 4)) {
-      this.phase = 3;
-      g.onHamzaPhase(3);
-    }
+    if (warUnten && this.rage) this.state = 'boden';
+    if (this.hp > 0) return;
+    if (this.leben > 1) { this.naechstesLeben(g, false); return; }
+    this.dead = true; this.deadTimer = 0; this.vy = -7;
+    g.shake(10, 42);
+    global.Sound.play('bossRoar');
+    g.onHamzaDead();
   };
 
   /* ================= GEORGIOS — Level 15, in der Taverne =================
@@ -3651,10 +3965,12 @@
     this.floorRow = ty;
     this.vx = 0; this.vy = 0;
     this.facing = -1;
-    this.hp = 16; this.maxHp = 16;
+    this.hp = 8; this.maxHp = 8;
+    this.lebenMax = 3; this.leben = 3; // Hemd, Spartaner, Omas Liebling
     this.phase = 1;
     this.rage = false;
-    this.boxer = false;           // Hemd aus, Handschuhe an
+    this.sparta = false;          // zweites Leben: Helm, Schild, Speer
+    this.oma = false;             // drittes Leben: Oma hilft aus der Kueche
     this.t0 = 0; this.anim = 0; this.animT = 0;
     this.state = 'idle'; this.timer = 50;
     this.invuln = 0; this.flash = 0;
@@ -3663,18 +3979,27 @@
     this.open = true;
     this.stompY = 32;
     this.landed = true;
-    this.punchT = 0;              // Arm gerade vorn (fuers Zeichnen)
-    this.rageName = 'BOXER';
-    this.rageCol = '#ff5a3a';
+    this.punchT = 0;              // Bein/Schild gerade vorn (fuers Zeichnen)
+    this.rageName = 'SPARTANER';
+    this.rageCol = '#e8b030';
+    this.spartaSaid = false;      // "DAS IST SPARTA!" kommt nur einmal mit Antwort
     this.barName = 'GEORGIOS';
     this.barCol = '#2a5ab8';
   }
 
   BossGeorgios.prototype.cx = function () { return this.x + this.w / 2; };
   BossGeorgios.prototype.go = function (s, t) { this.state = s; this.timer = t; };
-  BossGeorgios.prototype.onTransform = function () { this.rage = true; this.boxer = true; };
+  BossGeorgios.prototype.onTransform = function () {
+    this.rage = true; this.sparta = true;
+    if (this.leben <= 1) {
+      this.oma = true;
+      this.rageName = 'OMAS LIEBLING';
+      this.rageCol = '#f4f4ee';
+    }
+  };
+  BossGeorgios.prototype.naechstesLeben = function (g, still) { naechstesLeben(this, g, still); };
 
-  /** Ein Boxhieb: kurze Trefferflaeche direkt vor ihm. */
+  /** Ein Tritt oder Schildstoss: kurze Trefferflaeche direkt vor ihm. */
   BossGeorgios.prototype.punch = function (g, w, h, yOff, life) {
     var fx = this.facing > 0 ? this.x + this.w - 4 : this.x - w + 4;
     var f = g.addProjectile('faust', fx, this.y + yOff, 0, 0);
@@ -3699,12 +4024,20 @@
 
     switch (this.state) {
       case 'transform':
-        if (this.timer === 88) g.floats.add(this.cx(), this.y - 14, 'HEMD AUS.', '#ffd257', 80);
-        if (tickTransform(this, g, 'BOXER!', this.rageCol)) {
+        if (this.timer === 88) g.floats.add(this.cx(), this.y - 14, this.leben <= 1 ? 'OMA? BIST DU DAS?' : 'HELM AUF.', '#ffd257', 80);
+        if (tickTransform(this, g, this.leben <= 1 ? 'OMA HILFT!' : 'SPARTA!', this.rageCol)) {
           this.go('idle', 12);
-          this.phase = 2;
-          g.onGeorgiosPhase(2);
+          this.phase = this.lebenMax - this.leben + 1;
+          g.onGeorgiosPhase(this.phase);
         }
+        break;
+
+      // Drittes Leben: Oma wirft Tzatziki aus der Kueche
+      case 'tzatziki':
+        this.vx *= 0.7;
+        if (this.timer === 70) g.floats.add(this.cx(), this.y - 16, 'OMA! TZATZIKI!', '#f4f4ee', 70);
+        if (this.timer < 64 && this.timer % 9 === 0) rainFromSky(g, 'humus', 1.6);
+        if (this.timer <= 0) this.go('idle', 18);
         break;
 
       case 'idle':
@@ -3783,56 +4116,98 @@
         }
         if (this.grounded && !this.landed && this.vy >= 0 && this.timer < 42) {
           this.landed = true;
-          groundWaves(this, g, this.boxer ? '#ff5a3a' : '#2a5ab8', 3.8, this.rage ? 2 : 1);
+          groundWaves(this, g, this.sparta ? '#e8b030' : '#2a5ab8', 3.8, this.rage ? 2 : 1);
           this.go('idle', this.phase >= 3 ? 12 : 20);
         }
         if (this.timer <= 0 && (this.grounded || this.timer < -90)) this.go('idle', 20);
         break;
 
-      /* ---------- ab der Haelfte: Boxen ---------- */
+      /* ---------- ab der Haelfte: Sparta ---------- */
 
-      // Schnell ran an Yusuf ...
-      case 'anlauf':
-        this.facing = dx > 0 ? 1 : -1;
-        this.vx = this.facing * 3.8 * spd;
-        if (Math.abs(dx) < 44 || this.timer <= 0) this.go('jab', 30);
-        break;
-
-      // ... und dann eine Serie schneller Geraden
-      case 'jab':
-        this.vx *= 0.6;
-        if (this.timer > 3 && this.timer % 7 === 0) {
-          this.punch(g, 22, 16, 16, 6);
-          if (this.timer === 28) g.floats.add(this.cx(), this.y - 14, 'ZACK ZACK ZACK!', '#ff5a3a', 45);
-        }
-        if (this.timer <= 0) this.go('idle', this.rage ? 18 : 26);
-        break;
-
-      case 'upprep':
+      // Speer anlegen ...
+      case 'speerprep':
         this.vx *= 0.6;
         this.facing = dx > 0 ? 1 : -1;
         if (this.timer <= 0) {
-          this.go('uppercut', 26);
-          this.vy = -6;
-          this.punch(g, 26, 46, -6, 10);
-          global.Sound.play('bossRoar');
-          g.floats.add(this.cx(), this.y - 16, 'UPPERCUT!', '#ff5a3a', 55);
+          this.go('speerwurf', 14);
+          var hoch = [this.y + 14];
+          if (this.phase >= 3) hoch.push(this.y + this.h - 12);
+          for (i = 0; i < hoch.length; i++) {
+            g.addProjectile('speer', this.cx() - 13, hoch[i], this.facing * 7.2 * spd, 0);
+          }
+          global.Sound.play('shoot');
+          g.floats.add(this.cx(), this.y - 14, 'SPEER!', '#e8b030', 45);
         }
         break;
 
-      case 'uppercut':
-        this.vx = this.facing * 1.6;
-        if (this.grounded && this.timer < 18) this.go('idle', this.phase >= 3 ? 14 : 22);
+      // ... und hinterher
+      case 'speerwurf':
+        this.vx *= 0.7;
+        if (this.timer <= 0) this.go('idle', this.phase >= 3 ? 12 : 20);
+        break;
+
+      // Phalanx: Speere fallen von oben ueber die ganze Taverne
+      case 'phalanx':
+        this.vx *= 0.7;
+        if (this.timer === 58) g.floats.add(this.cx(), this.y - 14, 'PHALANX!', '#e8b030', 60);
+        if (this.timer < 50 && this.timer % (this.phase >= 3 ? 6 : 8) === 0) {
+          var vw = g.viewW ? g.viewW() : 512;
+          var rx = g.cam.x + 24 + Math.random() * (vw - 48);
+          var sp = g.addProjectile('speer', rx, g.cameraTopY(), 0, 3.4);
+          if (sp) { sp.w = 5; sp.h = 26; sp.rot = Math.PI / 2; sp.fallend = true; }
+        }
+        if (this.timer <= 0) this.go('idle', 20);
+        break;
+
+      // Das Trojanische Pferd. Ein Geschenk. Sagt er.
+      case 'pferd':
+        this.vx *= 0.7;
+        if (this.timer === 40) {
+          var links = (dx < 0);
+          var ax = g.arena ? g.arena.x : g.cam.x;
+          var aw = g.arena ? g.arena.w : 512;
+          var startX = links ? ax + aw - 20 : ax - 24;
+          var pf = g.addProjectile('pferd', startX, this.y + this.h - 40, (links ? -1 : 1) * 2.3 * spd, 0);
+          if (pf) { pf.mitte = ax + aw / 2; pf.arenaX = ax; pf.arenaW = aw; }
+          g.floats.add(this.cx(), this.y - 14, 'EIN GESCHENK! AUS TROJA!', '#e8b030', 80);
+          global.Sound.play('bossRoar');
+        }
+        if (this.timer <= 0) this.go('idle', 30);
+        break;
+
+      // Schildstoss nach vorn
+      case 'trittprep':
+        this.vx *= 0.6;
+        this.facing = dx > 0 ? 1 : -1;
+        if (this.timer <= 0) {
+          this.go('tritt', 22);
+          this.vx = this.facing * 5.5 * spd;
+          this.punch(g, 30, 44, 8, 12);
+          global.Sound.play('bossRoar');
+          g.shake(5, 12);
+          if (!this.spartaSaid) {
+            this.spartaSaid = true;
+            g.floats.add(this.cx(), this.y - 18, 'DAS IST SPARTA!', '#e8b030', 80);
+            g.floats.add(g.player.cx(), g.player.y - 20, 'DAS IST EINE TAVERNE.', '#ffd257', 90);
+          } else {
+            g.floats.add(this.cx(), this.y - 18, 'SPARTA!', '#e8b030', 50);
+          }
+        }
+        break;
+
+      case 'tritt':
+        this.vx *= 0.86;
+        if (this.timer <= 0) this.go('idle', this.phase >= 3 ? 14 : 22);
         break;
     }
 
     bossMove(this, g);
 
     this.animT++;
-    var fast = (this.state === 'dash' || this.state === 'sirtaki' || this.state === 'anlauf');
+    var fast = (this.state === 'dash' || this.state === 'sirtaki' || this.state === 'tritt');
     if (this.animT > (fast ? 2 : 6)) { this.animT = 0; this.anim++; }
 
-    this.open = !(this.state === 'dash' || this.state === 'sirtaki' || this.state === 'uppercut');
+    this.open = !(this.state === 'dash' || this.state === 'sirtaki' || this.state === 'tritt');
     bossContact(this, g);
   };
 
@@ -3840,48 +4215,50 @@
     var r = Math.random();
     this.facing = dx > 0 ? 1 : -1;
     this.landed = true;
-    if (!this.boxer) {
+    if (!this.sparta) {
       if (r < 0.24) this.go('teller', 30);
       else if (r < 0.42) this.go('sirtaki', 60);
       else if (r < 0.60) this.go('dashprep', 18);
       else if (r < 0.76) this.go('oliven', 30);
       else if (r < 0.88) this.go('sprung', 50);
       else this.go('walk', 36);
-    } else if (this.phase === 2) {
-      if (r < 0.34) this.go('anlauf', 40);
-      else if (r < 0.50) this.go('upprep', 20);
-      else if (r < 0.66) this.go('dashprep', 14);
-      else if (r < 0.78) this.go('teller', 26);
-      else if (r < 0.90) this.go('sprung', 50);
-      else this.go('walk', 28);
-    } else {
-      if (r < 0.36) this.go('anlauf', 36);
-      else if (r < 0.56) this.go('upprep', 16);
-      else if (r < 0.74) this.go('dashprep', 12);
-      else if (r < 0.88) this.go('sprung', 48);
-      else this.go('teller', 24);
+      return;
     }
+    // Das Pferd kommt nie zweimal hintereinander — und nie, solange noch eins rollt
+    var pferdDa = false;
+    for (var i = 0; i < g.projectiles.length; i++) {
+      if (g.projectiles[i] && g.projectiles[i].t === 'pferd' && !g.projectiles[i].dead) pferdDa = true;
+    }
+    var darfPferd = !pferdDa && this.last !== 'pferd';
+    if (this.oma && r < 0.16) { this.go('tzatziki', 74); this.last = 'tzatziki'; return; }
+    if (this.phase === 2) {
+      if (r < 0.28) this.go('speerprep', 22);
+      else if (r < 0.44) this.go('trittprep', 24);
+      else if (r < 0.58 && darfPferd) this.go('pferd', 50);
+      else if (r < 0.72) this.go('phalanx', 60);
+      else if (r < 0.86) this.go('dashprep', 16);
+      else this.go('sprung', 50);
+    } else {
+      if (r < 0.30) this.go('speerprep', 16);
+      else if (r < 0.46) this.go('trittprep', 18);
+      else if (r < 0.62 && darfPferd) this.go('pferd', 46);
+      else if (r < 0.78) this.go('phalanx', 56);
+      else if (r < 0.90) this.go('dashprep', 12);
+      else this.go('sprung', 48);
+    }
+    this.last = this.state;
   };
 
   BossGeorgios.prototype.hit = function (g, dmg, p) {
     if (this.invuln > 0 || this.dead || this.state === 'transform') return;
     this.hp -= dmg;
     bossBounce(this, g, p, '#2a5ab8', dmg);
-    if (this.hp <= 0) {
-      this.dead = true; this.deadTimer = 0; this.vy = -7;
-      g.shake(10, 42);
-      global.Sound.play('bossRoar');
-      g.onGeorgiosDead();
-      return;
-    }
-    if (!this.rage && this.hp <= Math.floor(this.maxHp / 2)) {
-      startTransform(this, g);
-      return;
-    }
-    if (this.rage && this.phase < 3 && this.hp <= Math.ceil(this.maxHp / 4)) {
-      this.phase = 3;
-      g.onGeorgiosPhase(3);
-    }
+    if (this.hp > 0) return;
+    if (this.leben > 1) { this.naechstesLeben(g, false); return; }
+    this.dead = true; this.deadTimer = 0; this.vy = -7;
+    g.shake(10, 42);
+    global.Sound.play('bossRoar');
+    g.onGeorgiosDead();
   };
 
   /* ================= Export ================= */
@@ -3901,6 +4278,13 @@
     BossGeorgios: BossGeorgios,
     MiniBoss: MiniBoss,
     MINIBOSS: MINIBOSS,
+    // Bausteine fuer die Bosse in bosse.js
+    bossKit: {
+      move: bossMove, contact: bossContact, death: bossDeath, bounce: bossBounce,
+      startTransform: startTransform, tickTransform: tickTransform,
+      groundWaves: groundWaves, rainFromSky: rainFromSky, rageSparks: rageSparks,
+      clearShots: clearShots, POUND_BOSS_DMG: POUND_BOSS_DMG
+    },
     Particles: Particles,
     Floats: Floats,
     ENEMY: ENEMY,

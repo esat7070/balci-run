@@ -7,9 +7,10 @@
    Mund (Maus, Finger) oder druckt A. Ziel: 10.000 Kalorien.
 
    Weiter unten stehen die anderen Szenen ohne Huepfen: die Kasse am
-   Ende von Level 9, das Schlafen (nach Level 11 und nach Level 15),
-   das Essen am Tisch (nach Hamza und nach Georgios) und die Shisha
-   am Ende von Level 14.
+   Ende von Level 9, das Schlafen (nach Level 11, 15 und 19 — jedes Mal
+   ein ganzer Tag), das Essen am Tisch (nach Hamza und nach Georgios),
+   die Shisha am Ende von Level 14 und der Fressrausch, der ueberall
+   laeuft, wo Yusuf isst.
    ===================================================================== */
 (function (global) {
   'use strict';
@@ -238,7 +239,8 @@
   function eatSlot(g, e, L, i) {
     var s = e.slots[i];
     if (!s || !s.food) return;
-    var def = s.food, m = mouth(e, L);
+    var def = s.food, m = mouth(e, L), pos = slotPos(L, i);
+    var von = { x: pos.x + s.dx, y: pos.y + s.dy };
     s.food = null; s.dx = 0; s.dy = 0; s.wait = REFILL;
 
     // Gesundes Essen: kostet ein Herz und bringt keine einzige Kalorie.
@@ -268,7 +270,14 @@
     g.player.score += Math.round(def.kcal / 10);
     g.player.eatCount = (g.player.eatCount || 0) + 1;
 
-    S.play('bite');
+    // Nicht abbeissen. Reinschaufeln.
+    schlingen(g, { von: von, mund: m, spr: [def.spr], n: def.kcal >= 1000 ? 6 : 4, tempo: 2, gross: 1.6 });
+    e.combo = (e.t - (e.letztesT || -99) < 50) ? (e.combo || 1) + 1 : 1;
+    e.letztesT = e.t;
+    if (e.combo >= 3) {
+      g.floats.add(m.x - 40, m.y - 10, 'FRESSRAUSCH x' + e.combo, '#ff9ec4', 50);
+      g.shake(2, 6);
+    }
     if (def.kcal >= 1000) g.shake(4, 10);
     g.floats.add(m.x, m.y - 26, '+' + def.kcal + ' KCAL', '#ffd257', 60);
     if (e.eaten % 4 === 0) {
@@ -322,6 +331,7 @@
     if (e.phase === 'ring' || e.phase === 'call') { pose = 'sleep'; face = 'sleep'; }
     else if (e.phase === 'stand') { pose = e.walk < 70 ? 'run' : 'idle'; face = 'normal'; }
     else if (e.phase === 'full') { pose = 'cheer'; face = 'laugh'; }
+    else if (fressAktiv(g)) { face = fressGesicht(g); }
     else if (e.chew > 0) { face = 'eat'; }
     else if (e.drag !== null && e.drag !== undefined) { face = 'laugh'; }
 
@@ -386,6 +396,7 @@
       }
     }
 
+    fressDraw(ctx, g, 0, 0);
     drawParticles(ctx, g);
     drawFloats(ctx, g);
     if (e.phase === 'eat' || e.phase === 'full') drawCounter(ctx, g, e, L);
@@ -600,22 +611,40 @@
   }
 
   /* =====================================================================
-     SCHLAFEN — der Uebergang von Level 11 nach Level 12.
-     Yusuf liegt im Bett, die Uhr laeuft im Zeitraffer durch die Nacht,
-     draussen wird es hell. Um 7:30 klingelt das Handy: Esat.
+     SCHLAFEN — Yusuf verschlaeft jedes Mal einen kompletten Tag.
+     Die Uhr rast im Zeitraffer durch den Abend, die Nacht, den ganzen
+     naechsten Tag und noch eine Nacht. Draussen geht die Sonne auf und
+     unter, Wolken jagen vorbei, das Handy sammelt verpasste Anrufe, und
+     die Welt passiert ohne ihn. Am Morgen danach klingelt es richtig.
+       morgen:   nach Broke,    Sonntag 16:40  -> Dienstag 7:30
+       fussball: nach Georgios, Mittwoch 1:20  -> Donnerstag 9:40
+       airsoft:  nach dem Knast, Freitag 2:10  -> Samstag 10:15
      ===================================================================== */
 
-  var NACHT = 22 * 60 + 40;           // Minuten seit Mitternacht
-  var WECKEN = 24 * 60 + 7 * 60 + 30; // 7:30 am naechsten Morgen
-  // Am Ende des Tages (nach Georgios) wird erst um 1:20 geschlafen
-  var SPAET = 24 * 60 + 1 * 60 + 20, TIEF = 24 * 60 + 4 * 60;
+  var TAG = 24 * 60;
+  var WOCHE = ['MONTAG', 'DIENSTAG', 'MITTWOCH', 'DONNERSTAG', 'FREITAG', 'SAMSTAG', 'SONNTAG'];
+  var ZEITRAFFER = 780;               // so viele Ticks dauert ein verschlafener Tag (13 s)
 
-  /** mode 'morgen': nach Level 11, Esat weckt ihn. mode 'ende': nach
-      Level 15, einfach schlafen. Kein Anruf. */
+  /* Minuten zaehlen ab Mitternacht des Einschlaf-Tages, tag: Wochentag
+     (0 = Montag). 'ende' = einfach schlafen, kein Anruf. */
+  var WECKER = {
+    morgen:   { tag: 6, start: 16 * 60 + 40, wecken: 2 * TAG + 7 * 60 + 30,
+                dialog: 'schlaf', anrufer: 'ESAT RUFT AN' },
+    fussball: { tag: 2, start: 1 * 60 + 20, wecken: TAG + 9 * 60 + 40,
+                dialog: 'schlafFussball', anrufer: 'ESAT RUFT AN' },
+    airsoft:  { tag: 4, start: 2 * 60 + 10, wecken: TAG + 10 * 60 + 15,
+                dialog: 'schlafAirsoft', anrufer: 'GRUPPENANRUF: ESAT, LENNART' },
+    ende:     { tag: 6, start: 1 * 60 + 20, wecken: 4 * 60 }
+  };
+
   function schlafInit(mode) {
-    var ende = (mode === 'ende');
-    return { type: 'schlaf', mode: ende ? 'ende' : 'morgen', t: 0, phase: 'nacht',
-             min: ende ? SPAET : NACHT, ringT: 0, upT: 0, endT: 0 };
+    var m = WECKER[mode] ? mode : 'morgen', w = WECKER[m];
+    return { type: 'schlaf', mode: m, t: 0, phase: 'nacht', tag: w.tag,
+             min: w.start, wecken: w.wecken, dialog: w.dialog, anrufer: w.anrufer,
+             tempo: Math.max(2, (w.wecken - w.start) / ZEITRAFFER),
+             ereignisse: m === 'ende' ? [] : (((global.Levels || {}).schlafTag || {})[m] || []),
+             naechstes: 0, zeile: null, zeileT: 0, verpasst: 0, handyT: 0, drehT: 0,
+             ringT: 0, upT: 0, endT: 0 };
   }
 
   function schlafLayout(W, H) {
@@ -631,9 +660,21 @@
     };
   }
 
-  /** 0 = tiefe Nacht, 1 = heller Morgen. Hell wird es ab halb sechs. */
+  /** Tageslicht: 0 = Nacht, 1 = voller Tag. Hell ab 6:00, dunkel ab 20:30. */
   function hellwert(min) {
-    return Math.max(0, Math.min(1, (min - (24 * 60 + 5 * 60 + 30)) / 120));
+    var m = ((min % TAG) + TAG) % TAG;
+    if (m < 6 * 60 || m > 20 * 60 + 30) return 0;
+    if (m < 7 * 60 + 30) return (m - 6 * 60) / 90;
+    if (m > 18 * 60 + 30) return 1 - (m - 18 * 60 - 30) / 120;
+    return 1;
+  }
+
+  /** Wie viel Abend- oder Morgenrot gerade am Himmel ist (0..1). */
+  function rotwert(min) {
+    var m = ((min % TAG) + TAG) % TAG;
+    var abend = 1 - Math.abs(m - (19 * 60 + 30)) / 75;
+    var morgen = 1 - Math.abs(m - (6 * 60 + 45)) / 50;
+    return Math.max(0, abend, morgen);
   }
 
   function mischen(a, b, t) {
@@ -645,9 +686,21 @@
   }
 
   function uhrzeit(min) {
-    var m = Math.floor(min) % (24 * 60);
+    var m = Math.floor(min) % TAG;
     var h = Math.floor(m / 60), mm = m % 60;
     return (h < 10 ? '0' : '') + h + ':' + (mm < 10 ? '0' : '') + mm;
+  }
+
+  function wochentag(k) { return WOCHE[(k.tag + Math.floor(k.min / TAG)) % 7]; }
+
+  /** Was waehrend des Schlafs passiert. Wer vorspult, verpasst es — die
+      Anrufe landen trotzdem auf dem Handy. */
+  function ereignis(g, k, ev, still) {
+    if (ev.anrufe) { k.verpasst += ev.anrufe; if (!still) { k.handyT = 45; S.play('move'); } }
+    if (still) return;
+    k.zeile = ev.text; k.zeileT = 150;
+    if (ev.dreh) { k.drehT = 24; S.play('snore'); }
+    if (ev.klopf) { g.shake(3, 12); S.play('stomp'); }
   }
 
   function schlafUpdate(g, W, H) {
@@ -656,34 +709,41 @@
     if (g.banner > 0) g.banner--;
     g.particles.update();
     g.floats.update();
+    if (k.zeileT > 0) k.zeileT--;
+    if (k.handyT > 0) k.handyT--;
+    if (k.drehT > 0) k.drehT--;
     if (g.dialog) return;                 // waehrend des Anrufs steht die Szene
     var In = global.Input;
 
-    if (k.phase === 'nacht' && k.mode === 'ende') {
-      // Tagesende: er schlaeft einfach. Mit Schuhen.
-      if (k.t > 70) k.min += 2;
+    if (k.phase === 'nacht') {
+      // Erst ein bisschen schlafen, dann rast der Tag vorbei. Die letzte
+      // Stunde vor dem Klingeln laeuft langsamer — damit man sie sieht.
+      if (k.t > 60) k.min += (k.wecken - k.min > 60) ? k.tempo : 1.5;
       if (k.t % 90 === 30) S.play('snore');
-      if (k.t > 30 && (In.hit('jump') || In.hit('confirm') || In.tap())) k.min = TIEF;
-      if (k.min >= TIEF) { k.min = TIEF; k.phase = 'ende'; k.endT = 0; }
+      // Wer nicht warten will: Sprung spult vor
+      if (k.t > 30 && (In.hit('jump') || In.hit('confirm') || In.tap())) {
+        k.min = Math.max(k.min, k.wecken - 12);
+        while (k.naechstes < k.ereignisse.length) ereignis(g, k, k.ereignisse[k.naechstes++], true);
+        k.zeileT = 0;
+      }
+      while (k.naechstes < k.ereignisse.length && k.min >= k.ereignisse[k.naechstes].m) {
+        ereignis(g, k, k.ereignisse[k.naechstes++], false);
+      }
+      if (k.min >= k.wecken) {
+        k.min = k.wecken;
+        if (k.mode === 'ende') { k.phase = 'ende'; k.endT = 0; }
+        else { k.phase = 'ring'; k.ringT = 0; }
+      }
     } else if (k.phase === 'ende') {
       k.endT++;
       if (k.t % 90 === 30) S.play('snore');
       if (k.endT === 170 && g.onSchlafDone) g.onSchlafDone('ende');
-    } else if (k.phase === 'nacht') {
-      // Erst ein bisschen schlafen, dann rast die Nacht vorbei
-      if (k.t > 70) k.min += 3;
-      if (k.t % 90 === 30) S.play('snore');
-      // Wer nicht warten will: Sprung spult vor
-      if (k.t > 30 && (In.hit('jump') || In.hit('confirm') || In.tap())) {
-        k.min = Math.max(k.min, WECKEN - 12);
-      }
-      if (k.min >= WECKEN) { k.min = WECKEN; k.phase = 'ring'; k.ringT = 0; }
     } else if (k.phase === 'ring') {
       k.ringT++;
       if (k.ringT % 70 === 1) S.play('ring');
       if (k.ringT === 80) {
         k.phase = 'anruf';
-        g.showDialog(global.Levels.schlaf || [], function () {
+        g.showDialog(global.Levels[k.dialog] || [], function () {
           k.phase = 'auf'; k.upT = 0;
           g.state = 'play';
         });
@@ -691,43 +751,69 @@
     } else if (k.phase === 'auf') {
       k.upT++;
       if (k.upT === 1) S.play('growl');
-      if (k.upT === 90 && g.onSchlafDone) g.onSchlafDone();
+      if (k.upT === 90 && g.onSchlafDone) g.onSchlafDone(k.mode);
     }
   }
 
   function schlafDraw(ctx, g, W, H) {
     var k = g.scene, L = schlafLayout(W, H), i;
-    var hell = hellwert(k.min);
+    var hell = hellwert(k.min), rot = rotwert(k.min);
+    var tagMin = ((k.min % TAG) + TAG) % TAG;
 
-    // Wand: nachts dunkelblau, morgens warm
-    ctx.fillStyle = mischen('#141026', '#5a4462', hell);
+    // Wand: nachts dunkelblau, tagsueber warm, abends orange angehaucht
+    ctx.fillStyle = mischen('#141026', '#6a5670', hell);
     ctx.fillRect(0, 0, W, H);
+    if (rot > 0) { ctx.fillStyle = 'rgba(255,120,50,' + (rot * 0.16).toFixed(3) + ')'; ctx.fillRect(0, 0, W, H); }
     for (var x = 0; x < W; x += 24) rect(ctx, x, 0, 2, L.floorY, 'rgba(255,255,255,0.03)');
 
-    // Fenster: Sterne und Mond gehen, die Sonne kommt
+    // Fenster: Himmel, Sonne, Mond, Sterne, Wolken im Zeitraffer
     rect(ctx, L.winX - 4, L.winY - 4, L.winW + 8, L.winH + 8, '#1a1428');
     var sky = ctx.createLinearGradient(0, L.winY, 0, L.winY + L.winH);
-    sky.addColorStop(0, mischen('#060818', '#6aa8e0', hell));
-    sky.addColorStop(1, mischen('#1a1a48', '#f4b060', hell));
+    sky.addColorStop(0, mischen('#060818', '#5a9ee0', hell));
+    sky.addColorStop(1, mischen('#1a1a48', '#a8d4f0', hell));
     ctx.fillStyle = sky;
     ctx.fillRect(L.winX, L.winY, L.winW, L.winH);
+    if (rot > 0.05) {
+      // Abend- und Morgenrot: von unten her orange
+      var glut = ctx.createLinearGradient(0, L.winY, 0, L.winY + L.winH);
+      glut.addColorStop(0, 'rgba(244,154,80,0)');
+      glut.addColorStop(1, 'rgba(244,140,70,' + (rot * 0.85).toFixed(3) + ')');
+      ctx.fillStyle = glut;
+      ctx.fillRect(L.winX, L.winY, L.winW, L.winH);
+    }
     ctx.save();
     ctx.beginPath(); ctx.rect(L.winX, L.winY, L.winW, L.winH); ctx.clip();
-    var nacht = Math.max(0, Math.min(1, (k.min - NACHT) / (WECKEN - NACHT)));
     ctx.globalAlpha = Math.max(0, 1 - hell * 1.6);
     for (i = 0; i < 14; i++) {
       rect(ctx, L.winX + (i * 37) % L.winW, L.winY + (i * 23) % (L.winH - 20), 1, 1, '#ffffff');
     }
-    ctx.fillStyle = '#fff0c0';
-    ctx.beginPath();
-    ctx.arc(L.winX + 24 + nacht * 70, L.winY + 16 + nacht * 70, 9, 0, 6.3);
-    ctx.fill();
-    ctx.globalAlpha = 1;
-    if (hell > 0) {
-      ctx.fillStyle = '#ffd86a';
+    // Mond: 19:30 bis 7:00 einmal quer uebers Fenster
+    var mond = ((tagMin - (19 * 60 + 30)) + TAG) % TAG / 690;
+    if (mond < 1) {
+      ctx.fillStyle = '#fff0c0';
       ctx.beginPath();
-      ctx.arc(L.winX + 76, L.winY + L.winH + 12 - hell * 60, 12, 0, 6.3);
+      ctx.arc(L.winX + mond * L.winW, L.winY + L.winH + 4 - Math.sin(mond * Math.PI) * (L.winH - 12), 8, 0, 6.3);
       ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    // Sonne: 6:00 bis 20:30
+    var sonne = (tagMin - 6 * 60) / (14.5 * 60);
+    if (sonne > 0 && sonne < 1) {
+      ctx.fillStyle = rot > 0.3 ? '#ffb050' : '#ffe07a';
+      ctx.beginPath();
+      ctx.arc(L.winX + sonne * L.winW, L.winY + L.winH + 8 - Math.sin(sonne * Math.PI) * (L.winH - 10), 11, 0, 6.3);
+      ctx.fill();
+    }
+    // Wolken jagen vorbei — im Zeitraffer sind sie schnell
+    if (hell > 0.15) {
+      ctx.globalAlpha = Math.min(0.85, hell);
+      for (i = 0; i < 3; i++) {
+        var wx = L.winX - 30 + ((k.min * (0.9 + i * 0.3) + i * 61) % (L.winW + 60));
+        var wy = L.winY + 10 + i * 17;
+        rect(ctx, wx, wy, 26, 6, '#f4f6fa');
+        rect(ctx, wx + 6, wy - 4, 14, 5, '#f4f6fa');
+      }
+      ctx.globalAlpha = 1;
     }
     ctx.restore();
     rect(ctx, L.winX + L.winW / 2 - 1, L.winY, 3, L.winH, '#1a1428');
@@ -736,6 +822,20 @@
     // Boden
     rect(ctx, 0, L.floorY, W, H - L.floorY, '#3a2a1e');
     rect(ctx, 0, L.floorY, W, 3, '#5a4230');
+
+    // Sonnenlicht faellt durchs Fenster und wandert mit der Sonne
+    if (hell > 0 && sonne > 0 && sonne < 1) {
+      var schub = (0.5 - sonne) * 180;
+      ctx.fillStyle = rot > 0.3 ? 'rgba(255,160,80,' + (0.10 * hell).toFixed(3) + ')'
+                                : 'rgba(255,240,180,' + (0.09 * hell).toFixed(3) + ')';
+      ctx.beginPath();
+      ctx.moveTo(L.winX, L.winY + L.winH);
+      ctx.lineTo(L.winX + L.winW, L.winY + L.winH);
+      ctx.lineTo(L.winX + L.winW + schub - 40, L.floorY + 6);
+      ctx.lineTo(L.winX + schub - 40, L.floorY + 6);
+      ctx.closePath();
+      ctx.fill();
+    }
 
     // Die sechs Tueten stehen noch da. Einraeumen ist fuer morgen.
     for (i = 0; i < 6; i++) {
@@ -753,19 +853,22 @@
     var liegt = (k.phase !== 'auf');
     var decke = mischen('#3a5a9a', '#4a6aaa', hell);
     if (liegt) {
-      // Yusuf liegt auf der Seite, Kopf auf dem Kissen
+      // Yusuf liegt auf der Seite, Kopf auf dem Kissen. Ab und zu wirft
+      // er sich herum — das ganze Bett huepft mit.
+      var hops = k.drehT > 0 ? -Math.round(Math.sin(k.drehT / 24 * Math.PI) * 6) : 0;
       ctx.save();
-      ctx.translate(L.bedX + 72, L.bedY - 14);
+      ctx.translate(L.bedX + 72, L.bedY - 14 + hops);
       ctx.rotate(-Math.PI / 2);
       P.drawChar(ctx, 'yusuf', 0, 0, {
         pose: 'idle', face: 'sleep', frame: (k.t >> 5), scale: 2
       });
       ctx.restore();
       // Decke bis zur Schulter, der Bauch drunter hebt und senkt sich.
-      var atem = Math.round(Math.sin(k.t * 0.05) * 1.5);
+      var atem = Math.round(Math.sin(k.t * 0.05) * 1.5) - hops;
       rect(ctx, L.bedX + 36, L.bedY - 36 - atem, L.bedW - 42, 45 + atem, decke);
       rect(ctx, L.bedX + 36, L.bedY - 36 - atem, L.bedW - 42, 3, 'rgba(255,255,255,0.18)');
       rect(ctx, L.bedX + 36, L.bedY - 33 - atem, 3, 42 + atem, 'rgba(0,0,0,0.15)');
+      if (k.drehT > 12) F.draw(ctx, 'QUIETSCH', L.bedX + L.bedW - 20, L.bedY - 50, { color: '#c8b8e0', align: 'center' });
       // Zzz
       for (i = 0; i < 3; i++) {
         var zt = (k.t * 0.02 + i * 0.33) % 1;
@@ -791,20 +894,38 @@
     var zeit = uhrzeit(k.min);
     F.draw(ctx, blink ? zeit.replace(':', ' ') : zeit, L.tischX + 16, L.floorY - 40,
            { color: '#ff3a30', align: 'center' });
-    var zit = (k.phase === 'ring' && k.ringT % 10 < 5) ? 1 : 0;
+    var zit = ((k.phase === 'ring' && k.ringT % 10 < 5) || (k.handyT > 0 && k.handyT % 6 < 3)) ? 1 : 0;
     P.draw(ctx, 'handy', L.tischX + 32 + zit, L.floorY - 40);
+    if (k.verpasst > 0) {
+      // Rotes Kreischen auf dem Display: verpasste Anrufe
+      var vt = String(k.verpasst), vw = F.measure(vt, 1) + 4;
+      rect(ctx, L.tischX + 38, L.floorY - 49, vw, 9, '#e02828');
+      F.draw(ctx, vt, L.tischX + 40, L.floorY - 47, { color: '#ffffff' });
+    }
     if (k.phase === 'ring' && k.ringT % 70 < 40) {
-      F.draw(ctx, 'ESAT RUFT AN', L.tischX + 36, L.floorY - 54,
+      F.draw(ctx, k.anrufer || 'ESAT RUFT AN', L.tischX + 36, L.floorY - 62,
              { color: '#6fc8e8', align: 'center', shadow: true });
     }
 
-    // Oben: die Uhrzeit gross, solange die Nacht vorbeirast
-    if (k.phase === 'nacht' && k.t > 50) {
-      F.draw(ctx, zeit, W / 2, 14, { color: '#ffe9a8', align: 'center', scale: 3, shadow: true });
-      if ((k.t >> 4) % 2 === 0) {
-        F.draw(ctx, g.touch ? 'TIPPEN = VORSPULEN' : 'SPRUNG = VORSPULEN', W / 2, 44,
-               { color: '#8f86a8', align: 'center' });
+    // Oben: Uhrzeit und Wochentag gross, solange der Tag vorbeirast
+    if (k.phase === 'nacht' && k.t > 40) {
+      F.draw(ctx, zeit, W / 2, 12, { color: '#ffe9a8', align: 'center', scale: 3, shadow: true });
+      F.draw(ctx, wochentag(k), W / 2, 38, { color: '#ffd257', align: 'center', scale: 2, shadow: true });
+      if ((k.t >> 4) % 2 === 0 && k.mode !== 'ende') {
+        F.draw(ctx, g.touch ? 'TIPPEN = VORSPULEN' : 'SPRUNG = VORSPULEN', W / 2, 58,
+               { color: '#8f86a8', align: 'center', shadow: true });
       }
+    }
+    // Was waehrenddessen passiert: unten eingeblendet, wie in einer Doku
+    if (k.phase === 'nacht' && k.zeileT > 0 && k.zeile) {
+      var zl = F.wrap(k.zeile, W - 40, 1);
+      var zh = zl.length * 11 + 8, zy = H - 44 - zh;
+      ctx.globalAlpha = Math.min(1, k.zeileT / 20, (150 - k.zeileT) / 8);
+      rect(ctx, 14, zy, W - 28, zh, 'rgba(6,4,10,0.78)');
+      for (i = 0; i < zl.length; i++) {
+        F.draw(ctx, zl[i], W / 2, zy + 5 + i * 11, { color: '#f4ecd8', align: 'center' });
+      }
+      ctx.globalAlpha = 1;
     }
     // Tagesende
     if (k.phase === 'ende') {
@@ -824,10 +945,13 @@
      steht und wer gerade isst, richtet sich nach der Dialogzeile.
      ===================================================================== */
 
+  /* Beilagen: "so viel" heisst bei Yusuf: der Tisch ist voll. */
   var MAHL = {
     imbiss:  { host: 'hamza', food: 'shawarma', esatSpaeter: true,
+               beilagen: ['humus', 'pita', 'food_pommes'],
                wand: ['#3a2014', '#7a4a2e'], boden: '#5a3a22' },
     taverne: { host: 'georgios', food: 'souvlaki', esatSpaeter: false,
+               beilagen: ['pita', 'olive', 'tzatziki'],
                wand: ['#eef4fa', '#b8d0ea'], boden: '#8a6640' }
   };
 
@@ -835,7 +959,8 @@
     var c = MAHL[kind] || MAHL.imbiss;
     return { type: 'mahl', kind: kind, t: 0,
              esatDa: !c.esatSpaeter, esatWalk: c.esatSpaeter ? 0 : 60,
-             yusufRest: 1, esatRest: 0, isst: false, esatIsst: false, kauT: 0, esatKauT: 0 };
+             essen: kind === 'taverne' ? [] : [c.food], gegessen: 0, fr: null, pause: 0,
+             esatRest: 0, isst: false, esatIsst: false, esatKauT: 0 };
   }
 
   function mahlLayout(W, H) {
@@ -845,8 +970,16 @@
              yusufX: mid - 46, esatX: mid + 48, hostX: Math.round(W * 0.86) };
   }
 
+  /** Wo auf Yusufs Seite was liegt: vorne eine Reihe, dahinter die naechste. */
+  function mahlPlatz(k, L, i) {
+    var sp = P.get(k.essen[i]), reihe = Math.floor(i / 4), n = i % 4;
+    return { x: L.yusufX - 32 + n * 16 + reihe * 8, y: L.tischY - sp.h - 3 - reihe * 6, w: sp.w, h: sp.h };
+  }
+
+  function mahlMund(L) { return { x: L.yusufX + 9, y: L.floorY - 52 }; }
+
   function mahlUpdate(g, W, H) {
-    var k = g.scene, L = mahlLayout(W, H);
+    var k = g.scene, L = mahlLayout(W, H), c = MAHL[k.kind] || MAHL.imbiss;
     k.t++;
     if (g.banner > 0) g.banner--;
     g.particles.update();
@@ -855,32 +988,42 @@
     var txt = line ? line[1] : '';
 
     // Was die Dialogzeile gerade erzaehlt, passiert auch auf dem Tisch
-    if (/^MACH DREI/.test(txt) && !k.nachschlag) { k.nachschlag = true; k.yusufRest = 3; }
+    if (/^MACH DREI/.test(txt) && !k.nachschlag) {
+      k.nachschlag = true;
+      k.essen.push(c.food, c.food, c.food);
+      k.essen = k.essen.concat(c.beilagen);
+    }
     if (/^DIE TÜR GEHT AUF/.test(txt)) k.esatDa = true;
     if (/^ESAT ISST/.test(txt) && !k.esatBekommt) { k.esatBekommt = true; k.esatRest = 2; k.esatIsst = true; }
-    if (k.kind === 'taverne' && /^EIN TELLER SOUVLAKI/.test(txt) && !k.teller) { k.teller = true; k.yusufRest = 3; }
+    if (k.kind === 'taverne' && /^EIN TELLER SOUVLAKI/.test(txt) && !k.teller) {
+      k.teller = true;
+      k.essen = [c.food, c.food, c.food].concat(c.beilagen);
+    }
     if (/^ABER ICH ESS DAS JETZT KOMPLETT|^MACH DREI|^ICH HAB EIGENTLICH/.test(txt)) k.isst = true;
-    if (/^YUSUF ISST ALLES AUF/.test(txt)) { k.yusufRest = 0; k.leer = true; }
+    if (/^YUSUF ISST ALLES AUF/.test(txt)) k.leer = true;
     if (k.esatDa && k.esatWalk < 60) k.esatWalk++;
 
-    // Kauen
-    if (k.isst && k.yusufRest > 0 && k.t % 80 === 0) {
-      k.yusufRest--; k.kauT = 30; S.play('bite');
-      krumel(g, L.yusufX, L.floorY - 70);
+    // Yusuf isst nicht. Yusuf schlingt. Ein Teil nach dem anderen,
+    // jedes in fuenf Bissen, und dazwischen kaum Luft.
+    if (k.isst && !k.fr && k.essen.length && --k.pause <= 0) {
+      var pl = mahlPlatz(k, L, 0), was = k.essen[0];
+      k.fr = schlingen(g, {
+        von: { x: pl.x + pl.w / 2, y: pl.y + pl.h / 2 }, mund: mahlMund(L),
+        spr: [was], n: k.leer ? 3 : 5, tempo: k.leer ? 2 : 3,
+        dann: function () {
+          k.essen.shift(); k.fr = null; k.gegessen++;
+          k.pause = k.leer ? 1 : 8;
+          if (!k.essen.length) {
+            S.play('growl');
+            g.floats.add(L.yusufX + 8, L.floorY - 74, k.gegessen > 5 ? 'RÜLPS. SORRY. NEIN, NICHT SORRY.' : 'RÜLPS.', '#ffe9a8', 80);
+          }
+        }
+      });
     }
     if (k.esatIsst && k.esatRest > 0 && k.t % 95 === 40) {
       k.esatRest--; k.esatKauT = 30; S.play('bite');
     }
-    if (k.kauT > 0) k.kauT--;
     if (k.esatKauT > 0) k.esatKauT--;
-  }
-
-  function krumel(g, x, y) {
-    for (var i = 0; i < 8; i++) {
-      g.particles.spawn({ x: x + (Math.random() - 0.5) * 10, y: y,
-                          vx: (Math.random() - 0.5) * 2, vy: -0.8 - Math.random(),
-                          life: 24, col: (i % 2) ? '#c98f3e' : '#f0d8a0', size: 2, grav: 0.22 });
-    }
   }
 
   function mahlDraw(ctx, g, W, H) {
@@ -926,9 +1069,11 @@
       pose: 'idle', face: 'laugh', frame: (g.tick >> 4), flip: true, scale: 2
     });
 
-    // Yusuf und Esat sitzen am Tisch (der Tisch verdeckt die Beine)
-    P.drawChar(ctx, 'yusuf', L.yusufX, L.floorY - 6, {
-      pose: 'idle', face: k.kauT > 0 ? 'eat' : 'laugh', frame: (g.tick >> 4), scale: 2
+    // Yusuf und Esat sitzen am Tisch (der Tisch verdeckt die Beine).
+    // Im Fressrausch wackelt er mit.
+    var rausch = fressAktiv(g);
+    P.drawChar(ctx, 'yusuf', L.yusufX, L.floorY - 6 - (rausch ? (g.tick >> 1) % 2 : 0), {
+      pose: 'idle', face: rausch ? fressGesicht(g) : 'laugh', frame: (g.tick >> 4), scale: 2
     });
     if (k.esatDa) {
       var ex = L.esatX + (60 - k.esatWalk) * 5;
@@ -944,21 +1089,30 @@
     rect(ctx, L.tischX + 8, L.tischY + 7, 6, L.floorY - L.tischY - 7, '#5a3a1e');
     rect(ctx, L.tischX + L.tischW - 14, L.tischY + 7, 6, L.floorY - L.tischY - 7, '#5a3a1e');
 
-    // Was auf dem Tisch steht
+    // Was auf dem Tisch steht. Hinten zuerst, damit vorne vorne ist.
+    // Was gerade gegessen wird, schrumpft mit jedem Bissen.
     var fsp = P.get(c.food);
-    if (k.kind === 'taverne') {
-      rect(ctx, L.yusufX - 26, L.tischY - 3, 52, 3, '#f4f6fa');
-      if (!k.leer) P.draw(ctx, 'tzatziki', L.yusufX + 8, L.tischY - 8);
-    }
-    for (i = 0; i < k.yusufRest; i++) {
-      P.draw(ctx, c.food, L.yusufX - 24 + i * (fsp.w - 2), L.tischY - fsp.h - (k.kind === 'taverne' ? 3 : 0));
+    rect(ctx, L.yusufX - 35, L.tischY - 3, 76, 3, '#f4f6fa');
+    for (i = k.essen.length - 1; i >= 0; i--) {
+      var pl = mahlPlatz(k, L, i), rest = (i === 0 && k.fr) ? Math.max(0.2, k.fr.n / 5) : 1;
+      if (rest < 1) {
+        ctx.save();
+        ctx.translate(pl.x + pl.w / 2, pl.y + pl.h);
+        ctx.scale(rest, rest);
+        P.draw(ctx, k.essen[i], -pl.w / 2, -pl.h);
+        ctx.restore();
+      } else P.draw(ctx, k.essen[i], pl.x, pl.y);
     }
     for (i = 0; i < k.esatRest; i++) {
       P.draw(ctx, c.food, L.esatX - 10 + i * (fsp.w - 2), L.tischY - fsp.h);
     }
 
+    fressDraw(ctx, g, 0, 0);
     drawParticles(ctx, g);
     drawFloats(ctx, g);
+    if (k.gegessen > 1) {
+      F.draw(ctx, 'GEGESSEN: ' + k.gegessen, 8, 8, { color: '#ffd257', shadow: true });
+    }
   }
 
   /** Ein Doener-Spiess, der sich dreht: Streifen wandern mit der Zeit. */
@@ -1001,9 +1155,26 @@
      Zu frueh auspusten heisst husten. Nach drei Zuegen: Hunger.
      ===================================================================== */
 
+  /* Acht Zuege statt drei — und dafuer einfacher: der Kopf ist schneller
+     bereit, das Zeitfenster ist gross, und wer zu frueh pustet, hustet
+     nur kurz und faengt nicht wieder bei null an. Jeder Zug sieht anders aus. */
+  var ZUEGE = 8, BEREIT = 0.35;
+  var FIGUREN = [
+    { art: 'ring', text: 'RAUCHRING!' },
+    { art: 'doppel', text: 'DOPPELRING. WIE DOPPELAPFEL.' },
+    { art: 'herz', text: 'EIN HERZ. FÜR DEN DÖNER VON MORGEN.' },
+    { art: 'ring', text: 'SAUBER.' },
+    { art: 'kette', text: 'EINE KETTE! DER KELLNER KLATSCHT.' },
+    { art: 'gross', text: 'DER GROSSE. ESAT IST NEIDISCH.' },
+    { art: 'doppel', text: 'WIE EIN PROFI.' },
+    { art: 'herz', text: 'MEISTERWERK. HÖ HÖ HÖÖÖ.' }
+  ];
+  var ESAT_SHISHA = ['NICHT SCHLECHT.', 'DAS KANN ICH AUCH.', 'ZEIG NOCHMAL.', 'WER HAT DIR DAS BEIGEBRACHT?',
+                     'ICH HAB DAS GEFILMT.', 'OKAY. RESPEKT.'];
+
   function shishaInit() {
     return { type: 'shisha', t: 0, phase: 'vorher', zug: 0, puffs: 0,
-             ringe: [], hust: 0, lacht: 0, esatT: 70, fertigT: 0 };
+             ringe: [], hust: 0, lacht: 0, esatT: 70, fertigT: 0, esatSagt: null, esatSagtT: 0 };
   }
 
   function shishaLayout(W, H) {
@@ -1036,34 +1207,40 @@
 
     if (k.phase === 'rauchen') {
       k.rT = (k.rT || 0) + 1;
-      k.zug = Math.min(1, k.zug + 1 / 70);
+      k.zug = Math.min(1, k.zug + 1 / 45);
+      if (k.esatSagtT > 0) k.esatSagtT--;
       if (k.zug < 1 && k.t % 16 === 0) S.play('move');   // blubb
       var In = global.Input;
       // Die Taste, die eben den Dialog geschlossen hat, zaehlt noch nicht
       var puste = k.rT > 12 && (In.hit('puff') || In.hit('throw') || In.hit('jump') ||
                                 In.hit('confirm') || !!In.tap());
       if (puste) {
-        if (k.zug >= 0.55) {
+        if (k.zug >= BEREIT) {
+          var fig = FIGUREN[k.puffs % FIGUREN.length];
           k.puffs++;
           k.lacht = 40;
           var mx = L.yusufX + 10, my = L.floorY - 66;
-          k.ringe.push({ x: mx, y: my, r: 3 + k.zug * 2, vx: 0.25, life: 110, col: '220,220,235' });
+          rauchFigur(k, fig.art, mx, my, k.zug);
           for (i = 0; i < 16; i++) {
             g.particles.spawn({ x: mx, y: my, vx: 0.4 + Math.random() * 1.2, vy: -0.4 - Math.random() * 0.6,
                                 life: 50, col: '#d8d8e8', size: 3, grav: -0.01 });
           }
           S.play('shoot');
           g.player.score += 150;
-          var sp = ['RAUCHRING!', 'SAUBER.', 'WIE EIN PROFI.'];
-          g.floats.add(mx, my - 14, sp[Math.min(2, k.puffs - 1)] + ' +150', '#ffe9a8', 70);
+          g.floats.add(mx, my - 14, fig.text + ' +150', '#ffe9a8', 80);
+          if (k.puffs % 2 === 0) {
+            k.esatSagt = ESAT_SHISHA[(k.puffs / 2 - 1) % ESAT_SHISHA.length];
+            k.esatSagtT = 90;
+          }
+          k.zug = 0;
         } else {
-          k.hust = 40;
+          k.hust = 30;
           S.play('hurt');
-          g.floats.add(L.yusufX, L.floorY - 80, 'HUST! HUST! ZU FRÜH.', '#c8c0d8', 60);
+          g.floats.add(L.yusufX, L.floorY - 80, 'HUST! NOCH NICHT GANZ.', '#c8c0d8', 50);
+          k.zug = Math.max(0.15, k.zug * 0.5);
         }
-        k.zug = 0;
       }
-      if (k.puffs >= 3) { k.phase = 'fertig'; k.fertigT = 0; }
+      if (k.puffs >= ZUEGE) { k.phase = 'fertig'; k.fertigT = 0; }
     } else if (k.phase === 'fertig') {
       k.fertigT++;
       if (k.fertigT === 60) {
@@ -1074,6 +1251,19 @@
         });
       }
     }
+  }
+
+  /** Was Yusuf in die Luft pustet. */
+  function rauchFigur(k, art, x, y, staerke) {
+    var col = '220,220,235', r0 = 3 + staerke * 2;
+    if (art === 'ring') k.ringe.push({ x: x, y: y, r: r0, vx: 0.25, life: 110, col: col });
+    else if (art === 'doppel') {
+      k.ringe.push({ x: x, y: y, r: r0 + 2, vx: 0.25, life: 110, col: col });
+      k.ringe.push({ x: x + 4, y: y + 2, r: r0 - 1, vx: 0.35, life: 110, col: col });
+    } else if (art === 'kette') {
+      for (var i = 0; i < 4; i++) k.ringe.push({ x: x + i * 6, y: y - i * 3, r: r0, vx: 0.3, life: 100 + i * 10, col: col });
+    } else if (art === 'gross') k.ringe.push({ x: x, y: y, r: r0 + 6, vx: 0.2, life: 130, col: col });
+    else if (art === 'herz') k.ringe.push({ x: x, y: y, r: r0 + 2, vx: 0.25, life: 120, col: '255,170,200', herz: true });
   }
 
   function shishaDraw(ctx, g, W, H) {
@@ -1144,7 +1334,14 @@
       var r = k.ringe[i];
       ctx.strokeStyle = 'rgba(' + r.col + ',' + Math.min(0.8, r.life / 60).toFixed(2) + ')';
       ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(Math.round(r.x), Math.round(r.y), r.r, 0, 6.3); ctx.stroke();
+      ctx.beginPath();
+      if (r.herz) {
+        var hx = Math.round(r.x), hy = Math.round(r.y), hr = r.r;
+        ctx.moveTo(hx, hy + hr);
+        ctx.bezierCurveTo(hx - hr * 1.6, hy - hr * 0.2, hx - hr * 0.6, hy - hr * 1.4, hx, hy - hr * 0.5);
+        ctx.bezierCurveTo(hx + hr * 0.6, hy - hr * 1.4, hx + hr * 1.6, hy - hr * 0.2, hx, hy + hr);
+      } else ctx.arc(Math.round(r.x), Math.round(r.y), r.r, 0, 6.3);
+      ctx.stroke();
     }
     drawParticles(ctx, g);
     drawFloats(ctx, g);
@@ -1154,10 +1351,16 @@
       var bw = 120, bx = L.mid - bw / 2, by = 44;
       rect(ctx, bx - 2, by - 2, bw + 4, 12, 'rgba(6,4,10,0.85)');
       rect(ctx, bx, by, bw, 8, '#241830');
-      rect(ctx, bx + Math.round(bw * 0.55), by, Math.round(bw * 0.45), 8, 'rgba(140,216,90,0.25)');
-      rect(ctx, bx, by, Math.round(bw * k.zug), 8, k.zug >= 0.55 ? '#8cd85a' : '#ffc23c');
+      rect(ctx, bx + Math.round(bw * BEREIT), by, Math.round(bw * (1 - BEREIT)), 8, 'rgba(140,216,90,0.25)');
+      rect(ctx, bx, by, Math.round(bw * k.zug), 8, k.zug >= BEREIT ? '#8cd85a' : '#ffc23c');
       F.draw(ctx, 'ZIEHEN', bx - 6, by, { color: '#c8b8e0', align: 'right' });
-      F.draw(ctx, k.puffs + '/3', bx + bw + 6, by, { color: '#ffd257' });
+      F.draw(ctx, k.puffs + '/' + ZUEGE, bx + bw + 6, by, { color: '#ffd257' });
+      if (k.zug >= BEREIT && (k.t >> 3) % 2 === 0) {
+        F.draw(ctx, 'JETZT!', L.mid, by - 14, { color: '#8cd85a', align: 'center', scale: 2, shadow: true });
+      }
+      if (k.esatSagtT > 0 && k.esatSagt) {
+        F.draw(ctx, k.esatSagt, L.esatX, L.floorY - 110, { color: '#6fc8e8', align: 'center', shadow: true });
+      }
       if ((k.t >> 4) % 2 === 0) {
         F.draw(ctx, g.touch ? 'B ODER TIPPEN = AUSPUSTEN' : 'C = AUSPUSTEN', L.mid, by + 16,
                { color: '#ffffff', align: 'center', shadow: true });
@@ -1165,6 +1368,124 @@
     }
   }
 
+  /* =====================================================================
+     FRESSRAUSCH — wenn Yusuf isst, dann richtig. Zwei Haende schaufeln,
+     das Essen fliegt Stueck fuer Stueck im Bogen in den Mund, Kruemel
+     spritzen, MAMPF. Laeuft am Tisch, in Level 8, in der Doenerbude
+     (Bildschirm-Koordinaten) und im Level beim Aufsammeln (Welt-
+     Koordinaten) — gezeichnet wird mit der Kamera dessen, der zeichnet.
+     ===================================================================== */
+
+  var MAMPF = ['MAMPF', 'NOM', 'SCHLING', 'HAPS', 'MMMH', 'SCHMATZ', 'NOM NOM', 'KAU KAU'];
+  var KRUEMEL = ['#c98f3e', '#ffcf4a', '#f0d8a0', '#a85a2e'];
+
+  function punktVon(q) { return typeof q === 'function' ? q() : q; }
+
+  /** Einen Fressrausch starten.
+      o.von / o.mund: Punkt oder Funktion (der Mund darf mitlaufen),
+      o.spr: woraus die Bissen bestehen, o.n: wie viele, o.tempo: Ticks
+      zwischen zwei Bissen, o.gross: Bissen-Groesse, o.haende: false =
+      ohne die schaufelnden Haende, o.dann: wenn alles im Mund ist. */
+  function schlingen(g, o) {
+    if (!g.fress) g.fress = { r: [], bits: [], texte: [], kauT: 0, n: 0 };
+    var r = { von: o.von, mund: o.mund, spr: o.spr || ['doener'], n: o.n || 6, tempo: o.tempo || 3,
+              t: 0, offen: 0, gross: o.gross || 1, haende: o.haende !== false, dann: o.dann || null };
+    g.fress.r.push(r);
+    return r;
+  }
+
+  function fressUpdate(g) {
+    var f = g.fress, i;
+    if (!f) return;
+    if (f.kauT > 0) f.kauT--;
+    for (i = f.r.length - 1; i >= 0; i--) {
+      var r = f.r[i];
+      if (r.n > 0 && r.t++ % r.tempo === 0) {
+        var v = punktVon(r.von);
+        f.bits.push({ r: r, x0: v.x + (Math.random() - 0.5) * 10, y0: v.y + (Math.random() - 0.5) * 6,
+                      x: v.x, y: v.y, t: 0, dur: 8 + ((Math.random() * 4) | 0),
+                      hoch: 10 + Math.random() * 16, rot: Math.random() * 6.3, spin: (Math.random() - 0.5) * 0.9,
+                      spr: r.spr[(Math.random() * r.spr.length) | 0], sc: (0.7 + Math.random() * 0.35) * r.gross });
+        r.n--; r.offen++;
+      }
+      if (r.n <= 0 && r.offen <= 0) {
+        f.r.splice(i, 1);
+        if (r.dann) r.dann();
+      }
+    }
+    for (i = f.bits.length - 1; i >= 0; i--) {
+      var b = f.bits[i], m = punktVon(b.r.mund), k = ++b.t / b.dur;
+      b.x = b.x0 + (m.x - b.x0) * k;
+      b.y = b.y0 + (m.y - b.y0) * k - Math.sin(k * Math.PI) * b.hoch;
+      b.rot += b.spin;
+      if (b.t < b.dur) continue;
+      // Angekommen: weg damit
+      f.bits.splice(i, 1);
+      b.r.offen--;
+      f.kauT = 12;
+      if (f.n++ % 2 === 0) S.play('bite');
+      for (var c = 0; c < 5; c++) {
+        g.particles.spawn({ x: m.x + (Math.random() - 0.5) * 6, y: m.y + 2,
+                            vx: (Math.random() - 0.3) * 2.4, vy: -0.6 - Math.random() * 1.6,
+                            life: 22, col: KRUEMEL[(Math.random() * KRUEMEL.length) | 0], size: 2, grav: 0.25 });
+      }
+      if (f.n % 3 === 1) {
+        f.texte.push({ x: m.x + (Math.random() - 0.5) * 34, y: m.y - 16, t: 0,
+                       text: MAMPF[(Math.random() * MAMPF.length) | 0] });
+      }
+    }
+    for (i = f.texte.length - 1; i >= 0; i--) {
+      f.texte[i].y -= 0.6;
+      if (++f.texte[i].t > 26) f.texte.splice(i, 1);
+    }
+  }
+
+  /** Schlingt er gerade? Dann kaut er im Schnelltakt. */
+  function fressAktiv(g) { return !!g.fress && (g.fress.kauT > 0 || g.fress.r.length > 0); }
+  function fressGesicht(g) { return ((g.tick >> 2) % 2) ? 'eat' : 'laugh'; }
+
+  function fressDraw(ctx, g, camX, camY) {
+    var f = g.fress, i;
+    if (!f) return;
+    camX = camX || 0; camY = camY || 0;
+    for (i = 0; i < f.r.length; i++) {
+      var r = f.r[i];
+      if (!r.haende || r.n <= 0) continue;
+      var v = punktVon(r.von), m = punktVon(r.mund);
+      // Zwei Haende im Wechsel: Teller, Mund, Teller, Mund. Sehr schnell.
+      for (var h = 0; h < 2; h++) {
+        var ph = ((g.tick + h * 3) % 6) / 6, k = ph < 0.5 ? ph * 2 : 2 - ph * 2;
+        var hx = v.x + (m.x - v.x) * k + (h ? 7 : -7), hy = v.y + (m.y - v.y) * k - Math.sin(k * Math.PI) * 8;
+        P.draw(ctx, 'hand', Math.round(hx - 6 - camX), Math.round(hy - 6 - camY), h === 1);
+      }
+      // Tempo-Striche um den Mund
+      if ((g.tick >> 1) % 2 === 0) {
+        for (var s = 0; s < 4; s++) {
+          var a = -2.6 + s * 0.55 + ((g.tick >> 2) % 2) * 0.2;
+          rect(ctx, Math.round(m.x - camX + Math.cos(a) * 16), Math.round(m.y - camY + Math.sin(a) * 16), 3, 1, 'rgba(255,255,255,0.7)');
+        }
+      }
+    }
+    for (i = 0; i < f.bits.length; i++) {
+      var b = f.bits[i], sp = P.get(b.spr);
+      if (!sp) continue;
+      ctx.save();
+      ctx.translate(Math.round(b.x - camX), Math.round(b.y - camY));
+      ctx.rotate(b.rot);
+      ctx.scale(b.sc, b.sc);
+      P.draw(ctx, b.spr, -sp.w / 2, -sp.h / 2);
+      ctx.restore();
+    }
+    for (i = 0; i < f.texte.length; i++) {
+      var tx = f.texte[i];
+      ctx.globalAlpha = Math.max(0, Math.min(1, (26 - tx.t) / 10));
+      F.draw(ctx, tx.text, tx.x - camX, tx.y - camY, { color: '#ffe9a8', align: 'center', shadow: true });
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  global.Fress = { schlingen: schlingen, update: fressUpdate, draw: fressDraw,
+                   aktiv: fressAktiv, gesicht: fressGesicht };
   global.Eat = { init: init, update: update, draw: draw };
   global.Mahl = { init: mahlInit, update: mahlUpdate, draw: mahlDraw };
   global.Shisha = { init: shishaInit, update: shishaUpdate, draw: shishaDraw };

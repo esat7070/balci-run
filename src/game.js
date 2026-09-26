@@ -16,7 +16,7 @@
 
   /* Spielstand ebenfalls streng pruefen: kaputte oder von Hand
      veraenderte Daten duerfen das Spiel nicht aus dem Tritt bringen. */
-  var save = { unlocked: 1, best: [], completed: false };
+  var save = { unlocked: 1, best: [], gold: [], completed: false, bestV: 2 };
   (function () {
     var raw = null;
     try { raw = localStorage.getItem('balci_save'); } catch (e) { return; }
@@ -34,7 +34,10 @@
     save.unlocked = isFinite(n) ? Math.max(1, Math.min(LV.list.length, n)) : 1;
     save.completed = (s.completed === true);
 
-    if (Array.isArray(s.best)) {
+    // Bis Version 2 standen in den Bestwerten die Summen des ganzen
+    // Durchgangs statt der Werte des einzelnen Levels (Level 5 zeigte dann
+    // den Honig aus Level 1 bis 5). Solche alten Werte werden verworfen.
+    if (Array.isArray(s.best) && s.bestV === 2) {
       // Frueher fest "8": die Bestzeiten ab Level 9 gingen beim Neuladen verloren
       for (var i = 0; i < s.best.length && i < LV.list.length; i++) {
         var b = s.best[i];
@@ -44,6 +47,12 @@
           score: num(b.score, 9999999),
           time: num(b.time, 359999)
         };
+      }
+    }
+    // Goldhonig pro Level als Bitmaske (drei Glaeser = 0..7)
+    if (Array.isArray(s.gold)) {
+      for (var gi = 0; gi < s.gold.length && gi < LV.list.length; gi++) {
+        save.gold[gi] = num(s.gold[gi], 7);
       }
     }
 
@@ -95,8 +104,22 @@
   };
 
   /** Etwas in N Spiel-Ticks ausführen. Bewusst NICHT setTimeout:
-      das läuft in Echtzeit weiter, auch wenn das Spiel pausiert ist. */
-  G.after = function (ticks, fn) { G.pending = { t: ticks, fn: fn }; };
+      das läuft in Echtzeit weiter, auch wenn das Spiel pausiert ist.
+      Mehrere duerfen gleichzeitig laufen — frueher hat der zweite Aufruf
+      den ersten einfach ueberschrieben. */
+  G.timers = [];
+  G.after = function (ticks, fn) { G.timers.push({ t: ticks, fn: fn }); };
+
+  function runTimers() {
+    if (!G.timers.length || G.state === 'paused') return;
+    var due = [];
+    G.timers = G.timers.filter(function (tm) {
+      if (--tm.t > 0) return true;
+      due.push(tm.fn);
+      return false;
+    });
+    for (var i = 0; i < due.length; i++) due[i]();
+  }
 
   G.shake = function (amp, dur) {
     G.cam.shake = Math.max(G.cam.shake, dur);
@@ -137,7 +160,26 @@
 
   /* ================= Level laden ================= */
 
-  function loadLevel(idx, fromCheckpoint) {
+  /* Level mit eigener Spielart. Die Module stehen in eigenen Dateien.
+     full = das Modul uebernimmt Welt und Bild ganz (Rennen, Doenerbude),
+     sonst laeuft es zusaetzlich zur normalen Huepfwelt (Fussball). */
+  var MODI = { fussball: 'Fussball', rennen: 'Rennen', doener: 'DoenerBude' };
+  function modul(lvl) { return (lvl.mode && global[MODI[lvl.mode]]) || null; }
+
+  /* Die Bosse ab Level 17 (bosse.js): welche Klasse, welche Musik,
+     welcher Dialog, und wo man nach einem Tod wieder einsteigt. */
+  var NEUE_BOSSE = {
+    riese: { cls: 'BossRiese', musik: 'riese', dialog: 'riese', ganzesLevel: true },
+    nils:  { cls: 'BossNils', musik: 'nils', dialog: 'nils' }
+  };
+
+  /** Level laden. respawn = nach einem Tod: dann geht es am letzten
+      Checkpoint weiter (oder am Start), und Honig, Punkte, Items und
+      Kisten stehen wieder so wie dort. Frueher galt das nur, wenn schon ein
+      Checkpoint erreicht war — wer davor starb, behielt seinen Honig UND
+      alle Glaeser lagen wieder da. Man konnte die erste Honigspur also
+      beliebig oft abernten. */
+  function loadLevel(idx, respawn) {
     // Ein noch offener Dialog gehoert zum alten Level
     G.dialog = null; G.dialogAfter = null;
     G.lvlIndex = idx;
@@ -148,6 +190,7 @@
 
     G.enemies = []; G.items = []; G.projectiles = [];
     G.particles.list.length = 0; G.floats.list.length = 0;
+    G.fress = null;
     G.boss = null; G.bossStarted = false;
     G.arena = lvl.arena ? { x: lvl.arena.x * T, w: lvl.arena.w * T }
             : (lvl.boss ? { x: (lvl.boss.x - 34) * T, w: 45 * T } : null);
@@ -155,6 +198,7 @@
     G.mirkan = null;
     // Level 8 ist keine Huepfstrecke, sondern die Szene aus eat.js
     G.eat = (lvl.eat && global.Eat) ? global.Eat.init(G, lvl) : null;
+    G.modMod = modul(lvl);
     G.kasse = null;
     G.scene = null;           // Schlafengehen nach Level 11
     G.cut = null;             // Lennarts Auftritt in Level 12
@@ -163,7 +207,7 @@
     // Der Rausch gehoert zum Kampf: wer stirbt, wacht nuechtern auf.
     G.drunk = 0;
     // Lennart bleibt liegen, auch wenn Yusuf danach mal stirbt
-    if (!G.respawning) { G.lennartLie = null; G.kickHint = false; }
+    if (!respawn) { G.lennartLie = null; G.kickHint = false; }
 
     var i;
     for (i = 0; i < lvl.enemies.length; i++) {
@@ -172,21 +216,22 @@
     }
     // Eingesammeltes bleibt eingesammelt: nach einem Tod liegt nur das
     // wieder da, was seit dem letzten Checkpoint dazukam — alles davor
-    // zaehlt ja noch auf dem Konto. Sonst faehrt man dieselbe Honigspur
-    // beliebig oft ab.
-    G.itemsTaken = fromCheckpoint ? copyMap(G.checkpointItems) : {};
+    // zaehlt ja noch auf dem Konto.
+    G.itemsTaken = respawn ? copyMap(G.checkpointItems || {}) : {};
+    G.goldIdx = [];
     for (i = 0; i < lvl.items.length; i++) {
-      if (G.itemsTaken[i]) continue;
       var it = lvl.items[i];
+      if (it.t === 'goldhonig') G.goldIdx.push(i);
+      if (G.itemsTaken[i]) continue;
       var itObj = new E.Item(it.t, it.x * T + T / 2, it.y * T + T / 2, false);
       itObj.idx = i;
       G.items.push(itObj);
     }
     // Dasselbe fuer Bloecke und Kisten
-    if (fromCheckpoint && G.checkpointBlocks) restoreBlocks(G.checkpointBlocks);
+    if (respawn && G.checkpointBlocks) restoreBlocks(G.checkpointBlocks);
 
     G.checkpointsHit = [];
-    var sp = (fromCheckpoint && G.checkpoint) ? G.checkpoint : lvl.spawn;
+    var sp = (respawn && G.checkpoint) ? G.checkpoint : lvl.spawn;
     if (!G.player) G.player = new E.Player(sp[0] * T, sp[1] * T - 26);
     else {
       var keep = {
@@ -196,18 +241,12 @@
       G.player.reset(sp[0] * T, sp[1] * T - 26);
       G.player.lives = keep.lives;
       G.player.deaths = keep.deaths;
-      // Beim Tod zaehlt der Stand vom letzten Checkpoint. Sonst koennte
-      // man den Honig einsammeln, absichtlich sterben und alles nochmal
-      // einsammeln — beliebig oft.
-      if (fromCheckpoint && G.checkpointStats) {
-        G.player.honey = G.checkpointStats.honey;
-        G.player.score = G.checkpointStats.score;
-        G.player.eatCount = G.checkpointStats.eatCount;
-      } else {
-        G.player.honey = keep.honey;
-        G.player.score = keep.score;
-        G.player.eatCount = keep.eatCount;
-      }
+      // Beim Tod zaehlt der Stand vom letzten Checkpoint (bzw. vom
+      // Levelstart). Sonst sammelt man ein, stirbt und sammelt nochmal.
+      var st = (respawn && G.checkpointStats) ? G.checkpointStats : keep;
+      G.player.honey = st.honey;
+      G.player.score = st.score;
+      G.player.eatCount = st.eatCount;
     }
     // Im Mustang ist die Trefferbox so breit wie das (doppelt grosse) Auto,
     // auf dem Fahrrad etwas breiter und hoeher als zu Fuss.
@@ -220,19 +259,20 @@
     G.dizzy = 0;
     // Nach einem Tod kurz unverwundbar (blinkt), damit ein Gegner neben
     // dem Checkpoint nicht sofort das naechste Herz nimmt.
-    if (G.respawning) G.player.invuln = 90;
+    if (respawn) G.player.invuln = 90;
 
-    if (!fromCheckpoint) {
+    // Das Modul erst jetzt starten — es braucht den fertigen Spieler
+    G.modus = G.modMod ? G.modMod.init(G, lvl) : null;
+    if (!respawn) {
+      G.player.flipCount = 0;
+      G.checkpoint = null; G.bossIntroSeen = false; G.bossHalf = false; G.bossLeben = 0;
+      G.time = 0;
       saveCheckpointState();
-      G.checkpointItems = {}; G.checkpointBlocks = null;
-    }
-    if (!fromCheckpoint) G.player.flipCount = 0;
-    if (!fromCheckpoint) {
-      G.checkpoint = null; G.bossIntroSeen = false; G.bossHalf = false;
+      G.levelStart = snapshotStats();
     }
     // Wer in die Kolonne eingestiegen ist, bleibt es auch nach einem Tod —
     // sonst kommt Erfans Dialog nach jedem Sturz wieder.
-    if (!G.respawning || !G.convoySeen) G.convoySeen = {};
+    if (!respawn || !G.convoySeen) G.convoySeen = {};
 
     // Level 6: Kolonne und Ampeln. Wer schon eingestiegen war, ist nach
     // einem Checkpoint direkt wieder dabei — ohne den Dialog nochmal.
@@ -252,8 +292,32 @@
     G.combo = 0;
     G.rescued = false;
     G.bossCleared = false;
-    if (!fromCheckpoint) G.time = 0;
     G.frozen = false;
+  }
+
+  /** Welche Goldhonig-Glaeser dieses Levels gerade eingesammelt sind
+      (Bitmaske in der Reihenfolge, in der sie in levels.js stehen). */
+  function goldMask() {
+    var m = 0;
+    for (var n = 0; n < G.goldIdx.length; n++) if (G.itemsTaken[G.goldIdx[n]]) m |= 1 << n;
+    return m;
+  }
+  function bits(m) { var c = 0; while (m) { c += m & 1; m >>= 1; } return c; }
+  G.goldCount = function () { return G.goldIdx ? bits(goldMask()) : 0; };
+
+  /** Level geschafft: Bestwerte merken — und zwar nur, was IN diesem
+      Level geholt wurde. Vorher stand hier der Stand des ganzen
+      Durchgangs, und Level 5 zeigte den Honig aus Level 1 bis 5. Und
+      Level, die mit einem Boss enden, bekamen gar keinen Eintrag. */
+  function recordBest(idx) {
+    var p = G.player, st = G.levelStart || { honey: 0, score: 0 };
+    var rec = save.best[idx] || { honey: 0, score: 0, time: 999999 };
+    rec.honey = Math.max(rec.honey, p.honey - st.honey);
+    rec.score = Math.max(rec.score, p.score - st.score);
+    rec.time = Math.min(rec.time, Math.floor(G.time / 60));
+    save.best[idx] = rec;
+    save.gold[idx] = (save.gold[idx] || 0) | goldMask();
+    persist();
   }
 
   /* ================= Level 6: Kolonne & Ampeln ================= */
@@ -332,6 +396,7 @@
   function startScene(sc) {
     G.scene = sc;
     G.particles.list.length = 0; G.floats.list.length = 0;
+    G.fress = null;
     G.frozen = true;
     G.state = 'play';
   }
@@ -646,9 +711,7 @@
       });
     } else {
       fadeTo(function () {
-        G.respawning = true;
-        loadLevel(G.lvlIndex, !!G.checkpoint);
-        G.respawning = false;
+        loadLevel(G.lvlIndex, true);
         var l = LV.deathLines;
         G.floats.add(G.player.cx(), G.player.y - 12,
                      l[(Math.random() * l.length) | 0], '#ffd257', 100);
@@ -658,169 +721,26 @@
     }
   };
 
-  G.onMiniPhase = function (type) {
+  /* ---------- Gemeinsame Bausteine fuer alle Bosse ---------- */
+
+  /** Verwandlung bei halber Energie: Fliegendes weg (sonst haengt beim
+      Weiterspielen noch ein Salatblatt in der Luft, das man nie kommen
+      sah), kurz unverwundbar, dann redet der Boss. */
+  function bossPhase(lines, invuln) {
     G.bossHalf = true;
     clearShots();
-    G.player.invuln = Math.max(G.player.invuln, 70);
-    startDialog(LV.mini[type].phase2, function () { G.state = 'play'; });
-  };
-
-  G.onMiniDead = function (type) {
-    G.frozen = true;
-    clearShots();
-    if (type === 'erfan') G.rescued = true;
-    G.after(70, function () {
-      startDialog(LV.mini[type].end, function () {
-        G.frozen = false;
-        G.bossCleared = true;
-        S.music(G.lvl.music);
-        G.floats.add(G.player.cx(), G.player.y - 16, 'WEG IST FREI!', '#ffd257', 120);
-        G.state = 'play';
-      });
-    });
-  };
-
-  G.onEsatPhase = function (phase) {
-    G.bossHalf = true;
-    clearShots();
-    G.player.invuln = Math.max(G.player.invuln, 80);
-    var d = phase === 2 ? LV.esat.phase2 : LV.esat.phase3;
-    startDialog(d, function () { G.state = 'play'; });
-  };
-
-  G.onEsatDead = function () {
-    G.frozen = true;
-    clearShots();
-    clearEnemies();
-    G.after(85, function () {
-      startDialog(LV.esat.end, function () {
-        // Nach Esat geht es zu Hause weiter: Level 8, der Morgen danach.
-        save.unlocked = Math.max(save.unlocked, 8);
-        persist();
-        saveRun(7);
-        fadeTo(function () {
-          G.checkpoint = null;
-          loadLevel(7, false);
-          S.music(LV.list[7].music);
-          G.state = 'play';
-        });
-      });
-    });
-  };
-
-  /** Level 8 geschafft: 10.000 Kalorien sind drin — und der Kuehlschrank leer. */
-  G.onEatDone = function () {
-    save.unlocked = Math.max(save.unlocked, 9);
-    persist();
-    saveRun(8);
-    fadeTo(function () {
-      G.checkpoint = null;
-      loadLevel(8, false);
-      S.music(LV.list[8].music);
-      startDialog(LV.list[8].intro, function () { G.state = 'play'; });
-    });
-  };
-
-  /* ---------- Alex, Level 9 ---------- */
-
-  G.onAlexPhase = function (phase) {
-    G.bossHalf = true;
-    clearShots();
-    G.player.invuln = Math.max(G.player.invuln, 80);
-    startDialog(phase === 2 ? LV.alex.phase2 : LV.alex.phase3,
-                function () { G.state = 'play'; });
-  };
-
-  G.onAlexDead = function () {
-    G.frozen = true;
-    clearShots();
-    clearEnemies();
-    G.drunk = 0;                 // Kampf vorbei, Yusuf wird wieder nuechtern
-    G.after(85, function () {
-      startDialog(LV.alex.end, function () {
-        // Alex hat hier Schicht: Uebergang an die Kasse
-        fadeTo(function () {
-          G.kasse = global.Kasse ? global.Kasse.init() : null;
-          G.frozen = true;
-          G.state = 'play';
-          if (!G.kasse) { G.onKasseDone(); return; }
-          G.after(40, function () {
-            startDialog(LV.alex.kasse, function () { G.onKasseDone(); });
-          });
-        });
-      });
-    });
-  };
-
-  /** Abkassiert. Danach der Heimweg (Level 10). */
-  G.onKasseDone = function () {
-    save.unlocked = Math.max(save.unlocked, 10);
-    persist();
-    saveRun(9);
-    fadeTo(function () {
-      G.kasse = null;
-      G.checkpoint = null;
-      loadLevel(9, false);
-      S.music(LV.list[9].music);
-      startDialog(LV.list[9].intro, function () { G.state = 'play'; });
-    });
-  };
-
-  /* ---------- Broke, Level 11 ---------- */
-
-  G.onBrokePhase = function (phase) {
-    G.bossHalf = true;
-    clearShots();
-    G.player.invuln = Math.max(G.player.invuln, 80);
-    startDialog(phase === 2 ? LV.broke.phase2 : LV.broke.phase3,
-                function () { G.state = 'play'; });
-  };
-
-  G.onBrokeDead = function () {
-    G.frozen = true;
-    clearShots();
-    clearEnemies();              // die Mikas gehen mit nach Hause
-    G.after(85, function () {
-      startDialog(LV.broke.end, function () {
-        // Test bestanden. Jetzt wird geschlafen.
-        fadeTo(function () {
-          startScene(global.Schlaf.init('morgen'));
-          S.stopMusic();
-        });
-      });
-    });
-  };
-
-  /** Ausgeschlafen, Esat hat angerufen: weiter mit Level 12, Downhill.
-      Nach Level 15 ('ende') ist der Tag vorbei: Bestenliste. */
-  G.onSchlafDone = function (mode) {
-    if (mode === 'ende') { finishRun(); return; }
-    save.unlocked = Math.max(save.unlocked, 12);
-    persist();
-    saveRun(11);
-    fadeTo(function () {
-      G.scene = null;
-      G.checkpoint = null;
-      loadLevel(11, false);
-      S.music(LV.list[11].music);
-      startDialog(LV.list[11].intro, function () { G.state = 'play'; });
-    });
-  };
-
-  /* ---------- Gemeinsame Bausteine fuer die Bosse ab Level 13 ---------- */
-
-  function bossPhase(lines) {
-    G.bossHalf = true;
-    clearShots();
-    G.player.invuln = Math.max(G.player.invuln, 80);
+    G.player.invuln = Math.max(G.player.invuln, invuln || 80);
     startDialog(lines, function () { G.state = 'play'; });
   }
 
+  /** Boss liegt: Welt anhalten, aufraeumen, Level als geschafft merken,
+      kurz durchatmen, dann das Abschlussgespraech. */
   function bossDown(lines, after) {
     G.frozen = true;
     clearShots();
     clearEnemies();
     G.dizzy = 0;
+    recordBest(G.lvlIndex);
     G.after(85, function () { startDialog(lines, after); });
   }
 
@@ -831,6 +751,7 @@
     saveRun(idx);
     fadeTo(function () {
       G.scene = null;
+      G.kasse = null;
       G.checkpoint = null;
       loadLevel(idx, false);
       S.music(LV.list[idx].music);
@@ -847,11 +768,101 @@
     fadeTo(function () { G.scene = null; startNameEntry(); });
   }
 
+  function phaseLines(d, phase) { return phase === 2 ? d.phase2 : d.phase3; }
+
+  /* ---------- Huseyin, Level 5 ---------- */
+
+  G.onBossPhase = function (phase) { bossPhase(phaseLines(LV.boss, phase), 70); };
+
+  G.onBossDead = function () {
+    // Weiter geht's: Mustang, Stilbruch, Siegerehrung.
+    bossDown(LV.boss.end, function () { nextLevel(5); });
+  };
+
+  /* ---------- Mirkan, Lennart, Erfan (Level 2-4) ----------
+     Die geben nur den Weg frei; ins Ziel muss man danach noch selbst. */
+
+  G.onMiniPhase = function (type) { bossPhase(LV.mini[type].phase2, 70); };
+
+  G.onMiniDead = function (type) {
+    G.frozen = true;
+    clearShots();
+    if (type === 'erfan') G.rescued = true;
+    G.after(70, function () {
+      startDialog(LV.mini[type].end, function () {
+        G.frozen = false;
+        G.bossCleared = true;
+        S.music(G.lvl.music);
+        G.floats.add(G.player.cx(), G.player.y - 16, 'WEG IST FREI!', '#ffd257', 120);
+        G.state = 'play';
+      });
+    });
+  };
+
+  /* ---------- Esat, Level 7 ---------- */
+
+  G.onEsatPhase = function (phase) { bossPhase(phaseLines(LV.esat, phase)); };
+
+  G.onEsatDead = function () {
+    // Nach Esat geht es zu Hause weiter: Level 8, der Morgen danach.
+    bossDown(LV.esat.end, function () { nextLevel(7); });
+  };
+
+  /** Level 8 geschafft: 10.000 Kalorien sind drin — und der Kuehlschrank leer. */
+  G.onEatDone = function () {
+    recordBest(G.lvlIndex);
+    nextLevel(8);
+  };
+
+  /* ---------- Alex, Level 9 ---------- */
+
+  G.onAlexPhase = function (phase) { bossPhase(phaseLines(LV.alex, phase)); };
+
+  G.onAlexDead = function () {
+    G.drunk = 0;                 // Kampf vorbei, Yusuf wird wieder nuechtern
+    bossDown(LV.alex.end, function () {
+      // Alex hat hier Schicht: Uebergang an die Kasse
+      fadeTo(function () {
+        G.kasse = global.Kasse ? global.Kasse.init() : null;
+        G.frozen = true;
+        G.state = 'play';
+        if (!G.kasse) { G.onKasseDone(); return; }
+        G.after(40, function () {
+          startDialog(LV.alex.kasse, function () { G.onKasseDone(); });
+        });
+      });
+    });
+  };
+
+  /** Abkassiert. Danach der Heimweg (Level 10). */
+  G.onKasseDone = function () { nextLevel(9); };
+
+  /* ---------- Broke, Level 11 ---------- */
+
+  G.onBrokePhase = function (phase) { bossPhase(phaseLines(LV.broke, phase)); };
+
+  G.onBrokeDead = function () {
+    // Test bestanden. Die Mikas gehen mit nach Hause. Jetzt wird geschlafen.
+    bossDown(LV.broke.end, function () {
+      fadeTo(function () {
+        startScene(global.Schlaf.init('morgen'));
+        S.stopMusic();
+      });
+    });
+  };
+
+  /** Ausgeschlafen, Esat hat angerufen: weiter mit Level 12, Downhill.
+      Nach Level 15 ('ende') ist der Tag vorbei: Bestenliste. */
+  G.onSchlafDone = function (mode) {
+    if (mode === 'ende') { finishRun(); return; }
+    if (mode === 'fussball') { nextLevel(15); return; }
+    if (mode === 'airsoft') { nextLevel(19); return; }
+    nextLevel(11);
+  };
+
   /* ---------- Hamza, Level 13 ---------- */
 
-  G.onHamzaPhase = function (phase) {
-    bossPhase(phase === 2 ? LV.hamza.phase2 : LV.hamza.phase3);
-  };
+  G.onHamzaPhase = function (phase) { bossPhase(phaseLines(LV.hamza, phase)); };
 
   G.onHamzaDead = function () {
     bossDown(LV.hamza.end, function () {
@@ -867,9 +878,7 @@
 
   /* ---------- Georgios, Level 15 ---------- */
 
-  G.onGeorgiosPhase = function (phase) {
-    bossPhase(phase === 2 ? LV.georgios.phase2 : LV.georgios.phase3);
-  };
+  G.onGeorgiosPhase = function (phase) { bossPhase(phaseLines(LV.georgios, phase)); };
 
   G.onGeorgiosDead = function () {
     bossDown(LV.georgios.end, function () {
@@ -882,13 +891,50 @@
     });
   };
 
-  /** Satt. Nach Hamza geht es in den Stilbruch, nach Georgios ins Bett. */
+  /** Satt. Nach Hamza geht es in den Stilbruch, nach Georgios ins Bett —
+      und am naechsten Morgen ruft Esat an: Fussball. */
   G.onMahlDone = function (kind) {
     if (kind === 'imbiss') { nextLevel(13); return; }
+    schlafen('fussball');
+  };
+
+  function schlafen(mode) {
     fadeTo(function () {
-      startScene(global.Schlaf.init('ende'));
+      startScene(global.Schlaf.init(mode));
       S.stopMusic();
     });
+  }
+
+  /* ---------- Level 16-20 ---------- */
+
+  /** Fussball gewonnen. Georgios und Alex streiten — und Alex waechst. */
+  G.onFussballDone = function () {
+    recordBest(G.lvlIndex);
+    G.frozen = true;
+    startDialog(G.lvl.outro, function () { nextLevel(16); });
+  };
+
+  G.onRiesePhase = function (phase) { bossPhase(phaseLines(LV.riese, phase)); };
+  G.onRieseDead = function () {
+    bossDown(LV.riese.end, function () { nextLevel(17); });
+  };
+
+  /** Rennen gewonnen. Und dann kommt die Polizei. */
+  G.onRennenDone = function () {
+    recordBest(G.lvlIndex);
+    startDialog(G.lvl.outro, function () { nextLevel(18); });
+  };
+
+  G.onNilsPhase = function (phase) { bossPhase(phaseLines(LV.nils, phase)); };
+  G.onNilsDead = function () {
+    // Die Tuer war nie abgeschlossen. Nach Hause, schlafen, Gruppenanruf.
+    bossDown(LV.nils.end, function () { schlafen('airsoft'); });
+  };
+
+  /** Zehntausend Kalorien selbst gebaut. Der Tag ist vorbei. */
+  G.onDoenerDone = function () {
+    recordBest(G.lvlIndex);
+    finishRun();
   };
 
   /** Drei Mal ausgepustet, und Yusuf hat Hunger: weiter zu Georgios. */
@@ -903,35 +949,6 @@
     r.talkT = Math.max(r.talkT, 200);
   };
 
-  G.onBossPhase = function (phase) {
-    // Alles Fliegende wegräumen, sonst hängt beim Weiterspielen noch
-    // ein Salatblatt in der Luft, das man nie kommen sah.
-    G.bossHalf = true;
-    clearShots();
-    G.player.invuln = Math.max(G.player.invuln, 70);
-    var d = phase === 2 ? LV.boss.phase2 : LV.boss.phase3;
-    startDialog(d, function () { G.state = 'play'; });
-  };
-
-  G.onBossDead = function () {
-    G.frozen = true;
-    clearShots();
-    G.after(85, function () {
-      startDialog(LV.boss.end, function () {
-        save.unlocked = Math.max(save.unlocked, 6);
-        persist();
-        saveRun(5);
-        // Weiter geht's: Mustang, Stilbruch, Siegerehrung.
-        fadeTo(function () {
-          G.checkpoint = null;
-          loadLevel(5, false);
-          S.music('l6');
-          startDialog(LV.list[5].intro, function () { G.state = 'play'; });
-        });
-      });
-    });
-  };
-
   /* ================= Update ================= */
 
   function update() {
@@ -939,11 +956,7 @@
     global.Input.poll();
     updateFade();
 
-    if (G.pending && G.state !== 'paused') {
-      if (--G.pending.t <= 0) {
-        var pf = G.pending.fn; G.pending = null; pf();
-      }
-    }
+    runTimers();
 
     switch (G.state) {
       case 'title': updateTitle(); break;
@@ -1105,6 +1118,7 @@
   }
 
   function startGame(idx, cont) {
+    G.timers = [];
     fadeTo(function () {
       G.checkpoint = null;
       loadLevel(idx, false);
@@ -1124,6 +1138,7 @@
       // der letzten Runde drin, und ein Tod vor dem ersten Checkpoint
       // hat ihn zurueckgeholt.
       saveCheckpointState();
+      G.levelStart = snapshotStats();
       G.lastName = null; G.lastScore = null;
       S.music(LV.list[idx].music);
       startDialog(LV.list[idx].intro, function () { G.state = 'play'; });
@@ -1159,7 +1174,10 @@
   }
 
   function toTitle() {
-    fadeTo(function () { G.state = 'title'; G.menuIdx = 0; S.music('menu'); });
+    // Was noch geplant war (Boss-Abspann, Levelende), gehoert zum alten
+    // Spiel. Sonst sprang mitten im Hauptmenue ein Dialog auf.
+    G.timers = [];
+    fadeTo(function () { G.timers = []; G.state = 'title'; G.menuIdx = 0; S.music('menu'); });
   }
 
   function updatePaused() {
@@ -1231,10 +1249,12 @@
 
   function updateWorld() {
     var p = G.player, i;
+    if (global.Fress) global.Fress.update(G);
     // Level 8 hat seine eigene Welt (Couch, Schreibtisch, Essen)
     if (G.scene) { sceneMod().update(G, W, H); return; }
     if (G.kasse) { global.Kasse.update(G, W, H); return; }
     if (G.eat) { global.Eat.update(G, W, H); return; }
+    if (G.modus && G.modMod.full) { G.modMod.update(G, W, H); return; }
     // Während eines Dialogs steht die ganze Welt still. Vorher lief
     // Huseyin weiter und hat Yusuf verprügelt, während man nicht
     // steuern konnte — das war der unfairste Bug im Spiel.
@@ -1245,6 +1265,9 @@
 
     if (G.comboTimer > 0) { G.comboTimer--; if (G.comboTimer === 0) G.combo = 0; }
     if (p.grounded) G.comboTimer = Math.min(G.comboTimer, 20);
+
+    // Fussball (Level 16): Ball und Mitspieler
+    if (G.modus && !frozen) G.modMod.update(G, W, H);
 
     // Level 12: Esat faehrt hinterher, Lennart hat seinen Auftritt
     if (G.rider && !frozen) updateRider(p);
@@ -1310,7 +1333,17 @@
       var aTile = Math.floor(G.arena.x / T);
       var groundY = G.lvl.boss.y;
 
-      if (bt === 'alex' || bt === 'hamza' || bt === 'georgios') {
+      if (NEUE_BOSSE[bt]) {
+        var nb = NEUE_BOSSE[bt];
+        G.boss = new E[nb.cls](G.lvl.boss.x, G.lvl.boss.y);
+        if (nb.ganzesLevel) {
+          G.checkpoint = [G.lvl.spawn[0], G.lvl.spawn[1]];
+        } else {
+          G.world.fill(aTile - 1, 2, 1, groundY - 1, 1);
+          G.checkpoint = [aTile + 3, groundY];
+        }
+        saveCheckpointState();
+      } else if (bt === 'alex' || bt === 'hamza' || bt === 'georgios') {
         var BossCls = bt === 'alex' ? E.BossAlex : (bt === 'hamza' ? E.BossHamza : E.BossGeorgios);
         G.boss = new BossCls(G.lvl.boss.x, G.lvl.boss.y);
         G.world.fill(aTile - 1, 2, 1, groundY - 1, 1);
@@ -1340,7 +1373,14 @@
       // Halbzeit-Checkpoint: wer nach der Verwandlung stirbt, faengt
       // nicht wieder bei voller Energie an. Mehr Leben pro Boss ist nur
       // fair, wenn man die erste Haelfte nicht immer wiederholen muss.
-      if (G.bossHalf) {
+      if (G.boss.lebenMax && G.bossLeben) {
+        // Bosse mit mehreren Leben: weiter mit dem Leben, bei dem man war
+        // (naechstesLeben schreibt G.bossLeben neu — also vorher merken)
+        var weg = G.bossLeben;
+        for (var lv = 0; lv < weg; lv++) G.boss.naechstesLeben(G, true);
+        G.boss.state = 'idle'; G.boss.timer = 70;
+        G.floats.add(G.boss.cx(), G.boss.y - 20, 'WEITER AB LEBEN ' + (G.bossLeben + 1), '#ffd257', 120);
+      } else if (G.bossHalf) {
         var hb = G.boss;
         hb.hp = Math.floor(hb.maxHp / 2);
         hb.onTransform(G);
@@ -1352,7 +1392,7 @@
         G.floats.add(hb.cx(), hb.y - 20, 'WEITER AB HALBZEIT', '#ffd257', 120);
       }
       // Jeder Kampf klingt anders
-      S.music(bt === 'esat' ? 'bossfinal'
+      S.music(NEUE_BOSSE[bt] ? NEUE_BOSSE[bt].musik : bt === 'esat' ? 'bossfinal'
               : ((E.MINIBOSS[bt] || bt === 'alex' || bt === 'broke' || bt === 'hamza') ? 'boss2' : 'boss'));
       G.shake(5, 20);
 
@@ -1360,6 +1400,7 @@
         G.bossIntroSeen = true;
         // Esat und Broke reden vorher schon im Level-Intro
         var d0 = (bt === 'esat' || bt === 'broke') ? null
+               : NEUE_BOSSE[bt] ? LV[NEUE_BOSSE[bt].dialog].start
                : (bt === 'alex') ? LV.alex.start
                : (bt === 'hamza') ? LV.hamza.start
                : (bt === 'georgios') ? LV.georgios.start
@@ -1395,11 +1436,9 @@
     // Ziel
     if (!p.won && !p.dead) {
       var gx = G.lvl.goal[0] * T, gy = G.lvl.goal[1] * T;
-      // Level-Bosse geben das Ziel frei; Huseyin und Esat enden anders.
-      var endsWithBoss = (G.lvl.bossType === 'huseyin' || G.lvl.bossType === 'esat' ||
-                          G.lvl.bossType === 'alex' || G.lvl.bossType === 'broke' ||
-                          G.lvl.bossType === 'hamza' || G.lvl.bossType === 'georgios');
-      var canFinish = !G.lvl.boss || (!endsWithBoss && G.bossCleared);
+      // Mirkan, Lennart und Erfan geben nur den Weg frei. Alle anderen
+      // Bosse beenden das Level selbst (Abspann, Szene, naechstes Level).
+      var canFinish = !G.lvl.boss || (E.MINIBOSS[G.lvl.bossType] && G.bossCleared);
       if (canFinish && Math.abs(p.cx() - (gx + 12)) < 30 &&
           p.feet() > gy - 60 && p.feet() < gy + 40) {
         finishLevel();
@@ -1423,19 +1462,17 @@
     G.particles.burst(p.cx(), p.y, 40,
       { col: '#ffd257', spread: 4, up: 1.6, life: 60, grav: 0.12 });
 
-    var idx = G.lvlIndex;
-    var rec = save.best[idx] || { honey: 0, score: 0, time: 999999 };
-    rec.honey = Math.max(rec.honey, p.honey);
-    rec.score = Math.max(rec.score, p.score);
-    rec.time = Math.min(rec.time, Math.floor(G.time / 60));
-    save.best[idx] = rec;
-    if (save.unlocked < idx + 2 && idx < LV.list.length - 1) save.unlocked = idx + 2;
-    persist();
-    if (idx < LV.list.length - 1) saveRun(idx + 1);
+    var idx = G.lvlIndex, last = (idx >= LV.list.length - 1);
+    recordBest(idx);
+    if (!last) {
+      save.unlocked = Math.max(save.unlocked, idx + 2);
+      persist();
+      saveRun(idx + 1);
+    }
 
     // Manche Level gehen ohne Zwischenbildschirm weiter: Level 10 endet
     // vor der Haustuer (da steht Broke), Level 12 unten am Berg (Shawarma).
-    if (G.lvl.direct && idx < LV.list.length - 1) {
+    if (G.lvl.direct && !last) {
       G.after(60, function () {
         startDialog(G.lvl.outro, function () {
           fadeTo(function () {
@@ -1460,21 +1497,6 @@
               G.state = 'play';
             });
           });
-        });
-      });
-      return;
-    }
-
-    // Das letzte Level: unten am Berg. Danach geht es in die Shisha-Bar —
-    // die kommt aber erst noch. Bis dahin: Bestenliste.
-    if (idx === LV.list.length - 1) {
-      G.after(60, function () {
-        startDialog(G.lvl.outro, function () {
-          save.unlocked = LV.list.length;
-          save.completed = true;
-          save.run = null;
-          persist();
-          fadeTo(function () { startNameEntry(); });
         });
       });
       return;
@@ -1826,15 +1848,18 @@
     if (global.Input.hit('jump') || global.Input.hit('confirm')) {
       S.play('select');
       fadeTo(function () {
-        G.player.lives = 4;
+        // Neuer Versuch ab Levelstart — mit dem Stand vom Levelstart.
+        // Vorher blieb der Honig aus dem gescheiterten Versuch auf dem
+        // Konto, und alle Glaeser lagen wieder da.
+        var p = G.player, st = G.levelStart;
+        p.lives = 4;
+        if (st) { p.honey = st.honey; p.score = st.score; p.eatCount = st.eatCount; }
         loadLevel(G.lvlIndex, false);
         S.music(G.lvl.music);
         G.state = 'play';
       });
     }
-    if (global.Input.hit('back') || global.Input.hit('pause')) {
-      fadeTo(function () { G.state = 'title'; S.music('menu'); });
-    }
+    if (global.Input.hit('back') || global.Input.hit('pause')) toTitle();
   }
 
   function updateEnding() {
@@ -1907,7 +1932,9 @@
         ctx.fillRect(0, 0, W, H);
         ctx.globalAlpha = 1;
       }
-      if (!G.eat && !G.kasse && !G.scene && !G.cut) drawHUD();
+      var eigen = G.modus && G.modMod.full;
+      if (!G.eat && !G.kasse && !G.scene && !G.cut && !eigen) drawHUD();
+      if (G.modus && !eigen && G.modMod.hud && !G.scene) G.modMod.hud(ctx, G, W, H);
       if (G.state === 'paused') drawPause();
       if (G.state === 'clear') drawResults();
       if (G.state === 'dialog') drawDialog();
@@ -2168,6 +2195,60 @@
         for (var gs = 0; gs < 9; gs++) rect(x, 60 + gs * 4, 54, 4, gs % 2 ? '#f4f6fa' : '#2a5ab8');
         rect(x, 60, 20, 20, '#2a5ab8'); rect(x + 8, 60, 4, 20, '#f4f6fa'); rect(x, 68, 20, 4, '#f4f6fa');
       }
+    } else if (theme === 'stadion') {
+      // Tribuene mit Publikum, Flutlichtmasten, Werbebanden
+      for (i = -1; i < 8; i++) {
+        x = i * 220 - (f % 220);
+        rect(x + 100, 30, 6, 140, '#8a8e98');
+        rect(x + 86, 24, 34, 12, '#c8ccd4');
+        for (var fl = 0; fl < 4; fl++) rect(x + 89 + fl * 8, 27, 5, 6, '#fff8d8');
+      }
+      for (i = -1; i < 10; i++) {
+        x = i * 160 - (n * 0.6 % 160);
+        rect(x, 120, 160, 110, t.far);
+        for (var rr = 0; rr < 6; rr++) {
+          rect(x, 124 + rr * 17, 160, 2, t.near);
+          for (var zu = 0; zu < 18; zu++) {
+            var hopp = ((G.tick >> 4) + zu + rr + i) % 7 === 0 ? -2 : 0;
+            rect(x + 4 + zu * 9, 128 + rr * 17 + hopp, 5, 6,
+                 ['#e05a4a', '#ffd257', '#6fc8e8', '#f4f4ee', '#8cd85a', '#c8a0e8'][(zu * 7 + rr * 3 + i) % 6]);
+          }
+        }
+      }
+      var BANDE = ['DÖNER', 'HONIG', 'STILBRUCH', 'GYM? NEIN', 'KUBIDE'];
+      for (i = -1; i < 9; i++) {
+        x = i * 120 - (n % 120);
+        rect(x, 214, 116, 20, '#1a2a4a');
+        rect(x, 214, 116, 2, '#ffffff');
+        F.draw(ctx, BANDE[((i % 5) + 5) % 5], x + 58, 220, { color: '#ffd257', align: 'center' });
+      }
+    } else if (theme === 'knast') {
+      // Zellenreihen mit Gittern, dahinter Insassen; ein Suchscheinwerfer
+      for (i = -1; i < 12; i++) {
+        x = i * 96 - (f % 96);
+        rect(x, 40, 90, 70, t.far);
+        rect(x + 6, 48, 78, 56, '#141418');
+        var wer = (i + 40) % 4;
+        if (wer !== 3) {
+          var wink = ((G.tick >> 5) + i) % 3 === 0 ? -3 : 0;
+          rect(x + 30, 70, 14, 20, '#f07a28');
+          rect(x + 32, 60 + (wer === 1 ? wink : 0), 10, 10, '#e8b48c');
+          if (wer === 1) rect(x + 44, 64 + wink, 4, 10, '#e8b48c');
+          if (wer === 2) rect(x + 50, 86, 16, 3, '#f4f4ee');
+        }
+        for (var gi = 0; gi < 8; gi++) rect(x + 10 + gi * 10, 48, 2, 56, '#8a8e98');
+      }
+      for (i = -1; i < 9; i++) {
+        x = i * 150 - (n % 150);
+        rect(x, 130, 140, 100, t.near);
+        rect(x, 130, 140, 4, '#5a5e68');
+        F.draw(ctx, 'BLOCK ' + String.fromCharCode(65 + ((i % 6) + 6) % 6), x + 70, 140, { color: '#f07a28', align: 'center' });
+      }
+      var sw = Math.sin(G.tick * 0.012) * 180 + W / 2;
+      ctx.globalAlpha = 0.08;
+      ctx.fillStyle = '#fff8d8';
+      ctx.beginPath(); ctx.moveTo(W / 2, 0); ctx.lineTo(sw - 60, 290); ctx.lineTo(sw + 60, 290); ctx.closePath(); ctx.fill();
+      ctx.globalAlpha = 1;
     } else if (theme === 'berg') {
       // Morgens am Hausberg: ferne Gipfel mit Schnee, davor Tannen
       ctx.fillStyle = '#fff6c8';
@@ -2273,6 +2354,7 @@
       } else {
         // Oel, Salatdressing, Knoblauchsosse (toum) oder heisse Kohle
         var HZ = { oel: ['#3a2a12', '#8a6a2a'], toum: ['#d8d0c0', '#ffffff'],
+                   strom: ['#1a2440', (G.tick >> 2) % 2 ? '#8ae0ff' : '#ffffff'],
                    kohle: ['#2a1008', (G.tick >> 3) % 2 ? '#ff6a1a' : '#ffb43c'] };
         var col = (HZ[h.type] || ['#6fa83c'])[0];
         var hi = (HZ[h.type] || [0, '#a8e05a'])[1];
@@ -2507,6 +2589,11 @@
       if (G.banner > 0) drawBanner();
       return;
     }
+    if (G.modus && G.modMod.full) {
+      G.modMod.draw(ctx, G, W, H);
+      if (G.banner > 0) drawBanner();
+      return;
+    }
     var camX = Math.round(G.cam.x + G.cam.sx), camY = Math.round(G.cam.y + G.cam.sy);
     drawSky(G.world.theme);
     // Der Hintergrund ist fuer 288 Pixel Hoehe gezeichnet. In der
@@ -2532,14 +2619,22 @@
       var it = G.items[i];
       var ix = it.x - camX, iy = it.y - camY;
       if (ix < -30 || ix > W + 30) continue;
+      if (it.t === 'goldhonig') {
+        // Leuchtet, damit man von unten sieht: da oben ist was
+        ctx.globalAlpha = 0.22 + Math.sin(G.tick * 0.08) * 0.08;
+        ctx.fillStyle = '#fff0a0';
+        ctx.beginPath(); ctx.arc(ix + it.w / 2, iy + it.h / 2, 13, 0, 6.3); ctx.fill();
+        ctx.globalAlpha = 1;
+      }
       P.draw(ctx, it.spr, ix, iy);
-      if (it.t === 'gold' && (G.tick >> 2) % 6 === 0) {
-        G.particles.spawn({ x: it.x + 8, y: it.y + 6, vx: (Math.random() - 0.5), vy: -0.5,
+      if ((it.t === 'gold' || it.t === 'goldhonig') && (G.tick >> 2) % 6 === 0) {
+        G.particles.spawn({ x: it.x + it.w / 2, y: it.y + 6, vx: (Math.random() - 0.5), vy: -0.5,
                             life: 22, col: '#ffe38a', size: 2, grav: 0 });
       }
     }
 
     for (i = 0; i < G.enemies.length; i++) drawEnemy(G.enemies[i], camX, camY);
+    if (G.modus && !G.modMod.full) G.modMod.draw(ctx, G, camX, camY);
 
     for (i = 0; i < G.projectiles.length; i++) {
       var pr = G.projectiles[i];
@@ -2611,8 +2706,31 @@
         ctx.globalAlpha = 1;
         continue;
       }
-      if (pr.t === 'faust') {
-        // Kurzes Aufblitzen, wo der Handschuh trifft
+      if (pr.t === 'pferd') { drawPferd(pr, camX, camY); continue; }
+      if (pr.t === 'wort') {
+        // Rage-Bait und Formeln: fallen als Woerter vom Himmel
+        F.draw(ctx, pr.text, Math.round(pr.x - camX), Math.round(pr.y - camY),
+               { color: pr.col || ((pr.t0 >> 3) % 2 ? '#ff6a6a' : '#ffffff'), shadow: true });
+        continue;
+      }
+      if (pr.t === 'blitz') {
+        var bxl = Math.round(pr.x - camX), byl = Math.round(pr.y - camY);
+        if (pr.life > pr.aktiv) {
+          // Warnung: Kreis am Boden, flackert immer schneller
+          if ((pr.life >> (pr.life < 30 ? 1 : 2)) % 2 === 0) {
+            rect(bxl - 4, byl + pr.h - 4, pr.w + 8, 4, '#8ae0ff');
+            F.draw(ctx, '!', bxl + pr.w / 2, byl + pr.h - 18, { color: '#8ae0ff', align: 'center', scale: 2 });
+          }
+        } else {
+          ctx.globalAlpha = 0.85;
+          rect(bxl + 4, byl, pr.w - 8, pr.h, '#8ae0ff');
+          rect(bxl + 7, byl, pr.w - 14, pr.h, '#ffffff');
+          ctx.globalAlpha = 1;
+        }
+        continue;
+      }
+      if (pr.t === 'faust' || pr.t === 'faustY') {
+        // Kurzes Aufblitzen, wo die Faust trifft
         if (pr.life >= 4) {
           ctx.globalAlpha = 0.55;
           rect(pr.x - camX, pr.y - camY + pr.h / 2 - 2, pr.w, 4, '#ffffff');
@@ -2666,6 +2784,7 @@
     if (G.lennartLie) drawLennartLie(G.lennartLie, camX, camY);
     if (G.rider && G.rider.pos) drawRider(camX, camY);
     drawPlayer(camX, camY);
+    if (G.fress) global.Fress.draw(ctx, G, camX, camY);
     if (G.cut && G.cut.L) drawLennartCut(G.cut, camX, camY);
     drawParticles(camX, camY);
     drawFloats(camX, camY);
@@ -2980,12 +3099,39 @@
     }
   }
 
+  /** Das Trojanische Pferd: Holz, Raeder, Luke. Selbst gezeichnet. */
+  function drawPferd(pr, camX, camY) {
+    var x = Math.round(pr.x - camX), y = Math.round(pr.y - camY), d = pr.vx >= 0 ? 1 : (pr.vx < 0 ? -1 : (pr.vxAlt > 0 ? 1 : -1));
+    var bob = pr.stopT > 0 ? 0 : ((pr.t0 >> 2) % 2);
+    // Brett mit Raedern
+    rect(x, y + 32, 44, 5, '#6a4020');
+    for (var r = 0; r < 3; r++) {
+      rect(x + 4 + r * 16, y + 36, 7, 4, '#2a1a0a');
+    }
+    // Beine, Rumpf, Hals, Kopf
+    rect(x + 8, y + 20 + bob, 4, 12, '#a87a44');
+    rect(x + 32, y + 20 + bob, 4, 12, '#a87a44');
+    rect(x + 4, y + 10 + bob, 36, 12, '#c8904e');
+    rect(x + 4, y + 10 + bob, 36, 2, '#e0b070');
+    var hx = d > 0 ? x + 30 : x + 2;
+    rect(hx, y + bob, 10, 12, '#c8904e');
+    rect(d > 0 ? hx + 6 : hx - 4, y + bob, 8, 6, '#c8904e');
+    rect(d > 0 ? hx + 10 : hx - 2, y + 2 + bob, 2, 2, '#2a1a0a');
+    rect(d > 0 ? x : x + 40, y + 12 + bob, 4, 8, '#8a5a2a');
+    // Die Luke — offen, wenn es Speere regnet
+    rect(x + 16, y + 13 + bob, 12, 6, pr.stopT > 0 && pr.stopT < 50 ? '#141018' : '#8a5a2a');
+    if (pr.stopT > 44 && (pr.t0 >> 2) % 2 === 0) {
+      F.draw(ctx, '!', x + 22, y - 14, { color: '#ff6a6a', align: 'center', scale: 2 });
+    }
+  }
+
   /* Angriffe, vor denen gewarnt wird — Beruehrung tut dann weh. */
   var BOSS_WARN = {
     chargeprep: 1, carjump: 1, slam: 1, doubleslam: 1, dashprep: 1,
     stampf: 1, drift: 1, wirbel: 1, tornado: 1, runter: 1,
     blitzprep: 1, sprung: 1,
-    dribbelprep: 1, fallrueck: 1, upprep: 1, sirtaki: 1
+    dribbelprep: 1, fallrueck: 1, sirtaki: 1,
+    speerprep: 1, trittprep: 1, tritt: 1
   };
 
   /** Leuchtender Rand um einen verwandelten Boss (Sprite-Bosse). */
@@ -3014,6 +3160,8 @@
 
   function drawBoss(camX, camY) {
     var b = G.boss;
+    // Die neuen Bosse zeichnen sich selbst (bosse.js)
+    if (b.draw) { b.draw(ctx, camX, camY, G); return; }
     // Waehrend der Verwandlung zittert er
     var jit = (b.state === 'transform') ? ((G.tick >> 1) % 2 ? 1 : -1) : 0;
     var px = b.cx() - camX + jit, py = b.y + b.h - camY;
@@ -3101,30 +3249,60 @@
       return;
     }
 
-    // Georgios: erst im Hemd, ab der Haelfte oben ohne mit Boxhandschuhen
+    // Georgios: erst im Hemd, ab der Haelfte Spartaner mit Helm, Schild und Speer
     if (G.lvl.bossType === 'georgios') {
       var gp = 'idle', gf = 'normal';
       if (b.dead) { gp = 'hurt'; gf = 'hurt'; }
       else if (b.state === 'transform') { gp = 'cheer'; gf = 'rage'; }
-      else if (b.boxer && b.punchT > 0) { gp = 'punch'; gf = 'rage'; }
-      else if (b.state === 'dash' || b.state === 'sirtaki' || b.state === 'walk' || b.state === 'anlauf') {
+      else if (b.sparta && b.punchT > 0) { gp = 'punch'; gf = 'rage'; }
+      else if (b.state === 'dash' || b.state === 'sirtaki' || b.state === 'walk' || b.state === 'tritt') {
         gp = 'run'; gf = b.state === 'walk' ? 'normal' : 'laugh';
       }
       else if (!b.grounded) gp = b.vy < 0 ? 'jump' : 'fall';
-      else if (b.boxer) gp = 'guard';
+      else if (b.state === 'speerprep' || b.state === 'phalanx' || b.state === 'pferd') { gp = 'cheer'; gf = 'rage'; }
+      else if (b.sparta) gp = 'guard';
       else if (b.state === 'teller' || b.state === 'oliven') { gp = 'cheer'; gf = 'laugh'; }
       if (b.flash > 0) gf = 'hurt';
       else if (b.rage && !b.dead && gf === 'normal') gf = 'rage';
-      var gwho = b.boxer ? 'georgios_box' : 'georgios';
-      var go = { pose: gp, face: gf, frame: b.anim, scale: 2,
-                 flip: b.state === 'sirtaki' ? ((G.tick >> 2) % 2 === 0) : b.facing < 0 };
+      var gwho = b.sparta ? 'georgios_sparta' : 'georgios';
+      var gflip = b.state === 'sirtaki' ? ((G.tick >> 2) % 2 === 0) : b.facing < 0;
+      var go = { pose: gp, face: gf, frame: b.anim, scale: 2, flip: gflip };
+      var gdir = gflip ? -1 : 1;
+      if (b.sparta && !b.dead) {
+        // Roter Umhang hinter ihm, weht beim Laufen
+        var weh = Math.sin(G.tick * 0.2) * 3 + (Math.abs(b.vx) > 1 ? 6 : 0);
+        ctx.fillStyle = '#a81c1c';
+        ctx.beginPath();
+        ctx.moveTo(px - gdir * 6, py - 50);
+        ctx.lineTo(px + gdir * 8, py - 50);
+        ctx.lineTo(px - gdir * (14 + weh), py - 6);
+        ctx.lineTo(px - gdir * (26 + weh), py - 10);
+        ctx.closePath(); ctx.fill();
+        // Der Speer, aufrecht in der hinteren Hand (nicht, wenn er gerade fliegt)
+        if (b.state !== 'speerwurf') {
+          rect(px - gdir * 12 - 1, py - 78, 2, 70, '#8a5a2a');
+          rect(px - gdir * 12 - 2, py - 84, 4, 7, '#f0c860');
+        }
+      }
       if (glow || b.state === 'transform') drawCharAura(gwho, px, py, go, b.rageCol);
       if (b.dead) go.alpha = Math.max(0.2, 1 - b.deadTimer / 160);
       if (b.flash > 0 && (G.tick >> 1) % 2 === 0) { go.flash = '#ffffff'; go.flashAlpha = 0.8; }
       if (b.invuln > 0 && b.state !== 'transform' && (G.tick >> 1) % 2 === 0 && !b.dead) go.alpha = 0.55;
       P.drawChar(ctx, gwho, px, py, go);
+      if (b.sparta && !b.dead) {
+        // Rundschild mit Lambda vor dem Bauch
+        var sx = px + gdir * (b.punchT > 0 ? 18 : 10), sy = py - 30;
+        ctx.fillStyle = '#5a3a10';
+        ctx.beginPath(); ctx.arc(sx, sy, 14, 0, 6.3); ctx.fill();
+        ctx.fillStyle = '#d8a040';
+        ctx.beginPath(); ctx.arc(sx, sy, 12, 0, 6.3); ctx.fill();
+        ctx.fillStyle = '#f0c860';
+        ctx.beginPath(); ctx.arc(sx - 3, sy - 3, 5, 0, 6.3); ctx.fill();
+        ctx.strokeStyle = '#a81c1c'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(sx - 6, sy + 7); ctx.lineTo(sx, sy - 7); ctx.lineTo(sx + 6, sy + 7); ctx.stroke();
+      }
       if (!b.dead && BOSS_WARN[b.state] && (G.tick >> 2) % 2 === 0) {
-        F.draw(ctx, '!', px, py - b.h - 12, { color: '#ff6a6a', align: 'center', scale: 2 });
+        F.draw(ctx, '!', px, py - b.h - 20, { color: '#ff6a6a', align: 'center', scale: 2 });
       }
       return;
     }
@@ -3318,9 +3496,16 @@
       }
     }
 
-    // Honig
+    // Honig, daneben der Goldhonig dieses Levels
     P.draw(ctx, 'honig', 8, 24);
-    F.draw(ctx, 'x' + p.honey, 24, 29, { color: '#ffe9a8', shadow: true });
+    var hTxt = 'x' + p.honey;
+    F.draw(ctx, hTxt, 24, 29, { color: '#ffe9a8', shadow: true });
+    if (G.goldIdx && G.goldIdx.length) {
+      var gx = 24 + F.measure(hTxt, 1, 1) + 10;
+      P.draw(ctx, 'goldhonig', gx, 24);
+      F.draw(ctx, G.goldCount() + '/' + G.goldIdx.length, gx + 16, 29,
+             { color: '#fff0a0', shadow: true });
+    }
 
     // Leben
     F.draw(ctx, 'YUSUF x' + Math.max(0, p.lives), 8, 44, { color: '#f4bd91', shadow: true });
@@ -3387,15 +3572,22 @@
       if (G.boss.rage && G.boss.phase >= 3 && (G.tick >> 3) % 2 === 0) barCol = '#ffffff';
       rect(x2, by2, hw, 12, barCol);
       rect(x2, by2, hw, 2, 'rgba(255,255,255,0.35)');
-      // Markierung bei der Haelfte: dort verwandelt er sich
-      if (!G.boss.rage) rect(x2 + Math.floor(w2 / 2), by2, 1, 12, 'rgba(255,255,255,0.6)');
+      // Markierung bei der Haelfte: dort verwandelt er sich. Bosse mit
+      // mehreren Leben zeigen statt dessen, wie viele Leben sie noch haben.
+      if (G.boss.lebenMax) {
+        for (var lb = 0; lb < G.boss.lebenMax; lb++) {
+          ctx.globalAlpha = lb < G.boss.leben ? 1 : 0.25;
+          P.draw(ctx, 'herz', x2 + lb * 12, by2 - (G.touch ? -30 : 12));
+          ctx.globalAlpha = 1;
+        }
+      } else if (!G.boss.rage) rect(x2 + Math.floor(w2 / 2), by2, 1, 12, 'rgba(255,255,255,0.6)');
 
       var bname = G.boss.barName ||
                   (mini ? mini.name : (isE ? 'ESAT' : (isA ? 'ALEX' : 'HUSEYIN BALCI')));
       F.draw(ctx, bname, W / 2, by2 + 3,
              { color: '#ffffff', align: 'center', shadow: true });
 
-      var lbl = G.boss.rage ? G.boss.rageName : 'PH 1';
+      var lbl = G.boss.rage ? G.boss.rageName : (G.boss.lebenMax ? (bt2 === 'hamza' ? '1. HALBZEIT' : '1. LEBEN') : 'PH 1');
       var lblCol = G.boss.rage ? G.boss.rageCol : barCol;
       var openNow = G.boss.open && !G.boss.dead && (G.tick >> 3) % 2 === 0;
       if (G.touch) {
@@ -3437,7 +3629,11 @@
     mika:    { name: 'MIKA',    col: '#9ad0ff' },
     hamza:   { name: 'HAMZA',   col: '#ff6a6a' },
     georgios: { name: 'GEORGIOS', col: '#6a9ae8' },
-    typ:     { name: 'TYP VOM NEBENTISCH', col: '#c8c0d8' }
+    typ:     { name: 'TYP VOM NEBENTISCH', col: '#c8c0d8' },
+    alexg:   { name: 'DER ANDERE ALEX', col: '#cdb88c' },
+    nils:    { name: 'NILS', col: '#8ae0ff' },
+    polizist: { name: 'POLIZIST', col: '#8ab4ff' },
+    waerter: { name: 'WÄRTER', col: '#a8b8a8' }
   };
 
   function drawPortrait(who, x, y, talking) {
@@ -3474,6 +3670,18 @@
     } else if (who === 'georgios') {
       ctx.scale(2, 2);
       P.draw(ctx, talking ? 'ge_head_grin' : 'ge_head', 1, 1);
+    } else if (who === 'alexg') {
+      ctx.scale(2, 2);
+      P.draw(ctx, talking ? 'ag_head_angry' : 'ag_head', 0, 1);
+    } else if (who === 'nils') {
+      ctx.scale(2, 2);
+      P.draw(ctx, talking ? 'ni_head_grin' : 'ni_head', 0, 0);
+    } else if (who === 'polizist') {
+      ctx.scale(2, 2);
+      P.draw(ctx, 'polizei', 0, 1 + (talking ? 1 : 0));
+    } else if (who === 'waerter') {
+      ctx.scale(2, 2);
+      P.draw(ctx, 'waerter', 0, 1 + (talking ? 1 : 0));
     } else if (who === 'typ') {
       ctx.scale(2, 2);
       P.draw(ctx, 'typ1', 2, 1 + (talking ? 1 : 0));
@@ -3627,8 +3835,8 @@
     var sc = selectCards();
     var two = sc.rows > 1;
     // Wo was auf der Karte steht: bei zwei Reihen sind die Karten flacher
-    var o = two ? { num: 5, zu: 34, frueh: 46, hon: 30, honT: 35, pts: 50, time: 61, neu: 40 }
-                : { num: 10, zu: 52, frueh: 64, hon: 48, honT: 53, pts: 72, time: 86, neu: 60 };
+    var o = two ? { num: 5, zu: 34, frueh: 46, hon: 27, honT: 32, gold: 43, pts: 52, time: 62, neu: 40 }
+                : { num: 10, zu: 52, frueh: 64, hon: 44, honT: 49, gold: 62, pts: 76, time: 90, neu: 60 };
     for (var i = 0; i < sc.n; i++) {
       var unlocked = i < save.unlocked;
       var cr = cardRect(sc, i);
@@ -3656,6 +3864,12 @@
         if (b) {
           P.draw(ctx, 'honig', x + cw / 2 - 16, yy + o.hon);
           F.draw(ctx, 'x' + b.honey, x + cw / 2 - 2, yy + o.honT, { color: '#ffe9a8' });
+          // Goldhonig: drei Punkte, gefuellt = gefunden
+          var nG = LV.list[i].gold || 0, gm = save.gold[i] || 0;
+          for (var gi = 0; gi < nG; gi++) {
+            var dx = x + cw / 2 - (nG * 8 - 3) / 2 + gi * 8;
+            rect(dx, yy + o.gold, 5, 5, (gm >> gi) & 1 ? '#ffd84a' : 'rgba(255,255,255,0.14)');
+          }
           F.draw(ctx, '' + b.score, x + cw / 2, yy + o.pts,
                  { color: '#a094b8', align: 'center' });
           F.draw(ctx, fmtTime(b.time), x + cw / 2, yy + o.time,
@@ -3707,7 +3921,7 @@
     F.draw(ctx, 'DER BAUCH-STAMPFER ZERBRICHT KISTEN.', 30, 192, { color: '#a094b8' });
     F.draw(ctx, 'MIT DEM KIPPEN-PÄCKCHEN WIRFST DU KIPPEN.', 30, 204, { color: '#a094b8' });
     F.draw(ctx, 'EIN TREFFER KOSTET DANN NUR DAS PÄCKCHEN.', 30, 216, { color: '#a094b8' });
-    F.draw(ctx, '100 HONIG = EIN EXTRALEBEN.', 30, 228, { color: '#a094b8' });
+    F.draw(ctx, '100 HONIG = EIN EXTRALEBEN. 3 GOLDHONIG PRO LEVEL, IMMER GANZ OBEN.', 30, 228, { color: '#a094b8' });
     F.draw(ctx, 'STEH ZU LANGE STILL UND YUSUF SCHLÄFT EIN.', 30, 240, { color: '#a094b8' });
     F.draw(ctx, 'AM HANDY: QUER HALTEN. A = SPRUNG, B = KIPPE.', 30, 252, { color: '#8f86a8' });
 
@@ -3725,7 +3939,7 @@
       color: '#ffd257', align: 'center', scale: 3, shadow: true,
       wave: G.tick * 0.06, waveAmp: 1
     });
-    F.draw(ctx, G.partialRun ? 'DER BERG IST GESCHAFFT!' : 'TRAG DICH IN DIE BESTENLISTE EIN', W / 2, 56,
+    F.draw(ctx, G.partialRun ? 'DER TAG IST GESCHAFFT!' : 'TRAG DICH IN DIE BESTENLISTE EIN', W / 2, 56,
            { color: '#c8b8e0', align: 'center' });
 
     var sec = Math.floor((G.runTime || 0) / 60);
@@ -3829,6 +4043,9 @@
       color: '#ffd257', align: 'center', scale: 5, shadow: 1,
       shadowColor: '#5e2a10', wave: G.tick * 0.05, waveAmp: 1
     });
+    F.draw(ctx, 'NÄCHSTES MAL: AIRSOFT', W / 2, 108, {
+      color: '#8cd85a', align: 'center', scale: 1, shadow: 1
+    });
     F.draw(ctx, 'FOLGT', W / 2, 74, {
       color: '#ffe9a8', align: 'center', scale: 3, shadow: 1, shadowColor: '#5e2a10'
     });
@@ -3885,20 +4102,28 @@
     });
 
     var sec = Math.floor(G.time / 60);
+    var st = G.levelStart || { honey: 0, score: 0 };
+    var nGold = G.goldIdx ? G.goldIdx.length : 0, got = G.goldCount();
     var rows = [
-      ['HONIG GESAMMELT', 'x' + p.honey],
+      ['HONIG IN DIESEM LEVEL', 'x' + (p.honey - st.honey)],
       ['PUNKTE', '' + p.score],
       ['ZEIT', Math.floor(sec / 60) + ':' + ('0' + (sec % 60)).slice(-2)],
       ['LEBEN ÜBRIG', '' + Math.max(0, p.lives)]
     ];
+    if (nGold) rows.splice(1, 0, ['GOLDHONIG', got + ' VON ' + nGold]);
     for (var i = 0; i < rows.length; i++) {
-      var y = 96 + i * 20;
+      var y = 84 + i * 18;
       F.draw(ctx, rows[i][0], 130, y, { color: '#c8b8e0' });
       F.draw(ctx, rows[i][1], W - 130, y, { color: '#ffffff', align: 'right' });
     }
 
-    P.drawChar(ctx, 'yusuf', 90, 210, { pose: 'cheer', face: 'laugh', frame: (G.tick >> 3) });
-    F.draw(ctx, 'HÖ HÖ HÖÖÖ!', 130, 186, { color: '#ffd257' });
+    P.drawChar(ctx, 'yusuf', 90, 214, { pose: 'cheer', face: 'laugh', frame: (G.tick >> 3) });
+    // Was Yusuf zum Goldhonig sagt, haengt davon ab, wie viel er hat
+    var fazit = !nGold ? 'HÖ HÖ HÖÖÖ!'
+              : got === nGold ? 'ALLE DREI. HÖ HÖ HÖÖÖ!'
+              : got === 0 ? 'GOLDHONIG? NIE GEHÖRT. HÖ HÖ.'
+              : 'DER REST LÄUFT JA NICHT WEG. HÖ HÖ.';
+    F.draw(ctx, fazit, 130, 192, { color: '#ffd257' });
 
     if (G.resultTimer > 40 && (G.tick >> 4) % 2 === 0) {
       F.draw(ctx, G.touch ? 'TIPPEN FÜR WEITER' : 'SPRUNG DRÜCKEN FÜR WEITER', W / 2, H - 26,

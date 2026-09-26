@@ -896,7 +896,7 @@
   /* ---------------------------------------------------------------
      GEORGIOS — griechischer Freund, Boss in Level 15. Dunkle Wellen,
      Stoppelbart, weisses Hemd mit blauen Streifen. Sehr schnell.
-     Ab der Haelfte: Hemd aus, Sixpack, rote Boxhandschuhe.
+     Ab der Haelfte: Spartaner (siehe weiter unten).
      --------------------------------------------------------------- */
 
   palette('georgios', {
@@ -1006,32 +1006,344 @@
     knnnk
     kNNNk
   `;
-  // Oberkoerper frei: Brust, Sixpack
-  var GE_TORSO_BOX = `
+  /* ---------------------------------------------------------------
+     GEORGIOS ALS SPARTANER — seine neue Verwandlung (Level 15).
+     Korinthischer Helm mit rotem Kamm, Bronzepanzer, roter Rock.
+     --------------------------------------------------------------- */
+
+  palette('sparta', {
+    k: '#120e14',
+    s: '#e2b088', d: '#c08a60',
+    w: '#ffffff', g: '#3a2616', m: '#7d2724',
+    j: '#4a3220',                          // Bart unter dem Helm
+    o: '#c8903a', a: '#f0c860', O: '#8a5a20', // Bronze
+    r: '#c02828', R: '#e84848',            // Kamm, Rock
+    n: '#6a4020', N: '#4a2c14'             // Sandalen
+  });
+
+  var SP_HEAD = `
+    ....rrrrrr....
+    ...rRRRRRRr...
+    ..rRRRRRRRRr..
+    ...kkkkkkkk...
+    ..kooooooooak.
+    .koooooooooook
+    .kooksssskooak
+    .kookgwsgwkook
+    .kooosdssooook
+    .kookjjjjkoook
+    .kookjmmjkoook
+    ..kokjjjjkook.
+    ..kok....kok..
+    ....kssssk....
+  `;
+  var SP_HEAD_RAGE = `
+    ....rrrrrr....
+    ...rRRRRRRr...
+    ..rRRRRRRRRr..
+    ...kkkkkkkk...
+    ..kooooooooak.
+    .koooooooooook
+    .kookkssskkoak
+    .kookgwsgwkook
+    .kooosdssooook
+    .kookmmmmkoook
+    .kookmwwmkoook
+    ..kokjjjjkook.
+    ..kok....kok..
+    ....kssssk....
+  `;
+  var SP_TORSO = `
     ..kkkkkkkk..
-    .kssssssssk.
-    kssssssssssk
-    ksdddssdddsk
-    kssssssdsssk
-    ksssdddddssk
-    kssssssdsssk
-    ksssdddddssk
-    kssssssdsssk
-    .kssssdsssk.
-    .kbbbbbbbbk.
+    .koooooooak.
+    koooooooooak
+    kooOoooOoook
+    koooOOOOoook
+    kooooOOooook
+    koooOooOoook
+    kooooOOooook
+    kOoooooooOok
+    .kOOOOOOOOk.
+    .krRrRrRrRk.
     ..kkkkkkkk..
   `;
-  // Nackter Arm mit rotem Boxhandschuh
-  var GE_ARM_BOX = `
-    .kkk..
-    kssdk.
-    kssdk.
-    kssdk.
-    .kkkk.
-    kGLGGk
-    kGGGGk
-    kGGGGk
-    .kkkk.
+  var SP_ARM = `
+    .kkk.
+    kssdk
+    kssdk
+    kssdk
+    kooak
+    koook
+    kssdk
+    kssdk
+    .kkk.
+  `;
+  var SP_LEG = `
+    .kkk.
+    ksssk
+    ksssk
+    kooak
+    kooak
+    .kok.
+    .kok.
+    knnnk
+    kNNNk
+  `;
+
+  /* ---------------------------------------------------------------
+     DER ANDERE ALEX — Georgios' Kumpel. Gross. Schiebermuetze, Brille,
+     rotbrauner Bart, beige Jacke ueber schwarzem Shirt, Uhr am Handgelenk,
+     rote Kruecken. Im Fussball Torwart, in Level 17 ein Riese.
+     --------------------------------------------------------------- */
+
+  palette('alexg', {
+    k: '#141018',
+    c: '#3a3a44', C: '#5a5a66',            // Schiebermuetze
+    h: '#8a5a30',                          // Haare an der Seite
+    j: '#a8683a', J: '#7a4a26',            // Bart
+    s: '#f2caa8', d: '#d6a482',
+    e: '#c8ccd6', w: '#ffffff', g: '#4a6a7a', m: '#8a3a3a',
+    r: '#cdb88c', R: '#a8946a',            // beige Jacke
+    y: '#16161c',                          // schwarzes Shirt
+    t: '#dfe3ea',                          // Uhr
+    b: '#1e1e26', B: '#101016',            // schwarze Hose
+    n: '#f2f2ee', N: '#b8b8b0'             // weisse Sneaker
+  });
+
+  var AG_HEAD = `
+    ...kkkkkkkk...
+    ..kcCCcccccck.
+    .kccccccccccck
+    .khkkkkkkkkkkk
+    .khsssssssssdk
+    .khseeeeeeesdk
+    .khsegesegesdk
+    .khseeeseeesdk
+    .kjssssdsssjdk
+    .kjjjjmmmjjjjk
+    ..kjjjjjjjjjk.
+    ...kjjjjjjjk..
+    ....kddddk....
+  `;
+  var AG_HEAD_ANGRY = `
+    ...kkkkkkkk...
+    ..kcCCcccccck.
+    .kccccccccccck
+    .khkkkkkkkkkkk
+    .khskksssskkdk
+    .khseeeeeeesdk
+    .khsegesegesdk
+    .khseeeseeesdk
+    .kjssssdsssjdk
+    .kjjjmmmmmjjjk
+    ..kjjmwwwmjjk.
+    ...kjjjjjjjk..
+    ....kddddk....
+  `;
+  var AG_HEAD_HURT = `
+    ...kkkkkkkk...
+    ..kcCCcccccck.
+    .kccccccccccck
+    .khkkkkkkkkkkk
+    .khsssssssssdk
+    .khseeeeeeesdk
+    .khsekesekesdk
+    .khseeeseeesdk
+    .kjssssdsssjdk
+    .kjjjjkmkjjjjk
+    ..kjjjjjjjjjk.
+    ...kjjjjjjjk..
+    ....kddddk....
+  `;
+  // Ohne Muetze (die fliegt im Kampf irgendwann weg)
+  var AG_HEAD_BARE = `
+    ...hhhhhhhh...
+    ..hhhhhhhhhh..
+    .hhhhhhhhhhhhk
+    .khhhhhhhhhhhk
+    .khsssssssssdk
+    .khseeeeeeesdk
+    .khsegesegesdk
+    .khseeeseeesdk
+    .kjssssdsssjdk
+    .kjjjmmmmmjjjk
+    ..kjjmwwwmjjk.
+    ...kjjjjjjjk..
+    ....kddddk....
+  `;
+  var AG_TORSO = `
+    ..kkkkkkkkkk..
+    .krrrkyykrrrk.
+    krrrryyyyrrrrk
+    krrrryyyyrrrrk
+    krRrryyyyrrRrk
+    krRrryyyyrrRrk
+    krrrryyyyrrrrk
+    kRrrryyyyrrrRk
+    kRRrryyyyrrRRk
+    .kRRRyyyyRRRk.
+    .kbbbbbbbbbbk.
+    ..kkkkkkkkkk..
+  `;
+  var AG_ARM = `
+    .kkk.
+    krrrk
+    krrrk
+    kRRRk
+    kRRRk
+    .ktk.
+    kssdk
+    kssdk
+    .kkk.
+  `;
+  var AG_LEG = `
+    .kkk.
+    kbbbk
+    kbbbk
+    kbBbk
+    kbbbk
+    .kbk.
+    .kbk.
+    knnnk
+    kNNNk
+  `;
+
+  /* ---------------------------------------------------------------
+     NILS — Kollege, Endgegner im Knast. Glatze, sehr viel Stirn, weisses
+     T-Shirt, Taschengurt. Sehr klug. Weiss alles. Schon vorher.
+     --------------------------------------------------------------- */
+
+  palette('nils', {
+    k: '#141018',
+    s: '#f4d2b8', d: '#dcae90', W: '#fff4ea', // Haut, Glanz auf der Stirn
+    b: '#c8a07a',                          // helle Augenbrauen
+    w: '#ffffff', g: '#5a7a9a', m: '#9a4a44',
+    x: '#1a1a20',                          // Taschengurt
+    y: '#f4f4f0', Y: '#c8ccd4',            // T-Shirt
+    j: '#3a4a66', J: '#26324a',            // Jeans
+    n: '#2a2a30', N: '#141418'             // Schuhe
+  });
+
+  var NI_HEAD = `
+    ....kkkkkk....
+    ..kksWWsssskk.
+    .ksssWsssssssk
+    .kssssssssssdk
+    ksssssssssssdk
+    ksssssssssssdk
+    ksssssssssssdk
+    ksbbbssbbbssdk
+    kssgwsssgwssdk
+    ksssssdssssdk.
+    .kssskmmmksdk.
+    .ksssssssssdk.
+    ..kddddddddk..
+    ....kssssk....
+  `;
+  var NI_HEAD_GRIN = `
+    ....kkkkkk....
+    ..kksWWsssskk.
+    .ksssWsssssssk
+    .kssssssssssdk
+    ksssssssssssdk
+    ksssssssssssdk
+    ksssssssssssdk
+    ksbbbssbbbssdk
+    kssgwsssgwssdk
+    ksssssdssssdk.
+    .kskmmmmmmkdk.
+    .ksskwwwwksdk.
+    ..kddddddddk..
+    ....kssssk....
+  `;
+  var NI_HEAD_HURT = `
+    ....kkkkkk....
+    ..kksWWsssskk.
+    .ksssWsssssssk
+    .kssssssssssdk
+    ksssssssssssdk
+    ksssssssssssdk
+    ksssssssssssdk
+    ksbbbssbbbssdk
+    ksskskssksksdk
+    ksssssdssssdk.
+    .kssskmmksssk.
+    .ksssssssssdk.
+    ..kddddddddk..
+    ....kssssk....
+  `;
+  var NI_HEAD_SLEEP = `
+    ....kkkkkk....
+    ..kksWWsssskk.
+    .ksssWsssssssk
+    .kssssssssssdk
+    ksssssssssssdk
+    ksssssssssssdk
+    ksssssssssssdk
+    ksbbbssbbbssdk
+    ksskksssskksdk
+    ksssssdssssdk.
+    .ksssskmksssk.
+    .ksssssssssdk.
+    ..kddddddddk..
+    ....kssssk....
+  `;
+  // Genie-Modus: die Stirn waechst. Und waechst.
+  var NI_HEAD_GENIE = `
+    ......kkkkkk......
+    ....kkWWWsssskk...
+    ...kssWWWsssssskk.
+    ..ksssWWssssssssk.
+    .kssssssssssssssdk
+    .kssssssssssssssdk
+    kssssssssssssssssk
+    kssssssssssssssssk
+    kssssssssssssssdsk
+    kssssssssssssssdsk
+    .kssssssssssssdsk.
+    ..kssbbbssbbbsdk..
+    ..ksskkgssskkgdk..
+    ..kssssssdssssdk..
+    ..ksskmmmmmmksdk..
+    ...kssskwwwksdk...
+    ....kddddddddk....
+    ......kssssk......
+  `;
+  var NI_TORSO = `
+    ..kkkkkkkkkk..
+    .kyyyyyyyyxyk.
+    kyyyyyyyyxyyyk
+    kyyyyyyyxyyyyk
+    kyyyyyyxyyyyyk
+    kyyyyyxyyyyyyk
+    kYyyyxyyyyyyYk
+    kYyyxyyyyyyyYk
+    kYYxyyyyyyyYYk
+    .kxYYYYYYYYYk.
+    .kjjjjjjjjjjk.
+    ..kkkkkkkkkk..
+  `;
+  var NI_ARM = `
+    .kkk.
+    kyyyk
+    kyyyk
+    kYYYk
+    .kk..
+    .ksk.
+    kssdk
+    kssdk
+    .kkk.
+  `;
+  var NI_LEG = `
+    .kkk.
+    kjjjk
+    kjjjk
+    kjJjk
+    kjjjk
+    .kjk.
+    .kjk.
+    knnnk
+    kNNNk
   `;
 
   /* ---------------------------------------------------------------
@@ -1174,8 +1486,29 @@
   def('ge_torso', GE_TORSO, 'georgios');
   def('ge_arm', GE_ARM, 'georgios');
   def('ge_leg', GE_LEG, 'georgios');
-  def('ge_torso_box', GE_TORSO_BOX, 'georgios');
-  def('ge_arm_box', GE_ARM_BOX, 'georgios');
+
+  def('sp_head', SP_HEAD, 'sparta');
+  def('sp_head_rage', SP_HEAD_RAGE, 'sparta');
+  def('sp_torso', SP_TORSO, 'sparta');
+  def('sp_arm', SP_ARM, 'sparta');
+  def('sp_leg', SP_LEG, 'sparta');
+
+  def('ag_head', AG_HEAD, 'alexg');
+  def('ag_head_angry', AG_HEAD_ANGRY, 'alexg');
+  def('ag_head_hurt', AG_HEAD_HURT, 'alexg');
+  def('ag_head_bare', AG_HEAD_BARE, 'alexg');
+  def('ag_torso', AG_TORSO, 'alexg');
+  def('ag_arm', AG_ARM, 'alexg');
+  def('ag_leg', AG_LEG, 'alexg');
+
+  def('ni_head', NI_HEAD, 'nils');
+  def('ni_head_grin', NI_HEAD_GRIN, 'nils');
+  def('ni_head_hurt', NI_HEAD_HURT, 'nils');
+  def('ni_head_sleep', NI_HEAD_SLEEP, 'nils');
+  def('ni_head_genie', NI_HEAD_GENIE, 'nils');
+  def('ni_torso', NI_TORSO, 'nils');
+  def('ni_arm', NI_ARM, 'nils');
+  def('ni_leg', NI_LEG, 'nils');
 
   def('h_head', H_HEAD, 'huseyin');
   def('h_head_angry', H_HEAD_ANGRY, 'huseyin');
@@ -1265,17 +1598,52 @@
       footY: 19,
       height: 30, width: 12
     },
-    // Georgios ab der Haelfte: oben ohne, Boxhandschuhe
-    georgios_box: {
-      heads: { normal: 'ge_head_rage', laugh: 'ge_head_grin', hurt: 'ge_head_hurt',
-               sleep: 'ge_head', eat: 'ge_head_grin', growl: 'ge_head_rage',
-               rage: 'ge_head_rage' },
-      torso: 'ge_torso_box', arm: 'ge_arm_box', leg: 'ge_leg',
-      headOX: -1, headOY: -11,
+    // Georgios ab der Haelfte: Spartaner. Helm, Panzer, Schild, Speer.
+    georgios_sparta: {
+      heads: { normal: 'sp_head', laugh: 'sp_head_rage', hurt: 'sp_head_rage',
+               sleep: 'sp_head', eat: 'sp_head', growl: 'sp_head_rage',
+               rage: 'sp_head_rage' },
+      torso: 'sp_torso', arm: 'sp_arm', leg: 'sp_leg',
+      headOX: -1, headOY: -13,
       armBackOX: -4, armFrontOX: 10, armOY: 2,
       legLOX: 1, legROX: 6, legOY: 10,
       footY: 19,
-      height: 30, width: 12
+      height: 32, width: 12
+    },
+    // Der andere Alex: Georgios' Kumpel. Im Fussball Torwart, spaeter Riese.
+    alexg: {
+      heads: { normal: 'ag_head', laugh: 'ag_head_angry', hurt: 'ag_head_hurt',
+               sleep: 'ag_head', eat: 'ag_head', growl: 'ag_head_angry',
+               rage: 'ag_head_angry', bare: 'ag_head_bare' },
+      torso: 'ag_torso', arm: 'ag_arm', leg: 'ag_leg',
+      headOX: 0, headOY: -12,
+      armBackOX: -3, armFrontOX: 12, armOY: 2,
+      legLOX: 2, legROX: 7, legOY: 10,
+      footY: 19,
+      height: 31, width: 14
+    },
+    // Nils: sehr viel Stirn. Im Genie-Modus noch mehr.
+    nils: {
+      heads: { normal: 'ni_head', laugh: 'ni_head_grin', hurt: 'ni_head_hurt',
+               sleep: 'ni_head_sleep', eat: 'ni_head_grin', growl: 'ni_head_grin',
+               rage: 'ni_head_grin' },
+      torso: 'ni_torso', arm: 'ni_arm', leg: 'ni_leg',
+      headOX: 0, headOY: -13,
+      armBackOX: -3, armFrontOX: 12, armOY: 2,
+      legLOX: 2, legROX: 7, legOY: 10,
+      footY: 19,
+      height: 32, width: 14
+    },
+    nils_genie: {
+      heads: { normal: 'ni_head_genie', laugh: 'ni_head_genie', hurt: 'ni_head_hurt',
+               sleep: 'ni_head_sleep', eat: 'ni_head_genie', growl: 'ni_head_genie',
+               rage: 'ni_head_genie' },
+      torso: 'ni_torso', arm: 'ni_arm', leg: 'ni_leg',
+      headOX: -2, headOY: -17,
+      armBackOX: -3, armFrontOX: 12, armOY: 2,
+      legLOX: 2, legROX: 7, legOY: 10,
+      footY: 19,
+      height: 36, width: 14
     },
     // Esat nach dem Snus: breiter, dickere Arme, immer wuetend
     esat_buff: {

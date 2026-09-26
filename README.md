@@ -24,6 +24,10 @@ Handy und Tablet funktionieren auch (Touch-Steuerung blendet sich automatisch ei
 | Maus ziehen (Level 8) | Essen zu Yusuf ziehen; alternativ Pfeile + Sprung |
 | Fahrrad (Level 12) | Rechts treten, links bremsen, Sprung hüpft; **in der Luft Sprung = Rückwärtssalto** |
 | `C` (Level 14) | An der Shisha **auspusten** (am Handy: B oder tippen) |
+| Fußball (Level 16) | Laufen treibt den Ball, `Shift` / `E` schießt, Sprung in den Ball ist ein **Kopfball**, Bauch-Stampfer auf den Ball ein **Bauchschuss** |
+| Rennen (Level 18) | `←` `→` lenken, Sprung = **Nitro**, `↓` bremst. Gas gibt der Mustang von allein |
+| Knast (Level 19) | `Shift` / `E` = **Faust**: haut Insassen um und boxt Kisten kaputt |
+| Döner (Level 20) | Pfeile + Sprung legt Zutaten drauf, `↓` wickelt und isst (am Handy: Kisten antippen) |
 
 Gamepad wird ebenfalls erkannt.
 
@@ -44,24 +48,39 @@ Gamepad wird ebenfalls erkannt.
 ## Worum es geht
 
 - **Honig sammeln.** 100 Gläser = ein Extraleben.
+- **Goldhonig suchen.** In jedem Hüpf-Level hat Huseyin drei Gläser Goldhonig
+  versteckt — immer ganz oben, auf den höchsten Ebenen: Schrankdach,
+  Baumhaus, Dunstabzug, Fahnenmast. Jedes bringt 1000 Punkte. Oben links
+  steht, wie viele du im Level schon hast, auf der Levelkarte leuchten die
+  gefundenen als Punkte.
+- **Mehrere Ebenen.** Jedes Hüpf-Level hat einen zweiten Abschnitt mit bis zu
+  vier Etagen: unten kommt man immer durch, weiter oben wird es enger — und
+  lohnender. Sprungkissen und Tabletts helfen beim Hochkommen.
 - **Auf Gegner springen.** Mehrere ohne Bodenkontakt geben Combo-Bonus.
 - **Kippen-Päckchen** wirkt wie die Feuerblume: du wirfst Kippen, und ein
   Treffer kostet dich nur das Päckchen statt eines Herzens.
 - **Nicht in die Gabeln treten.** Küchen sind gefährlicher als sie aussehen.
 - **Jeder Boss verwandelt sich** bei halber Energie — und wird schneller und wilder.
+  **Hamza hat zwei Leben, Georgios drei**: Ist ein Balken leer, füllt er sich
+  wieder, und der Boss kommt in einer neuen Form zurück. Die Herzen neben dem
+  Balken zeigen, wie viele Leben noch übrig sind.
+- **Yusuf isst nicht. Er schlingt.** Egal ob am Tisch, am Schreibtisch, in der
+  Dönerbude oder im Vorbeilaufen: Zwei Hände schaufeln, das Essen fliegt
+  Stück für Stück in den Mund, Krümel spritzen, MAMPF.
 - **Der Bauch-Stampfer kostet Puste.** Links unten läuft ein Ausdauerbalken mit:
   ist er leer, gibt es keinen Stampfer, bis er sich wieder gefüllt hat.
 - **Eingesammeltes bleibt eingesammelt.** Wer stirbt, findet nur das wieder,
   was er nach dem letzten Checkpoint geholt hat — der Rest zählt ja weiter
   auf dem Konto. Dieselbe Honigspur zweimal abfahren geht nicht.
-- **Die Arschbombe macht bei Bossen nur halben Schaden.** Sonst haette man
+- **Die Arschbombe macht bei Bossen nur halben Schaden.** Sonst hätte man
   jeden Kampf einfach mit Bauch-Stampfern zugespammt.
 - **Boss-Angriffe fliegen durch die Arena-Plattformen.** Unter einer Plattform
   stehenbleiben hilft also nicht mehr.
 
 Steh mal zu lange still. Yusuf schläft dann einfach ein. Und knurren tut er sowieso.
+Und wenn er richtig schlafen geht, dann **einen ganzen Tag**.
 
-## Die fünfzehn Level
+## Die zwanzig Level
 
 | # | Level | Wo |
 |---|---|---|
@@ -76,10 +95,20 @@ Steh mal zu lange still. Yusuf schläft dann einfach ein. Und knurren tut er sow
 | 9 | Sparmarkt | Gemüse, Snacks, Fleisch, Alkohol |
 | 10 | Der Heimweg | Sechs Tüten, achthundert Meter |
 | 11 | Vor der Haustür | Broke wartet schon |
-| 12 | Downhill | Mit Esat am Hausberg |
+| 12 | Downhill | Mit Esat am Hausberg (jetzt mit Kiesgrube) |
 | 13 | Shawarma bei Hamza | Libanesisch. Seit immer. |
 | 14 | Stilbruch | Eine Shisha. Ganz entspannt. |
 | 15 | Bei Georgios | Taverne, kurz vor Küchenschluss |
+| 16 | Das Spiel des Jahres | Bolzplatz, 11:00 Uhr |
+| 17 | Der andere Alex | Von unten sieht jeder groß aus |
+| 18 | Mustang gegen Audi | Landstraße, 22:30 Uhr |
+| 19 | Der Knast | JVA, Zelle 14, 23:50 Uhr |
+| 20 | Döner. Selbst gemacht. | Dönerladen an der Ecke, 10:40 Uhr |
+
+Ab Broke sind die Hüpf-Level **mindestens viermal so lang** wie früher und
+aus vielen verschiedenen Abschnitten zusammengesetzt: Lücken, Treppen,
+Etagen, Tabletts, Türme, Kistenberge, Mauern, kleine Arenen und Rastplätze,
+beim Downhill Stufen, Rampen, Abgründe und Huckel.
 
 ### Jedes Level hat seinen eigenen Boss
 
@@ -97,9 +126,14 @@ Steh mal zu lange still. Yusuf schläft dann einfach ein. Und knurren tut er sow
 | 10 | — | | Nur heimkommen | |
 | 11 | **Broke** | 14 | Extrem schnell: Sprint mit Nachbildern, Blitzwechsel hinter Yusuf, Sprung mit Bodenwelle — und er ruft die ganze Zeit **Mikas** | **Mika-Armee:** ganze Reihen Mikas rennen quer über den Gehweg |
 | 12 | — | | Downhill mit Rampen und Saltos | |
-| 13 | **Hamza** | 15 | Hummus (klebt am Boden), HHC-Wellen (danach dreht sich alles), Fußball und Dribbling | **Yalla-Modus:** Fallrückzieher, Hummus-Regen, zwei Wellen auf einmal |
+| 13 | **Hamza** | 2 × 10 | Hummus (klebt am Boden), HHC-Wellen (danach dreht sich alles), Fußball und Dribbling | **Zweite Halbzeit** (zweites Leben): spielt von der Empore, Fallrückzieher, Hummus-Regen, zwei Wellen auf einmal |
 | 14 | — | | Die Typen vom Nebentisch werfen Zangen und heiße Kohle | |
-| 15 | **Georgios** | 16 | Sehr schnell: Teller (Scherben bleiben liegen), Sirtaki-Wirbel, Oliven, Sprints | **Boxer:** Hemd aus, Sixpack, Boxhandschuhe — schnelle Geraden und ein Aufwärtshaken |
+| 15 | **Georgios** | 3 × 8 | Sehr schnell: Teller (Scherben bleiben liegen), Sirtaki-Wirbel, Oliven, Sprints | **Spartaner** (zweites Leben): Helm, Schild, Speerwürfe und das **Trojanische Pferd**. **Omas Liebling** (drittes Leben): die Oma wirft Tzatziki aus der Küche |
+| 16 | — | | Fußball, zwei gegen zwei | |
+| 17 | **Der andere Alex** | 10 | Riesig, auf Krücken. Draufspringen bringt nichts — nur **Schuh, Brille, Mütze und Uhr** tun weh, und die sind immer nur kurz offen. Wirft Krücken, stampft, bückt sich, telefoniert | **Rage-Bait:** tippt wütende Nachrichten, hüpft, wackelt, Krücken-Bumerang |
+| 18 | — | | Rennen gegen den Audi, mit Blitzern | |
+| 19 | **Nils** | 10 | Weiß alles vorher. Verwundbar nur, wenn er gerade **nicht denkt**: nach einer richtig beantworteten Quizfrage, wenn er Yusuf nachmacht und dabei (wie Yusuf) einschläft, oder wenn er sich überhitzt. Wirft Bücher und Karteikarten | **Genie-Modus:** die Stirn wächst, Gedankenblitze schlagen dort ein, wo du gleich sein wirst, Formeln fliegen |
+| 20 | — | | Döner bauen, bis 10.000 Kalorien | |
 
 Die Level ziehen von Stufe zu Stufe an — Gegner werden schneller und
 angriffslustiger. **Level 7 ist bewusst brutal.**
@@ -107,6 +141,7 @@ angriffslustiger. **Level 7 ist bewusst brutal.**
 Bei der Verwandlung leuchtet der Boss, der Lebensbalken wechselt die Farbe
 und trägt den Namen der neuen Form. Wer danach stirbt, macht **ab der
 Halbzeit** weiter — die erste Hälfte muss man nicht jedes Mal wiederholen.
+Bei Bossen mit mehreren Leben geht es mit dem Leben weiter, bei dem man war.
 Die Bosse laufen durch die schwebenden Arena-Plattformen hindurch, statt an
 ihnen hängen zu bleiben; die unteren Plattformen liegen außerdem höher.
 
@@ -175,8 +210,23 @@ heißen und alle gleich aussehen. Er ruft ständig neue nach, höchstens vier au
 einmal. Ab der Hälfte kommt die **Mika-Armee**: Ganze Reihen Mikas rennen
 quer durchs Bild. Drüberspringen oder draufspringen gibt Combo-Punkte.
 
-Danach geht Yusuf schlafen. Die Nacht läuft im Zeitraffer durch (Sprung spult
-vor), um 7:30 ruft Esat an: Downhill.
+Danach geht Yusuf schlafen. Sonntag, 16:40. Nur kurz, sagt er.
+
+### Schlafen: jedes Mal ein ganzer Tag
+
+Wenn Yusuf ins Bett geht, verschläft er **einen kompletten Tag**. Die Uhr
+rast im Zeitraffer durch Abend, Nacht, den ganzen nächsten Tag und noch eine
+Nacht, oben stehen Uhrzeit und Wochentag. Draußen geht die Sonne auf und
+unter, Wolken jagen vorbei, das Licht wandert durchs Zimmer, und das Handy
+sammelt **verpasste Anrufe**. Unten wird eingeblendet, was die Welt
+währenddessen ohne ihn erlebt (Hüseyin geht laufen, der Paketbote gibt auf,
+der Lattenrost reicht die Kündigung ein). Sprung spult vor.
+
+| Nach | Schläft ein | Wacht auf | Verschlafen |
+|---|---|---|---|
+| Broke (Level 11) | Sonntag, 16:40 | Dienstag, 7:30 — Esat: Downhill | den Montag, zwölf Anrufe |
+| Georgios (Level 15) | Mittwoch, 1:20 | Donnerstag, 9:40 — Esat: Fußball | den Mittwoch |
+| dem Knast (Level 19) | Freitag, 2:10 | Samstag, 10:15 — Gruppenanruf: Airsoft | den Freitag |
 
 ### Level 12: Downhill
 
@@ -186,6 +236,9 @@ kommentiert. An **Rampen** hebt man ab, in der Luft macht Sprung einen
 Sprung zählen vierfach), schief gelandet kostet es ein Herz. Honig hängt genau
 dort in der Luft, wo man hinfliegt. **Dornbüsche** tun weh, Bienen fährt man
 einfach um.
+
+Unten geht es seit neuestem noch durch die **Kiesgrube**: zwei Rampen mehr, eine
+davon über eine Lücke, und Goldhonig gibt es dort nur mit Vollgas.
 
 Auf halber Strecke hat **Lennart** seinen Auftritt: Er rast von hinten heran,
 springt über die beiden, das Bild friert ein und sein Name steht groß im Bild,
@@ -203,8 +256,12 @@ immer noch beleidigt, weil Yusuf mal gesagt hat, sein Hummus sei zu flüssig.
 Er wirft **Hummus** (wo der landet, bleibt man kleben und wird langsam),
 schickt **HHC-Wellen** durch den Laden (wer sie abbekommt, dem dreht sich eine
 Weile alles) und schießt mit dem **Fußball**, der noch ein paar Mal abspringt.
-Im **Yalla-Modus** kommen Fallrückzieher und Hummus-Regen dazu. Danach gibt es
-Shawarma aufs Haus, Esat kommt dazu, und dann geht es in den Stilbruch.
+Hamza hat **zwei Leben**, wie zwei Halbzeiten. In der zweiten spielt er von der
+**Empore** (der VIP-Loge seiner Mutter) herunter, springt ab und zu runter und
+wieder hoch; links und rechts führen Tische und Stufen nach oben. Danach gibt
+es Shawarma aufs Haus: erst eins, dann drei, dazu Hummus, Pita und Pommes, und
+Yusuf schlingt alles in Sekunden weg. Esat kommt dazu, und dann geht es in den
+Stilbruch.
 
 ### Level 14: Stilbruch
 
@@ -215,20 +272,76 @@ mit** und redet dazwischen. Ziel ist der reservierte Tisch ganz hinten.
 
 Dort gibt es endlich die Shisha: **Traube-Minze für Esat, Doppelapfel für
 Yusuf**. Gezogen wird von allein, ausgepustet wird mit **C** (am Handy mit B
-oder Tippen) — dreimal, und wer zu früh drückt, hustet. Danach hat Yusuf
-Hunger. Natürlich.
+oder Tippen) — **achtmal**, und jeder Zug wird eine andere Figur: Ring,
+Doppelring, Herz, Kette, der ganz große. Der Kopf ist schnell bereit (bei
+**JETZT!** pusten), und wer zu früh drückt, hustet nur kurz und fängt nicht
+von vorne an. Esat kommentiert. Danach hat Yusuf Hunger. Natürlich.
 
 ### Level 15: Bei Georgios
 
 Kurz vor Küchenschluss in der Taverne. Die **Meeresfrüchte** sind frisch und
 wehren sich: **Krabben** laufen, **Kraken** spucken Tinte, **Fische** fliegen.
-**Georgios** ist sehr schnell: Er wirft **Teller** (die Scherben bleiben
-liegen), wirbelt **Sirtaki** quer durch den Raum und verteilt Oliven. Bei
-halber Energie zieht er das **Hemd aus**, hat ein Sixpack, zieht
-**Boxhandschuhe** an und boxt schnelle Geraden und einen Aufwärtshaken.
+**Georgios** ist sehr schnell und hat **drei Leben**: Er wirft **Teller** (die
+Scherben bleiben liegen), wirbelt **Sirtaki** quer durch den Raum und verteilt
+Oliven. Im zweiten Leben holt er Helm, Schild und Speer aus dem Weinkeller und
+wird zum **Spartaner**: Er wirft **Speere** und schiebt das **Trojanische
+Pferd** durch die Taverne. Im dritten Leben mischt sich seine **Oma** aus der
+Küche ein und wirft mit Tzatziki.
 
-Danach: ein Teller **Souvlaki** und ein Berg **Tzatziki** von seiner Oma.
-Und dann geht Yusuf endlich schlafen. Mit Schuhen.
+Danach: drei **Souvlaki**, Pita, Oliven und ein Berg **Tzatziki** von der Oma,
+alles im Fressrausch. Und dann geht Yusuf endlich schlafen. Mit Schuhen. Bis
+Donnerstag.
+
+### Level 16: Das Spiel des Jahres
+
+Esat ruft an: Fußball. **Yusuf und Esat gegen Georgios und seinen großen
+Kumpel Alex** (den anderen Alex, mit Krücken, im Tor). Yusuf ist
+überraschend gut. Laufen treibt den Ball, `Shift` / `E` schießt, Kopfball
+per Sprung, und der **Bauchschuss** (Stampfer auf den Ball) ist so hart, dass
+Alex ihn fast nie hält. Wer zuerst drei Tore hat, gewinnt; verloren heißt
+Revanche. Danach ist Alex beleidigt. Sehr. Und er wird größer.
+
+### Level 17: Der andere Alex
+
+Alex ist jetzt **riesig** und Yusuf winzig. Der Kampf geht über mehrere
+Etagen, und **Draufspringen bringt nichts** („DA SPÜRT ER NIX“). Weh tun nur
+seine **Schwachstellen**, und die sind immer nur kurz offen: der **Schuh**
+nach dem Stampfer, die **Brille**, wenn er sich bückt, um den kleinen Yusuf zu
+suchen, die **Mütze**, wenn er telefoniert, und ab der Hälfte die **Uhr**,
+wenn er Rage-Bait tippt. Er wirft Krücken (die bleiben als Brücke liegen oder
+kommen als Bumerang zurück). Am Ende: „Gut Fußball gespielt. Aber im
+Autorennen bin ich besser.“
+
+### Level 18: Mustang gegen Audi
+
+Rennen in der Ich-Perspektive, **Yusufs Mustang gegen Alex' Audi**, Esat auf
+dem Beifahrersitz. Auf der Landstraße stehen **Blitzer** (Alex bremst an
+jedem, Yusuf nicht), **Rampen**, **explosive Fässer**, Kegel, Nitro, Honig und
+Streifenwagen. Auf halber Strecke hat **Erfan** seinen Auftritt: wie bei
+Lennart steht sein Name groß im Bild, spanische Musik, er zieht im CLA vorbei, driftet
+und baut einen Unfall. Yusuf und Alex fahren einfach weiter. Wer gewinnt, wird
+danach allerdings angehalten: geblitzt, mehrfach, und auf jedem Foto lacht er.
+
+### Level 19: Der Knast
+
+Eine Nacht in der JVA. Yusuf **boxt sich raus** (`Shift` / `E`): durch den
+Zellentrakt, die Wäscherei, die Kantine und den Hof, vorbei an Insassen,
+Schlägern und Wärtern, mit Kisten zum Kaputthauen. In der Bibliothek wartet
+**Nils**, Professor, große Stirn, weiß alles vorher. Er stellt **Quizfragen**
+(die richtige Antwort-Tafel anspringen, dann ist er verwirrt), macht Yusuf
+**nach**, auch das Einschlafen, und denkt im **Genie-Modus** so viel, dass er
+sich überhitzt. Am Ende stellt sich heraus: Die Tür war nie abgeschlossen. Es
+war in seinem Kopf.
+
+### Level 20: Döner. Selbst gemacht.
+
+Esat und Lennart rufen an: Airsoft, jetzt, „steh auf, du Penner“. Yusuf geht
+erst Döner essen. Hinter der Theke baut er ihn sich selbst: Brot, Fleisch,
+Pommes, Käse, Sucuk, Salat, Zwiebeln, Tomate, Knoblauch- und scharfe Soße. Oben
+läuft der Kalorienzähler. Soße weicht das Brot auf, und ist der Döner zu voll,
+**reißt** er (das kostet ein Herz). Kombis wie das **Yusuf-Spezial** bringen
+Bonus. Einwickeln heißt essen, und zwar in Sekunden. Ziel: **10.000
+Kalorien**. Das Handy klingelt die ganze Zeit. Es wird ignoriert.
 
 Während aller Gespräche steht die Welt still: Gegner, Würfe und Bosse
 bewegen sich nicht, der Hintergrund wird abgedunkelt und rechts oben im
@@ -237,7 +350,9 @@ Textfeld steht **PAUSE**. Man kann also nicht sterben, während jemand redet.
 ## Fortschritt
 
 Nach **jedem** geschafften Level wird gespeichert — inklusive Punkte, Honig,
-Zeit und Tode des laufenden Durchgangs. Im Hauptmenü setzt **WEITER AB LEVEL X**
+Zeit und Tode des laufenden Durchgangs. Die Levelkarte zeigt außerdem die
+Bestwerte **dieses einen Levels** (Honig, Punkte, Zeit) und den gefundenen
+Goldhonig. Im Hauptmenü setzt **WEITER AB LEVEL X**
 genau diesen Durchgang fort, über **LEVEL WÄHLEN** kommst du zu jedem Level,
 das du schon einmal geschafft hast. Du fängst also nie wieder von vorne an.
 
@@ -251,10 +366,10 @@ Die besten fünf stehen **immer auf dem Titelbild** (antippen oder im Menü
 **BESTENLISTE** für die ganze Liste). Sortierbar nach **Punkten, Honig, Zeit
 oder Toden**.
 
-Wer am Ende des Tages ins Bett fällt (nach Level 15), trägt sich in einem normalen
+Wer am Ende satt ist (nach dem Döner in Level 20), trägt sich in einem normalen
 Textfeld ein — ohne Zeitdruck, bis zu 10 Zeichen, erst **EINTRAGEN** speichert.
-Gezählt wird der **ganze Durchgang** über alle fünfzehn Level (die Kalorien aus
-Level 8 geben auch Punkte). In die Liste kommen nur Durchgänge, die bei
+Gezählt wird der **ganze Durchgang** über alle zwanzig Level (die Kalorien aus
+Level 8 und Level 20 geben auch Punkte). In die Liste kommen nur Durchgänge, die bei
 **Level 1** begonnen haben (auch wenn sie zwischendurch mit WEITER fortgesetzt
 wurden) — sonst könnte man mit Level 7 allein die Zeitwertung gewinnen.
 
@@ -301,10 +416,15 @@ Alles selbst gebaut, **kein einziges externes Asset**:
   Kein Webfont, keine Schriftdatei.
 - **Musik & Sound** — komplett in der Web Audio API synthetisiert (`src/audio.js`):
   Pulswellen über Fourier-Koeffizienten für den NES-Klang, Dreieck für den Bass,
-  gefiltertes Rauschen für die Drums. Zehn Stücke, ein Step-Sequencer.
+  gefiltertes Rauschen für die Drums. Siebzehn Stücke (vom Fangesang auf dem
+  Bolzplatz bis zur spanischen Musik für Erfan), ein Step-Sequencer.
   Auch Yusufs Lachen ist synthetisiert.
-- **Level** — kleiner Baukasten mit `g()`, `p()`, `q()`, `e()` usw. (`src/levels.js`),
-  damit die Layouts lesbar bleiben.
+- **Level** — kleiner Baukasten mit `g()`, `p()`, `q()`, `e()`, `gold()` usw.
+  (`src/levels.js`), damit die Layouts lesbar bleiben. Die langen Level ab
+  Broke werden aus fertigen Abschnitten zusammengesteckt (`src/abschnitte.js`),
+  die alle mit der echten Sprungphysik geprüft sind.
+- **Rennen** — Pseudo-3D wie bei alten Arcade-Rennern: Straßenstücke werden
+  perspektivisch projiziert, Kurven und Hügel verschieben sie (`src/rennen.js`).
 - **Engine** — Vanilla JavaScript, feste 60-Hz-Physik, Kachel-Kollision,
   keine Abhängigkeiten, kein Build-Schritt.
 
@@ -314,6 +434,7 @@ style.css           Rahmen, Touch-Knöpfe, Startknopf, Namensfeld
 manifest.webmanifest + icon.svg   "Zum Home-Bildschirm" als Vollbild-App
 smoketest.html      Automatischer Testlauf (siehe unten)
 bosstest.html       Bot spielt einen Bosskampf durch (?lvl=1..14)
+qatest.html         Abläufe drumherum: Speichern, Menüs, Sonderregeln
 kippentest.html     Prueft das Kippen-Power-up Schritt fuer Schritt
 supabase-setup.sql  Regeln fuer die weltweite Bestenliste (optional)
 src/font.js         Pixel-Font
@@ -321,9 +442,14 @@ src/pixel.js        Sprite-Engine + Yusuf, Huseyin, Esat
 src/sprites.js      Gegner, Items, Autos, Blöcke, Tiles
 src/audio.js        Chiptune-Engine
 src/input.js        Tastatur / Gamepad / Touch
-src/levels.js       Alle fünfzehn Level + alle Dialoge
-src/entities.js     Physik, Gegner-KI, alle Bosse
-src/eat.js          Alle Szenen ohne Hüpfen: Essen, Kasse, Schlafen, Shisha
+src/abschnitte.js   Baukasten-Abschnitte für die langen Level
+src/levels.js       Alle zwanzig Level + alle Dialoge
+src/entities.js     Physik, Gegner-KI, die Bosse bis Level 15
+src/bosse.js        Der andere Alex (Riese) und Nils
+src/eat.js          Szenen ohne Hüpfen: Essen, Kasse, Schlafen, Shisha, Fressrausch
+src/fussball.js     Level 16: Fußball
+src/rennen.js       Level 18: Rennen
+src/doener.js       Level 20: Dönerbude
 src/online.js       Weltweite Bestenliste (aus, bis eingerichtet)
 src/game.js         Spielschleife, Kamera, Menüs, HUD
 ```
@@ -344,8 +470,14 @@ python -m http.server 8000
 - ob alle Sprites sauber gebacken wurden,
 - ob der Font jedes Zeichen aus allen Spieltexten kennt,
 - ob Startpunkte, Ziele, Gegner, Checkpoints und Schilder wirklich auf Boden stehen,
+- ob jedes Level **mit der echten Sprungphysik** durchspielbar ist: Von jeder
+  Stelle, an der Yusuf stehen kann, werden ein paar hundert Sprünge simuliert
+  (Richtung, Anlauf, Bauch-Boost, Sprungkissen). Geprüft wird, dass Ziel bzw.
+  Arena erreichbar sind, jeder Goldhonig erreichbar ist und es **keine
+  Sackgasse** gibt, aus der man nie wieder herauskommt,
 - und lässt zum Schluss einen Bot jedes Level durchlaufen, um zu sehen,
-  ob es überhaupt schaffbar ist.
+  ob es überhaupt schaffbar ist. Beim Rennen prüft er, dass man vorankommt,
+  in der Dönerbude, dass die Kalorien zusammenkommen.
 
 `qatest.html` prüft die Abläufe drumherum: ganzer Durchgang mit Speichern
 und WEITER, Namenseingabe (inklusive „Sprung-Taste schickt nicht versehentlich
@@ -357,8 +489,16 @@ Ansturm verschwinden am Rand), Level 12 (Rampe, Salto, schiefe Landung,
 Lennarts Auftritt samt Tod danach), die neuen Regeln (eingesammelter Honig
 bleibt weg, Puste für den Stampfer, nie drei gesunde Sachen auf dem Tisch,
 Alex' zweiter Alex macht keinen Schaden, Hummus klebt, HHC dreht das Bild),
-jede Boss-Verwandlung samt Tod mitten darin, Sprungangriffe mit Bodenwelle
-und einen Zufalls-Stresstest in allen Leveln. Er schickt nie etwas an die echte
+kein Honig-Farming (weder durch einen Tod vor dem ersten Checkpoint noch
+über Game Over → Nochmal), Goldhonig wird gezählt und gespeichert, Bestwerte
+gelten pro Level, nach einem Bosssieg gibt es keinen Schaden mehr, und nach
+„Hauptmenü“ springt kein alter Dialog mehr auf,
+jede Boss-Verwandlung samt Tod mitten darin (bei Hamza und Georgios pro Leben,
+und nach einem Tod geht es beim richtigen Leben weiter), Sprungangriffe mit
+Bodenwelle, Level 16 bis 20 (Schuss und Tor, nur Schwachstellen tun dem
+Riesen weh, Blitzer und Fässer, die Faust im Knast, Nils' Quiz und das
+Nachmachen, der Döner reißt), die acht Shisha-Züge, den ganzen Durchgang
+bis zur Bestenliste und einen Zufalls-Stresstest in allen Leveln. Er schickt nie etwas an die echte
 Bestenliste. Alle Testseiten sichern den Spielstand vorher und schreiben ihn
 danach zurück — auch wer sie versehentlich auf der echten Seite öffnet,
 verliert nichts.
@@ -383,7 +523,9 @@ direkt nach dem Bosssieg und viel zu viele Fragezeichen bei Mirkan.
 **Esat** — bester Kollege, letzter Endgegner, hat immer schon bestellt
 **Alex** — Platin-Trophäen, Schicht an Kasse 3
 **Hamza** — Shawarma, Hummus, linker Fuß
-**Georgios** — Taverne, Sixpack, sehr schnell
+**Georgios** — Taverne, Speer, sehr schnell, hat eine Oma
+**Der andere Alex** — groß, Krücken, Audi, bremst an jedem Blitzer
+**Nils** — Stirn, Wissen, es war alles schon in seinem Kopf
 **Broke** — schnell, Lederjacke, wartet vor der Tür
 **Mika** — alle Mikas
 
